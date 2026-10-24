@@ -41,6 +41,11 @@
   animation-delay: var(--d, 0ms);
 }
 
+/* A page arriving. Quick, so switching feels instant. */
+.fork-page {
+  animation: fork-fade 450ms ease-out both;
+}
+
 /* A branch draws itself from its fork month. The path sets pathLength="1". */
 @keyframes fork-draw {
   from {

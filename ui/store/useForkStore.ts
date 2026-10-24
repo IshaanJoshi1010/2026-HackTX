@@ -45,6 +45,7 @@ export { MONTH_MAX, clampMonth };
 export type Phase = "landing" | "reveal" | "workspace";
 export type StagePhase = "reveal" | "interactive" | "transition";
 export type ViewMode = "solid" | "wireframe" | "points";
+export type View = "car" | "future";
 export type Riders = "solo" | "partner" | "kids" | "mixed";
 
 export interface StageState {
@@ -68,12 +69,14 @@ export interface UiState {
   reducedMotion: boolean;
   lowPerformance: boolean;
   aiAvailable: boolean;
-  leftOpen: boolean;
-  rightOpen: boolean;
-  /** HUD shows the headline number only until this is on. Not saved; every session starts quiet. */
-  metricsExpanded: boolean;
-  /** Timeline shows every future (true) or only the active one (false). Not saved. */
-  timelineExpanded: boolean;
+  /** Which of the two pages is showing. Not saved: every session starts on the car. */
+  view: View;
+  /** The "Your details" sheet (profile, priorities, history, display). Not saved. */
+  detailsOpen: boolean;
+  /** Future page: show what each decision changed, and the supporting numbers. Off by default. Not saved. */
+  futureDetails: boolean;
+  /** Future page: draw every future on the road, not just the one you are looking at. Off by default. Not saved. */
+  futureCompare: boolean;
   busy: "idle" | "interpreting" | "simulating";
 }
 
@@ -86,6 +89,7 @@ export interface ForkActions {
   confirmDrafts(ids: string[]): void;
   editDraft(id: string, patch: Partial<LifeEvent>): void;
   rejectDraft(id: string): void;
+  addDraft(event: Omit<LifeEvent, "status" | "id"> & { id?: string }): void;
   answerQuestion(field: FieldKey, value: number | string | "unsure"): void;
   pickTradeoff(pick: TradeoffPick): void;
   openReplaceComparison(): Promise<void>;
@@ -99,9 +103,10 @@ export interface ForkActions {
   hydrate(): void;
   resetAll(): void;
   clearError(): void;
-  setPanel(side: "left" | "right", open: boolean): void;
-  setMetricsExpanded(on: boolean): void;
-  setTimelineExpanded(on: boolean): void;
+  setView(view: View): void;
+  setDetailsOpen(open: boolean): void;
+  setFutureDetails(on: boolean): void;
+  setFutureCompare(on: boolean): void;
   setLowPerformance(on: boolean): void;
   setReducedMotion(on: boolean): void;
   setViewMode(mode: ViewMode): void;
@@ -197,10 +202,10 @@ function initialData(): DataFields {
       reducedMotion: false,
       lowPerformance: DEFAULT_PREFS.lowPerformance,
       aiAvailable: true,
-      leftOpen: DEFAULT_PREFS.leftOpen,
-      rightOpen: DEFAULT_PREFS.rightOpen,
-      metricsExpanded: false,
-      timelineExpanded: true,
+      view: "car",
+      detailsOpen: false,
+      futureDetails: false,
+      futureCompare: false,
       busy: "idle",
     },
   };
@@ -218,9 +223,9 @@ const VIN_MESSAGE: Record<string, string> = {
 };
 
 export function scenarioName(events: LifeEvent[]): string {
-  const labels = events.map(eventTitle);
-  const unique = [...new Set(labels)];
-  return unique.length <= 3 ? unique.join(" + ") : `${unique.slice(0, 3).join(" + ")} + ${unique.length - 3} more`;
+  const titles = [...new Set(events.map(eventTitle))];
+  if (titles.length <= 1) return titles[0] ?? "New future";
+  return `${titles[0]} + ${titles.length - 1} more`;
 }
 
 /** Quick-pick answers for the "Who rides with you most?" chip. Counts for kids and mixed are estimates. */
@@ -281,6 +286,21 @@ function buildCtx(twin: VehicleTwin, replacement: VehicleConfig | null): SimCont
   if (replacement) vehicles[replacement.id] = replacement;
   const specs = Object.fromEntries(Object.keys(vehicles).map((id) => [id, data.getSpecs(id)]));
   return { vehicles, specs };
+}
+
+/**
+ * What the sim needs, as arguments: the twin (with the confirmed profile) and the
+ * vehicle and spec context. The road uses it to re-run a future without one decision.
+ */
+export function simulationInputs(
+  s: Pick<ForkState, "twin" | "explore" | "replacementVehicle">,
+): { twin: VehicleTwin; ctx: SimContext } | null {
+  if (!s.twin) return null;
+  try {
+    return { twin: simTwin(s), ctx: buildCtx(s.twin, s.replacementVehicle) };
+  } catch {
+    return null; // no spec sheet for a car: nothing to re-run
+  }
 }
 
 function simulateAll(
@@ -359,7 +379,7 @@ function toSession(s: ForkState): Session | null {
 }
 
 const toPersisted = (s: ForkState): Persisted => ({
-  prefs: { leftOpen: s.ui.leftOpen, rightOpen: s.ui.rightOpen, lowPerformance: s.ui.lowPerformance },
+  prefs: { lowPerformance: s.ui.lowPerformance },
   session: toSession(s),
 });
 
@@ -450,7 +470,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle" },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -471,6 +491,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
         explore: { ...s.explore, scenarios },
         results: { ...s.results, ...simulateAll(s, missing) },
         stage: { ...s.stage, phase: "interactive", transitionTo: null, revealStage: "done" },
+        ui: { ...s.ui, view: "car" },
       });
     } catch (e) {
       fail(e);
@@ -631,6 +652,17 @@ export const useForkStore = create<ForkState>()((set, get) => {
       set((s) => ({ explore: { ...s.explore, draftChanges: s.explore.draftChanges.filter((e) => e.id !== id) } }));
     },
 
+    addDraft(event) {
+      const proposal: LifeEvent = {
+        ...event,
+        id: event.id ?? `draft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        status: "proposed",
+      };
+      set((s) => ({
+        explore: { ...s.explore, draftChanges: [...s.explore.draftChanges, proposal] },
+      }));
+    },
+
     // ---- questions and priorities ----
     answerQuestion(field, value) {
       const s = get();
@@ -691,7 +723,8 @@ export const useForkStore = create<ForkState>()((set, get) => {
           evaluation: evaluateComparison(next),
           breakEven: null,
           question: nextQuestion(next),
-          ui: { ...get().ui, busy: "idle" },
+          // You asked to compare, so the other futures appear on the road.
+          ui: { ...get().ui, busy: "idle", futureCompare: true },
         });
       } catch (e) {
         fail(e);
@@ -808,16 +841,25 @@ export const useForkStore = create<ForkState>()((set, get) => {
       set({ error: null });
     },
 
-    setPanel(side, open) {
-      set((s) => ({ ui: { ...s.ui, [side === "left" ? "leftOpen" : "rightOpen"]: open } }));
+    setView(view) {
+      set((s) => {
+        if (view === "future" && s.phase !== "workspace") return s; // nothing to look ahead at yet
+        // The future page opens on the five year picture, not on a month with nothing in it.
+        const activeMonth = view === "future" && s.activeMonth === 0 ? MONTH_MAX : s.activeMonth;
+        return { activeMonth, ui: { ...s.ui, view, detailsOpen: false } };
+      });
     },
 
-    setTimelineExpanded(on) {
-      set((s) => ({ ui: { ...s.ui, timelineExpanded: on } }));
+    setDetailsOpen(open) {
+      set((s) => ({ ui: { ...s.ui, detailsOpen: open } }));
     },
 
-    setMetricsExpanded(on) {
-      set((s) => ({ ui: { ...s.ui, metricsExpanded: on } }));
+    setFutureDetails(on) {
+      set((s) => ({ ui: { ...s.ui, futureDetails: on } }));
+    },
+
+    setFutureCompare(on) {
+      set((s) => ({ ui: { ...s.ui, futureCompare: on } }));
     },
 
     setLowPerformance(on) {
@@ -880,7 +922,7 @@ function vinReason(reason: string): string {
 }
 
 function pickPrefs(ui: UiState) {
-  return { leftOpen: ui.leftOpen, rightOpen: ui.rightOpen, lowPerformance: ui.lowPerformance };
+  return { lowPerformance: ui.lowPerformance };
 }
 
 /** Test helper: back to a fresh, hydrated store. */

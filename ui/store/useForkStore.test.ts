@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifeEvent } from "@/contracts";
 import { ai, data } from "@/ui/mocks";
-import { BASE_ID, resetForkStoreForTests, useForkStore } from "./useForkStore";
+import { BASE_ID, resetForkStoreForTests, simulationInputs, useForkStore } from "./useForkStore";
 
 const CAMRY = "camry-2022-se";
 const RAV4 = "rav4-2024-hybrid-xle";
@@ -191,7 +191,7 @@ describe("dump and confirm", () => {
     const child = scenarios[1];
     expect(child.parentId).toBe(BASE_ID);
     expect(child.forkMonth).toBe(12);
-    expect(child.name).toBe("Move to Denver + Driving change");
+    expect(child.name).toBe("Move to Denver + 1 more");
     expect(child.events.every((e) => e.status === "confirmed")).toBe(true);
     expect(state().results[child.id].points).toHaveLength(61);
     expect(state().activeScenarioId).toBe(child.id);
@@ -423,22 +423,21 @@ describe("stage and ui", () => {
     expect(state().phase).toBe("workspace");
   });
 
-  it("start over returns to landing but keeps panel and performance preferences", async () => {
+  it("start over returns to landing but keeps the performance preference", async () => {
     await enterWorkspace();
-    actions().setPanel("left", true);
     actions().setLowPerformance(true);
-    actions().setMetricsExpanded(true);
+    actions().setView("future");
+    actions().setDetailsOpen(true);
     actions().resetAll();
     expect(state().phase).toBe("landing");
     expect(state().twin).toBeNull();
-    expect(state().ui.leftOpen).toBe(true);
     expect(state().ui.lowPerformance).toBe(true);
-    // detail is never carried over: every session starts quiet
-    expect(state().ui.metricsExpanded).toBe(false);
+    // the page and the sheet are never carried over: every session starts quiet
+    expect(state().ui).toMatchObject({ view: "car", detailsOpen: false });
   });
 
-  it("starts with both panels closed and the HUD collapsed", () => {
-    expect(state().ui).toMatchObject({ leftOpen: false, rightOpen: false, metricsExpanded: false });
+  it("starts on the car page with the details sheet closed", () => {
+    expect(state().ui).toMatchObject({ view: "car", detailsOpen: false });
   });
 
   it("switching the sample car restarts cleanly from the new car", async () => {
@@ -449,5 +448,103 @@ describe("stage and ui", () => {
     expect(state().phase).toBe("reveal");
     expect(state().activeMonth).toBe(0);
     expect(state().explore.scenarios).toEqual([]);
+  });
+});
+
+describe("pages", () => {
+  it("the future page opens on the five year picture when the playhead is at now", async () => {
+    await enterWorkspace();
+    expect(state().activeMonth).toBe(0);
+    actions().setView("future");
+    expect(state().ui.view).toBe("future");
+    expect(state().activeMonth).toBe(60);
+  });
+
+  it("the future page keeps a month you already chose", async () => {
+    await enterWorkspace();
+    actions().setActiveMonth(18);
+    actions().setView("future");
+    expect(state().activeMonth).toBe(18);
+    actions().setView("car");
+    expect(state().ui.view).toBe("car");
+    expect(state().activeMonth).toBe(18);
+  });
+
+  it("there is no future page before the reveal ends", async () => {
+    await actions().startFromSample(CAMRY);
+    actions().setView("future");
+    expect(state().ui.view).toBe("car");
+    expect(state().activeMonth).toBe(0);
+  });
+
+  it("switching pages closes the details sheet", async () => {
+    await enterWorkspace();
+    actions().setDetailsOpen(true);
+    actions().setView("future");
+    expect(state().ui.detailsOpen).toBe(false);
+  });
+
+  it("finishing the reveal always lands on the car page", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    actions().replayReveal();
+    actions().onRevealStage("done");
+    expect(state().ui.view).toBe("car");
+  });
+
+  it("picking another sample car goes back to the car page", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    await actions().startFromSample(RAV4);
+    expect(state().ui).toMatchObject({ view: "car", detailsOpen: false });
+  });
+});
+
+describe("future page options", () => {
+  it("start off: the road is minimal until you ask for more", () => {
+    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: false });
+  });
+
+  it("details and other futures are independent switches", async () => {
+    await enterWorkspace();
+    actions().setFutureDetails(true);
+    expect(state().ui).toMatchObject({ futureDetails: true, futureCompare: false });
+    actions().setFutureCompare(true);
+    actions().setFutureDetails(false);
+    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: true });
+  });
+
+  it("asking to compare with another car turns the other futures on", async () => {
+    await enterWorkspace();
+    expect(state().ui.futureCompare).toBe(false);
+    await actions().openReplaceComparison();
+    expect(state().ui.futureCompare).toBe(true);
+  });
+
+  it("every new session starts minimal again", async () => {
+    await enterWorkspace();
+    actions().setFutureDetails(true);
+    actions().setFutureCompare(true);
+    await actions().startFromSample(RAV4);
+    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: false });
+    actions().setFutureDetails(true);
+    actions().resetAll();
+    expect(state().ui.futureDetails).toBe(false);
+  });
+
+  it("gives the road what it needs to re-run a future, as arguments", async () => {
+    await enterWorkspace();
+    const inputs = simulationInputs(state());
+    expect(inputs?.twin.vehicle.id).toBe(CAMRY);
+    expect(Object.keys(inputs!.ctx.specs)).toEqual([CAMRY]);
+    await actions().openReplaceComparison();
+    expect(Object.keys(simulationInputs(state())!.ctx.specs).sort()).toEqual([CAMRY, RAV4].sort());
+    // it uses the confirmed profile, not the original twin's
+    actions().answerQuestion("annualMiles", 24000);
+    expect(simulationInputs(state())!.twin.driver.annualMiles).toBe(24000);
+  });
+
+  it("has no inputs before there is a car", () => {
+    expect(simulationInputs(state())).toBeNull();
   });
 });

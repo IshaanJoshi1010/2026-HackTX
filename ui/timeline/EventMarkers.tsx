@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from "react";
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
   Car,
   Fuel,
@@ -16,9 +16,9 @@ import type { EventType, LifeEvent } from "@/contracts";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/ui/profile/format";
 import { eventTitle } from "@/ui/store/eventLabels";
-import { clampMonth, laneCenterY, monthToPct, xToMonth, type Lane, type Milestone } from "./layout";
+import { clampMonth, xToMonth, type Milestone } from "./layout";
 
-const ICON: Record<EventType, LucideIcon> = {
+export const EVENT_ICON: Record<EventType, LucideIcon> = {
   relocation: MapPin,
   mileage_change: Gauge,
   family_change: Users,
@@ -38,26 +38,32 @@ const CERTAINTY: Record<LifeEvent["certainty"], string> = {
 /** Pointer movement under this many px counts as a click, not a drag. */
 const DRAG_THRESHOLD = 4;
 
+export interface AxisRect {
+  left: number;
+  width: number;
+}
+
 export interface MarkerProps {
   event: LifeEvent;
   scenarioId: string;
-  row: number;
-  active: boolean;
-  /** An event inherited from before this future's fork. It can be seen but only moved on the future that owns it. */
+  /** Pixel position of the signpost's center, in the road's own coordinates. */
+  x: number;
+  y: number;
+  /** A decision inherited from before this future branched. It can be seen but only moved on the future that owns it. */
   locked?: boolean;
-  /** Pixels to nudge sideways so events in the same month do not overlap. Ignored while dragging. */
-  offsetPx?: number;
-  axisRef: RefObject<HTMLElement | null>;
+  /** Where the road is on screen, for turning a drag into a month. */
+  getAxis(): AxisRect | null;
   onMove(scenarioId: string, eventId: string, month: number): void;
-  onSelect(scenarioId: string, month: number): void;
+  onSelect(month: number): void;
 }
 
 /**
- * One life event on a lane. Drag it to a new month, or focus it and use the
- * arrow keys (Shift moves by six months). Click to jump the playhead to it.
+ * One decision, as a signpost on the road. Drag it to a new month, or focus it and
+ * use the arrow keys (Shift moves by six months). Click it to put the playhead there.
  */
-export function Marker({ event, scenarioId, row, active, locked = false, offsetPx = 0, axisRef, onMove, onSelect }: MarkerProps) {
-  const Icon = ICON[event.type];
+export function Marker({ event, scenarioId, x, y, locked = false, getAxis, onMove, onSelect }: MarkerProps) {
+  const Icon = EVENT_ICON[event.type];
+  const [dragX, setDragX] = useState<number | null>(null);
   const [dragMonth, setDragMonth] = useState<number | null>(null);
   const start = useRef<{ x: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
@@ -72,11 +78,13 @@ export function Marker({ event, scenarioId, row, active, locked = false, offsetP
 
   const onPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
     const s = start.current;
-    const axis = axisRef.current;
+    const axis = getAxis();
     if (!s || !axis) return;
     if (!s.moved && Math.abs(e.clientX - s.x) < DRAG_THRESHOLD) return;
     s.moved = true;
-    setDragMonth(xToMonth(e.clientX, axis.getBoundingClientRect()));
+    const m = xToMonth(e.clientX, axis);
+    setDragMonth(m);
+    setDragX((m / 60) * axis.width);
   };
 
   const finish = (e: PointerEvent<HTMLButtonElement>) => {
@@ -88,11 +96,13 @@ export function Marker({ event, scenarioId, row, active, locked = false, offsetP
       if (dragMonth !== null && dragMonth !== event.month) onMove(scenarioId, event.id, dragMonth);
     }
     setDragMonth(null);
+    setDragX(null);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (locked) return;
     const step = e.shiftKey ? 6 : 1;
-    if (!locked && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
       const next = clampMonth(event.month + (e.key === "ArrowRight" ? step : -step));
       if (next !== event.month) onMove(scenarioId, event.id, next);
@@ -102,16 +112,14 @@ export function Marker({ event, scenarioId, row, active, locked = false, offsetP
   return (
     <div
       className="group absolute z-20 -translate-x-1/2 -translate-y-1/2"
-      style={{
-        left: dragMonth !== null ? `${monthToPct(month)}%` : `calc(${monthToPct(month)}% + ${offsetPx}px)`,
-        top: laneCenterY(row),
-      }}
+      style={{ left: dragX ?? x, top: y }}
     >
       <button
         type="button"
         data-testid="event-marker"
         data-event-id={event.id}
-        aria-label={`${title}, month ${event.month}.${locked ? " Inherited, so it cannot be moved here." : " Arrow keys move it."}`}
+        data-locked={locked}
+        aria-label={`${title}, month ${event.month}.${locked ? " From an earlier future, so it cannot be moved here." : " Arrow keys move it."}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finish}
@@ -122,24 +130,23 @@ export function Marker({ event, scenarioId, row, active, locked = false, offsetP
             suppressClick.current = false;
             return;
           }
-          onSelect(scenarioId, event.month);
+          onSelect(event.month);
         }}
         className={cn(
-          "flex size-7 touch-none items-center justify-center rounded-full transition-transform duration-150",
-          "hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          "flex size-10 touch-none items-center justify-center rounded-full bg-canvas text-ink ring-2 ring-ink transition-transform duration-150",
+          "hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
           locked ? "cursor-pointer" : dragMonth !== null ? "scale-110 cursor-grabbing" : "cursor-grab",
-          active ? "bg-ink text-canvas" : "bg-canvas text-ink ring-1 ring-ink/50",
-          // a rough guess gets a dashed outline, so it reads as less certain
-          event.certainty === "vague" && "outline-1 outline-offset-2 outline-dashed outline-ink/60",
+          // a rough guess gets a thinner ring, so it reads as less certain
+          event.certainty === "vague" && "ring-1",
         )}
       >
-        <Icon className="size-3.5" />
+        <Icon className="size-[18px]" />
       </button>
 
       <div
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-[240px] -translate-x-1/2 rounded-md bg-ink px-3 py-2 text-xs text-canvas shadow-lg",
+          "pointer-events-none absolute bottom-full left-1/2 mb-3 w-max max-w-[260px] -translate-x-1/2 rounded-md bg-ink px-3 py-2 text-sm text-canvas shadow-lg",
           "opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100",
           dragMonth !== null && "opacity-100",
         )}
@@ -150,37 +157,28 @@ export function Marker({ event, scenarioId, row, active, locked = false, offsetP
           {dragMonth !== null && dragMonth !== event.month ? ", release to move" : ""}
         </p>
         {event.quote && <p className="mt-1 text-canvas/80 italic">&ldquo;{event.quote}&rdquo;</p>}
-        <p className="mt-1 text-canvas/50">
-          {locked ? "From an earlier future. Move it there." : CERTAINTY[event.certainty]}
-        </p>
+        <p className="mt-1 text-canvas/50">{locked ? "From an earlier future. Move it there." : CERTAINTY[event.certainty]}</p>
       </div>
     </div>
   );
 }
 
-export interface MilestoneTicksProps {
-  lane: Lane;
-  milestones: Milestone[];
+export interface MilestoneTickProps {
+  milestone: Milestone;
+  x: number;
+  y: number;
 }
 
-/** Small hollow diamonds on a lane for things the projection says will happen. */
-export function MilestoneTicks({ lane, milestones }: MilestoneTicksProps) {
+/** A small hollow diamond on the road for something the projection says will happen. */
+export function MilestoneTick({ milestone, x, y }: MilestoneTickProps) {
   return (
-    <>
-      {milestones
-        .filter((m) => lane.parentRow === null || m.month >= lane.startMonth)
-        .map((m) => (
-          <span
-            key={`${m.month}-${m.text}`}
-            data-testid="milestone"
-            role="img"
-            aria-label={`Month ${m.month}: ${m.text}`}
-            title={`${monthLabel(m.month)}: ${m.text}`}
-            className="absolute z-[4] size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-ink/70 bg-canvas"
-            style={{ left: `${monthToPct(m.month)}%`, top: laneCenterY(lane.row) }}
-          />
-        ))}
-    </>
+    <span
+      data-testid="milestone"
+      role="img"
+      aria-label={`Month ${milestone.month}: ${milestone.text}`}
+      title={`${monthLabel(milestone.month)}: ${milestone.text}`}
+      className="absolute z-[4] size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 border-canvas bg-ink"
+      style={{ left: x, top: y }}
+    />
   );
 }
-

@@ -23,11 +23,11 @@ Own everything the user touches outside the 3D canvas, plus the store that conne
 /ui/theme/tokens.css
 /ui/landing/VinEntry.tsx, SampleCarPicker.tsx, ModelYearPicker.tsx
 /ui/reveal/RevealOverlay.tsx     identity text, "Who rides with you most?" chips, specs, Skip, Replay
-/ui/shell/Workspace.tsx, PanelLeft.tsx, PanelRight.tsx, BottomDock.tsx
+/ui/shell/Workspace.tsx, CarView.tsx, FutureView.tsx, FutureDetails.tsx, ViewSwitch.tsx, DetailsSheet.tsx, AppHeader.tsx
 /ui/profile/ProfileConfirmCard.tsx, LiveProfileCard.tsx, SourceBadge.tsx, ConfidenceMeter.tsx
 /ui/command/CommandBox.tsx, StarterChips.tsx, VoiceButton.tsx, ConfirmProposalCard.tsx,
   InlineQuestionCard.tsx, FinanceChips.tsx, TradeoffCards.tsx, WeightsEditor.tsx, ManualEventForm.tsx
-/ui/timeline/FutureTimeline.tsx, ScenarioNode.tsx, Scrubber.tsx, EventMarkers.tsx
+/ui/timeline/Road.tsx, EventMarkers.tsx, roadMath.ts, effects.ts, layout.ts (the last three are pure)
 /ui/compare/ComparisonView.tsx, MetricRow.tsx, RangeBar.tsx, RecommendationCard.tsx,
   NextActionCard.tsx, AssumptionsEditor.tsx, BreakEvenViz.tsx, CostCurves.tsx
 /ui/mocks/index.ts               one switch per module: USE_MOCKS
@@ -91,7 +91,7 @@ You pass data between modules: pass `getSpecs` output and `VehicleConfig` into D
 - Never show a probability or confidence percentage. Robustness reads "held in X of Y tested cases."
 - Vague proposal rows pulse and ask for a number. Inferred rows say "confirm."
 - Source labels come from the data, never hardcoded in the component.
-- Layout: the car fills the screen. The command box sits directly under it. The left panel (car details, history, profile card) and right panel (insights, assumptions, recommendation) are frosted cards that float over the stage and open from small edge buttons; they start closed. The bottom is the branching timeline. Information arrives in layers: the car and its name, then the timeline, then one headline number, then detail on request. Never show the same number twice (the HUD hides its extra numbers while Insights is open).
+- Layout: two pages and nothing else. **Car** (the default): the car, its name, one command bar, and a Car | Future switch at the bottom. No panels, no numbers, no timeline. **Future** is your road: one headline number, one big road, and three quiet text options (Details, Other futures, Compare with a car). The road is the future you are looking at. The straight line is "if nothing changes"; the road bends away from it by how much your decisions changed your net cost (down costs more, up saves money). Each decision is a draggable signpost. The effect ("+$3,763 vs. if nothing changes") is read at the playhead. Other futures only appear on the same road when asked for. Details (what each decision changed, plus the four supporting numbers) only when asked for. Never go back to stacked lanes: separate rows say nothing about what decisions did. The command bar and the switch float on both pages. Everything else (profile, finance, priorities, history, display options, switch car, start over) lives in one "Your details" sheet opened from one header icon. Confirming "Branch timeline" jumps to the Future page. The 3D stage stays mounted on both pages and only fades out behind the road. Never add side panels or HUD numbers to the Car page. Never show the same number twice.
 - Style: black and white only; every gray is white at some opacity. No neon, no glow, no grid, no colored accents. Clean sentence-case type, big light numerals, round icon buttons, solid white primary buttons, like a dark car-maker product page. The one accent is `--fork-accent` in `tokens.css` and it is white today. Source labels differ by shape (dot, hollow dot, dotted dot, square, diamond), and a missing source is an inverted white chip. Casual short copy, no em dashes.
 
 ## Tasks
@@ -99,8 +99,8 @@ You pass data between modules: pass `getSpecs` output and `VehicleConfig` into D
 - **B0 Scaffold (hour 0 to 1).** Next.js App Router, TypeScript, Tailwind, shadcn/ui. Folders, copy all `CLAUDE.md` files, add `/contracts` placeholder, `npm test` script, `/docs/HANDOFF.md`.
 - **B1 Shell and store (hour 1 to 4).** Theme, layout zones, collapsible panels, store with mocks, `CarStageStub` in place, `SourceBadge`, reduced-motion and low-performance flags.
 - **B2 Entry and reveal (hour 4 to 8).** Landing, VIN entry with inline validation, sample picker, model and year picker, reveal overlay with the rider chips, profile confirm card, left panel. Gate 1.
-- **B3 Timeline (hour 8 to 11).** Built early as a custom SVG timeline (no React Flow): one lane per real `Scenario`, branches leave the parent at the fork month, playhead crosses every lane with each future's net cost, draggable event markers, milestone ticks, focus mode. Still to do: edit and delete event controls, the break-even overlay.
-- **B4 Command box (hour 8 to 13).** Starter chips, voice, live profile card with quoted phrases and certainty styling, confirm flow, inline questions, tradeoff cards, weights editor, manual forms. Gate 2.
+- **B3 Timeline (hour 8 to 11).** Built early as "the road" (custom SVG, no React Flow): `ui/timeline/Road.tsx` draws the active future as its net cost drift from the baseline (`roadMath.ts`, pure and tested), signposts for every decision (drag or arrow keys, inherited ones read-only), milestone marks, playhead readout, other futures on request. `effects.ts` re-runs a future without each decision to say what it changed (Details). Still to do: edit and delete controls on signposts, the break-even overlay.
+- **B4 Command box (hour 8 to 13).** One command bar (voice, manual entry behind a plus), one suggestion that seeds the box without submitting, offline fallback that only extracts what the user wrote (`command/extract.ts`, to move into Dev 3's interpret), live profile card with quoted phrases and certainty styling, confirm flow, inline questions, tradeoff cards, weights editor, manual forms. Gate 2.
 - **B5 Comparison (hour 13 to 18).** Keep vs replace, three separate cost views, range display, recommendation and next action cards, assumptions editor, `BreakEvenViz`, cost curves. Gate 3.
 - **B6 Integration swap (hour 15 to 20).** Replace each mock with the real module as handoffs land, one `USE_MOCKS` flag at a time, run the demo after each.
 - **B7 Polish (hour 18 to 21).** Empty, loading, and error states, layout checks at 1280x720, 1440x900, 1920x1080, 1024x768, `DEMO_SCRIPT.md`.

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { Landing } from "@/ui/landing/Landing";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { AppHeader } from "./AppHeader";
-import { LandingPlaceholder } from "./B1Placeholders";
 import { MockBanner } from "./MockBanner";
 import { usePreferences } from "./usePreferences";
 import { Workspace } from "./Workspace";
@@ -32,7 +32,7 @@ export function ForkApp() {
           <p className="text-sm text-ink/40">Loading</p>
         </main>
       ) : phase === "landing" ? (
-        <LandingPlaceholder />
+        <Landing />
       ) : (
         <Workspace />
       )}

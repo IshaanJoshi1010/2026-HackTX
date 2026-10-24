@@ -1,46 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { CommandBox } from "@/ui/command/CommandBox";
 import { car } from "@/ui/mocks";
+import { RevealOverlay } from "@/ui/reveal/RevealOverlay";
 import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
-import { BottomDock } from "./BottomDock";
-import { Hud } from "./Hud";
+import { CarView } from "./CarView";
+import { DetailsSheet } from "./DetailsSheet";
+import { FutureView } from "./FutureView";
 import { Identity } from "./Identity";
-import { PANEL_INSET } from "./Panel";
-import { PanelLeft } from "./PanelLeft";
-import { PanelRight } from "./PanelRight";
 import { StageBackdrop } from "./StageBackdrop";
-import { StageControls } from "./StageControls";
+import { useElementHeight } from "./useElementHeight";
+import { ViewSwitch } from "./ViewSwitch";
+
+/** Room under the car for the command bar and the page switch, so the car sits above them. */
+const STAGE_BOTTOM = 176;
 
 /**
- * Reveal and workspace share this tree on purpose: CarStage stays mounted from
- * the first particle to the last panel, so the 3D scene is never rebuilt.
- *
- * The car fills the screen. Everything else is layered on top and arrives in
- * order: name, timeline, hint, then the edge buttons for the side panels.
+ * Two pages share one stage. The CarStage stays mounted the whole time (the 3D
+ * scene is never rebuilt); on the Future page it simply fades out behind the
+ * timeline. The command bar and the page switch float on both pages.
  * (The 3D canvas should have a transparent background so the floor shows.)
  */
 export function Workspace() {
   const phase = useForkStore((s) => s.phase);
+  const view = useForkStore((s) => s.ui.view);
   const vehicle = useForkStore(selectActiveVehicle);
   const stage = useForkStore((s) => s.stage);
   const quality = useForkStore((s) => (s.ui.lowPerformance ? "low" : "high"));
   const reducedMotion = useForkStore((s) => s.ui.reducedMotion);
-  const leftOpen = useForkStore((s) => s.ui.leftOpen);
-  const rightOpen = useForkStore((s) => s.ui.rightOpen);
   const { onRevealStage, onTransitionComplete, onModelStatus } = useForkStore((s) => s.actions);
-  // Height of the timeline dock. Panels and controls stop above it.
-  const [dockHeight, setDockHeight] = useState(136);
+  // The bottom bar grows when a proposal or a question appears. The future page ends above it.
+  const [barRef, barHeight] = useElementHeight<HTMLDivElement>(150);
 
   if (!vehicle) return null;
   const { CarStage } = car;
   const revealing = phase === "reveal";
+  const carVisible = revealing || view === "car";
 
   return (
-    <div className="absolute inset-0 overflow-hidden" style={{ "--dock-h": `${dockHeight}px` } as React.CSSProperties}>
-      {/* The stage ends where the timeline begins, so the car re-frames above it as it grows. */}
-      <div className="absolute inset-x-0 top-0" style={{ bottom: dockHeight }}>
+    <div className="absolute inset-0 overflow-hidden">
+      <div
+        data-testid="stage-wrap"
+        data-visible={carVisible}
+        aria-hidden={!carVisible}
+        style={{ bottom: STAGE_BOTTOM }}
+        className={cn("absolute inset-x-0 top-0 transition-opacity duration-500", carVisible ? "opacity-100" : "pointer-events-none opacity-0")}
+      >
         <StageBackdrop />
         <div className="absolute inset-0 z-[1]" data-testid="stage">
           <CarStage
@@ -60,25 +67,19 @@ export function Workspace() {
         </div>
       </div>
 
-      <Identity />
-      <StageControls />
-
-      {!revealing && (
+      {revealing ? (
         <>
-          <PanelLeft />
-          <PanelRight />
-          <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col">
-            {/* The HUD keeps clear of open panels and re-flows its numbers in the space left. */}
-            <div
-              className="@container transition-[padding] duration-500 ease-out"
-              style={{ paddingLeft: leftOpen ? PANEL_INSET : 0, paddingRight: rightOpen ? PANEL_INSET : 0 }}
-            >
-              <Hud />
-            </div>
-            {/* The command box lands here in B4. Not a control yet, so nothing is drawn. */}
-            <div data-slot="command-box" className="mx-auto w-[min(720px,90%)]" />
-            <BottomDock onHeight={setDockHeight} />
+          <Identity />
+          <RevealOverlay />
+        </>
+      ) : (
+        <>
+          {view === "car" ? <CarView /> : <FutureView bottomInset={barHeight} />}
+          <div ref={barRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-4 px-4 pb-5">
+            <CommandBox />
+            <ViewSwitch />
           </div>
+          <DetailsSheet />
         </>
       )}
     </div>

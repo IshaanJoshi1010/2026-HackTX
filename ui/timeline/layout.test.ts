@@ -1,27 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LifeEvent, ProjectionPoint, Scenario, SimulationResult } from "@/contracts";
-import {
-  YEAR_TICKS,
-  buildLanes,
-  fanOffsets,
-  laneEvents,
-  lanePath,
-  milestonesOf,
-  monthToPct,
-  pointAt,
-  usdCompact,
-  xToMonth,
-  yearLabel,
-} from "./layout";
-
-const sc = (id: string, parentId: string | null, forkMonth: number, events: LifeEvent[] = []): Scenario => ({
-  id,
-  parentId,
-  forkMonth,
-  name: id.toUpperCase(),
-  events,
-  assumptions: {},
-});
+import { YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, milestonesOf, monthToPct, pointAt, xToMonth, yearLabel } from "./layout";
 
 const ev = (id: string, month: number, status: LifeEvent["status"] = "confirmed"): LifeEvent => ({
   id,
@@ -34,10 +13,14 @@ const ev = (id: string, month: number, status: LifeEvent["status"] = "confirmed"
   status,
 });
 
-const base = sc("base", null, 0);
-const denver = sc("denver", "base", 12, [ev("move", 12)]);
-const rav4 = sc("rav4", "denver", 12, [ev("move", 12), ev("swap", 12)]);
-const all = [base, denver, rav4];
+const sc = (id: string, events: LifeEvent[], parentId: string | null = null): Scenario => ({
+  id,
+  parentId,
+  forkMonth: 0,
+  name: id,
+  events,
+  assumptions: {},
+});
 
 describe("axis math", () => {
   it("maps months to percentages and back", () => {
@@ -61,62 +44,32 @@ describe("axis math", () => {
   });
 });
 
-describe("buildLanes", () => {
-  it("makes one lane per scenario, with parents first and fork months kept", () => {
-    const lanes = buildLanes(all, "denver", true);
-    expect(lanes.map((l) => [l.id, l.row, l.parentRow, l.startMonth, l.active])).toEqual([
-      ["base", 0, null, 0, false],
-      ["denver", 1, 0, 12, true],
-      ["rav4", 2, 1, 12, false],
-    ]);
+describe("decisionsOf", () => {
+  it("lists confirmed decisions in the order they happen", () => {
+    const s = sc("s", [ev("late", 30), ev("early", 6), ev("mid", 12)]);
+    expect(decisionsOf(s).map((e) => e.id)).toEqual(["early", "mid", "late"]);
   });
 
-  it("every lane is a real scenario", () => {
-    const ids = new Set(all.map((s) => s.id));
-    expect(buildLanes(all, "base", true).every((l) => ids.has(l.id))).toBe(true);
+  it("keeps the written order for decisions in the same month", () => {
+    expect(decisionsOf(sc("s", [ev("a", 12), ev("b", 12), ev("c", 12)])).map((e) => e.id)).toEqual(["a", "b", "c"]);
   });
 
-  it("focus mode shows only the active scenario as a full line", () => {
-    const lanes = buildLanes(all, "rav4", false);
-    expect(lanes).toHaveLength(1);
-    expect(lanes[0]).toMatchObject({ id: "rav4", row: 0, parentRow: null, startMonth: 0, active: true });
+  it("never includes a proposal or an invalid decision", () => {
+    const s = sc("s", [ev("p", 3, "proposed"), ev("i", 4, "invalid"), ev("c", 5)]);
+    expect(decisionsOf(s).map((e) => e.id)).toEqual(["c"]);
   });
 
-  it("falls back to the first scenario when the active id is unknown", () => {
-    expect(buildLanes(all, "ghost", false)[0].id).toBe("base");
-  });
-
-  it("treats an unknown parent as no parent instead of crashing", () => {
-    const orphan = sc("orphan", "missing", 20);
-    expect(buildLanes([base, orphan], "orphan", true)[1]).toMatchObject({ parentRow: null, startMonth: 0 });
-  });
-
-  it("handles no scenarios", () => {
-    expect(buildLanes([], "base", true)).toEqual([]);
-    expect(buildLanes([], "base", false)).toEqual([]);
-  });
-
-  it("keeps four or more branches on separate rows", () => {
-    const many = [base, sc("a", "base", 6), sc("b", "base", 12), sc("c", "a", 18), sc("d", "b", 24)];
-    const rows = buildLanes(many, "d", true).map((l) => l.row);
-    expect(new Set(rows).size).toBe(5);
+  it("does not change the scenario", () => {
+    const s = sc("s", [ev("b", 9), ev("a", 3)]);
+    decisionsOf(s);
+    expect(s.events.map((e) => e.id)).toEqual(["b", "a"]);
   });
 });
 
-describe("laneEvents", () => {
-  it("shows an event once: on the lane where it was added, not on its children", () => {
-    expect(laneEvents(base, undefined)).toEqual([]);
-    expect(laneEvents(denver, base).map((e) => e.id)).toEqual(["move"]);
-    expect(laneEvents(rav4, denver).map((e) => e.id)).toEqual(["swap"]);
-  });
-
-  it("never shows a proposal or an invalid event", () => {
-    const s = sc("s", "base", 3, [ev("p", 3, "proposed"), ev("i", 4, "invalid"), ev("c", 5)]);
-    expect(laneEvents(s, base).map((e) => e.id)).toEqual(["c"]);
-  });
-
-  it("with no parent drawn, shows the whole history", () => {
-    expect(laneEvents(rav4, undefined).map((e) => e.id)).toEqual(["move", "swap"]);
+describe("inheritedIds", () => {
+  it("is the parent's decisions, and empty with no parent", () => {
+    expect([...inheritedIds(sc("p", [ev("x", 1), ev("y", 2)]))]).toEqual(["x", "y"]);
+    expect(inheritedIds(undefined).size).toBe(0);
   });
 });
 
@@ -162,63 +115,26 @@ describe("milestonesOf and pointAt", () => {
   });
 });
 
-describe("lanePath", () => {
-  it("is a straight line for a lane with no parent", () => {
-    const [lane] = buildLanes([base], "base", true);
-    expect(lanePath(lane, 600)).toBe("M 0 22 L 600 22");
-  });
-
-  it("branches off the parent line at the fork month, then runs to month 60", () => {
-    const lanes = buildLanes(all, "denver", true);
-    const d = lanePath(lanes[1], 600); // fork at month 12 = x 120, parent row 0 (y 22), own row 1 (y 66)
-    expect(d.startsWith("M 120 22 C")).toBe(true);
-    expect(d.endsWith("L 600 66")).toBe(true);
-  });
-
-  it("never runs past month 60 when forked late", () => {
-    const late = sc("late", "base", 60);
-    const lane = buildLanes([base, late], "late", true)[1];
-    const d = lanePath(lane, 600);
-    expect(d).toMatch(/^M 600 22 C/);
-    expect(d.endsWith("L 600 66")).toBe(true);
-  });
-});
-
-describe("usdCompact", () => {
-  it.each([
-    [0, "$0"],
-    [840, "$840"],
-    [1250, "$1.3k"],
-    [13315, "$13k"],
-    [250000, "$250k"],
-    [1_400_000, "$1.4M"],
-    [-2500, "-$2.5k"],
-  ])("%d -> %s", (n, text) => {
-    expect(usdCompact(n)).toBe(text);
-  });
-});
-
 describe("fanOffsets", () => {
-  it("leaves a lone event where it is", () => {
+  it("leaves a lone decision where it is", () => {
     expect(fanOffsets([{ id: "a", month: 12 }]).get("a")).toBe(0);
   });
 
-  it("spreads events in the same month side by side, centered on the month", () => {
-    const offs = fanOffsets([{ id: "a", month: 12 }, { id: "b", month: 12 }]);
-    expect(offs.get("a")).toBe(-13);
-    expect(offs.get("b")).toBe(13);
+  it("spreads decisions in the same month side by side, centered on the month", () => {
+    const two = fanOffsets([{ id: "a", month: 12 }, { id: "b", month: 12 }]);
+    expect([two.get("a"), two.get("b")]).toEqual([-20, 20]);
     const three = fanOffsets([{ id: "a", month: 5 }, { id: "b", month: 5 }, { id: "c", month: 5 }]);
-    expect([three.get("a"), three.get("b"), three.get("c")]).toEqual([-26, 0, 26]);
+    expect([three.get("a"), three.get("b"), three.get("c")]).toEqual([-40, 0, 40]);
   });
 
-  it("does not spread events in different months", () => {
+  it("does not spread decisions in different months", () => {
     const offs = fanOffsets([{ id: "a", month: 12 }, { id: "b", month: 13 }, { id: "c", month: 12 }]);
     expect(offs.get("b")).toBe(0);
-    expect(offs.get("a")).toBe(-13);
-    expect(offs.get("c")).toBe(13);
+    expect(offs.get("a")).toBe(-20);
+    expect(offs.get("c")).toBe(20);
   });
 
-  it("handles no events", () => {
+  it("handles no decisions", () => {
     expect(fanOffsets([]).size).toBe(0);
   });
 });

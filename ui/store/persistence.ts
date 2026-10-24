@@ -21,9 +21,8 @@ import { mockFingerprint } from "@/ui/mocks";
 export const STORAGE_KEY = "fork:v1";
 export const STORAGE_VERSION = 1;
 
+// Only the performance switch is remembered. Older saves that also stored panel state still load.
 const PrefsSchema = z.object({
-  leftOpen: z.boolean(),
-  rightOpen: z.boolean(),
   lowPerformance: z.boolean(),
 });
 
@@ -49,8 +48,7 @@ export interface Persisted {
   session: Session | null;
 }
 
-// Panels start closed: the car comes first and detail is opened on demand.
-export const DEFAULT_PREFS: Prefs = { leftOpen: false, rightOpen: false, lowPerformance: false };
+export const DEFAULT_PREFS: Prefs = { lowPerformance: false };
 
 function getStorage(): Storage | null {
   try {

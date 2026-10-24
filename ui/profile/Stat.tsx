@@ -9,7 +9,7 @@ export interface StatProps {
   /** Required on purpose: every number shows where it came from. Pass undefined to show the gap. */
   source: Source | undefined;
   detail?: string;
-  size?: "lg" | "md";
+  size?: "xl" | "lg" | "md";
 }
 
 /** A big number with a small label and its source underneath. Same pattern as a spec row. */
@@ -19,7 +19,7 @@ export function Stat({ label, value, source, detail, size = "md" }: StatProps) {
       <span
         className={cn(
           "leading-none font-medium tabular-nums tracking-tight whitespace-nowrap text-ink",
-          size === "lg" ? "text-[56px]" : "text-[28px]",
+          size === "xl" ? "text-[clamp(52px,10vh,88px)]" : size === "lg" ? "text-[56px]" : "text-[28px]",
         )}
       >
         {value}

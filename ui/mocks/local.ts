@@ -88,7 +88,7 @@ export function getHistory(_vehicleId: string): HistoryRecord[] {
 
 const HORIZON_MONTHS = 60;
 const SIM_WARNING =
-  "MOCK sim: local stand-in, not Dev 4's simulate. Only vehicle_replacement events change the path.";
+  "MOCK sim: local stand-in, not Dev 4's simulate. It only reacts to car swaps and to annualMiles and fuelPricePerGal changes.";
 
 function retainedAt(spec: SpecSheet, month: number): number {
   const r = spec.depreciation.retainedByYear;
@@ -127,7 +127,13 @@ export function simulate(twin: VehicleTwin, scenario: Scenario, ctx: SimContext)
   );
   const replaceMonth = replacement?.month ?? Number.POSITIVE_INFINITY;
   const toId = replacement ? String(replacement.payload.vehicleId) : twin.vehicle.id;
-  const monthlyMiles = twin.driver.annualMiles / 12;
+  // Driving and fuel price decisions, in month order. Same keys the real sim reads (absolute values).
+  const changes = scenario.events
+    .filter((e) => e.status === "confirmed")
+    .sort((a, b) => a.month - b.month);
+  const usable = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0;
+  let annualMiles = twin.driver.annualMiles;
+  let fuelPrice = twin.driver.fuelPricePerGal;
   const milestones: string[] = [];
 
   let activeId = twin.vehicle.id;
@@ -141,6 +147,12 @@ export function simulate(twin: VehicleTwin, scenario: Scenario, ctx: SimContext)
   const points: ProjectionPoint[] = [];
 
   for (let m = 0; m <= HORIZON_MONTHS; m++) {
+    for (const e of changes) {
+      if (e.month !== m) continue;
+      if (usable(e.payload.annualMiles)) annualMiles = e.payload.annualMiles;
+      if (usable(e.payload.fuelPricePerGal)) fuelPrice = e.payload.fuelPricePerGal;
+    }
+    const monthlyMiles = annualMiles / 12;
     if (m === replaceMonth && toId !== activeId) {
       const oldValue = ctx.specs[activeId].msrp * retainedAt(ctx.specs[activeId], ownedMonths);
       activeId = toId;
@@ -152,7 +164,7 @@ export function simulate(twin: VehicleTwin, scenario: Scenario, ctx: SimContext)
     } else if (m > 0) {
       ownedMonths += 1;
       const spec = ctx.specs[activeId];
-      fuel += (monthlyMiles / spec.mpgCombined) * twin.driver.fuelPricePerGal;
+      fuel += (monthlyMiles / spec.mpgCombined) * fuelPrice;
       maintenance += serviceCostBetween(spec.maintenance, odometer, odometer + monthlyMiles);
       odometer += monthlyMiles;
       if (activeId === twin.vehicle.id && m <= twin.finance.remainingTermMonths) {

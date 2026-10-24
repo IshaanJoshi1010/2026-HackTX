@@ -11,8 +11,8 @@ async function savedBlob(): Promise<Record<string, unknown>> {
   await actions().startFromSample("camry-2022-se");
   actions().onRevealStage("done");
   actions().setActiveMonth(24);
-  actions().setPanel("left", true);
-  actions().setMetricsExpanded(true);
+  actions().setLowPerformance(true);
+  actions().setDetailsOpen(true);
   await settle();
   return JSON.parse(localStorage.getItem(STORAGE_KEY)!);
 }
@@ -29,9 +29,9 @@ describe("persistence layer", () => {
   });
 
   it("round-trips prefs", () => {
-    savePersisted({ prefs: { leftOpen: false, rightOpen: true, lowPerformance: true }, session: null });
+    savePersisted({ prefs: { lowPerformance: true }, session: null });
     expect(loadPersisted()).toEqual({
-      prefs: { leftOpen: false, rightOpen: true, lowPerformance: true },
+      prefs: { lowPerformance: true },
       session: null,
     });
   });
@@ -52,8 +52,16 @@ describe("persistence layer", () => {
   });
 
   it("falls back to default prefs when prefs are malformed", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, mocks: "x", prefs: { leftOpen: "yes" }, session: null }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, mocks: "x", prefs: { lowPerformance: "yes" }, session: null }));
     expect(loadPersisted()?.prefs).toEqual(DEFAULT_PREFS);
+  });
+
+  it("still loads a save from before the panels went away", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: 1, mocks: "x", prefs: { leftOpen: true, rightOpen: true, lowPerformance: true }, session: null }),
+    );
+    expect(loadPersisted()?.prefs).toEqual({ lowPerformance: true });
   });
 
   it("survives storage that throws", () => {
@@ -99,9 +107,23 @@ describe("store hydration", () => {
     expect(state().stage.phase).toBe("interactive");
     expect(state().twin?.vehicle.id).toBe("camry-2022-se");
     expect(state().activeMonth).toBe(24);
-    expect(state().ui.leftOpen).toBe(true);
-    expect(state().ui.metricsExpanded).toBe(false); // not saved
+    expect(state().ui.lowPerformance).toBe(true);
+    expect(state().ui.detailsOpen).toBe(false); // the sheet and the page are never saved
+    expect(state().ui.view).toBe("car");
     expect(state().results[BASE_ID].points).toHaveLength(61);
+  });
+
+  it("never saves the road options: every session starts minimal", async () => {
+    actions().hydrate();
+    await actions().startFromSample("camry-2022-se");
+    actions().onRevealStage("done");
+    actions().setFutureDetails(true);
+    actions().setFutureCompare(true);
+    await settle();
+    expect(localStorage.getItem(STORAGE_KEY)).not.toMatch(/futureDetails|futureCompare/);
+    resetForkStoreForTests();
+    actions().hydrate();
+    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: false });
   });
 
   it("does not save derived data", async () => {
@@ -119,7 +141,7 @@ describe("store hydration", () => {
     actions().hydrate();
     expect(state().twin).toBeNull();
     expect(state().phase).toBe("landing");
-    expect(state().ui.leftOpen).toBe(true);
+    expect(state().ui.lowPerformance).toBe(true);
   });
 
   it("drops a session that fails validation but keeps preferences", async () => {
@@ -130,7 +152,7 @@ describe("store hydration", () => {
     resetForkStoreForTests();
     actions().hydrate();
     expect(state().twin).toBeNull();
-    expect(state().ui.leftOpen).toBe(true);
+    expect(state().ui.lowPerformance).toBe(true);
   });
 
   it("start over clears the saved session", async () => {
