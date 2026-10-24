@@ -80,7 +80,7 @@ export function nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakE
         + (best ? ` vs ${usd(metricsOf(best).netCost)} for the best alternative.` : ".");
       return service
         ? { label: `Keep your ${model} and review the service at ${mi(service.miles)}`,
-            detail: `${cost} Next major service: ${service.label} around month ${service.month} (illustrative).`,
+            detail: `${cost} Next major service: ${service.label} around month ${service.month}${/illustrative/i.test(service.label) ? "" : " (illustrative)"}.`,
             factors: ["net_cost", "maintenance_milestone"] }
         : { label: `Keep your ${model}`, detail: cost, factors: ["net_cost"] };
     }
