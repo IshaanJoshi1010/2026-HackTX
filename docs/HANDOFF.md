@@ -7,4 +7,4 @@ End each working stretch with three lines per developer: what was built, what to
 | Dev 1 (Kareem) | | | |
 | Dev 2 (Ishaan) | | | |
 | Dev 3 (Paarth) | First live Gemini diagnostic: all 20 cases attempted, latest 15 match and five require revalidation after service errors; future-date grounding/query handling fixed with captured regressions; see ai/LIVE-EVALUATION.md | Existing interpret/explain signatures; model tested gemini-3.1-flash-lite; npm test | Five live cases remain unverified; no 20/20 claim; preserve manual mode/confirmation; demo preset UI wiring and assets remain integration work |
-| Dev 4 (Anirudh) | | | |
+| Dev 4 (Anirudh) | S0-S7 complete plus the Dev 4 part of S9: black-box scenarios, 100-rerun determinism, import/purity scans, dollar provenance audit, sim/README.md (every export, offline guarantee, pitch disclosures) | See sim/README.md "How Dev 2 wires it". sim/index.ts and decision/index.ts. npx vitest run sim decision (116 tests) | Nothing mocked. officialLink always omitted (no verified links). Cross-team S9 items (Gemini key removed, AI confirm audit, /ai/README.md) belong to Dev 3 and the post-merge run |
