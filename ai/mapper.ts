@@ -17,6 +17,14 @@ function hash(text: string): string {
   return (value >>> 0).toString(16);
 }
 function pregnancyMention(quote: string): boolean { return /\bpregnant\b/i.test(quote) && !/\bnot\b|\bisn't\b|\bno longer\b|\bmight\b|\bmaybe\b/i.test(quote); }
+/** A value-only quote must not silently erase a date in its source clause. Never invent the missing date. */
+function missingQuotedTiming(item: ExtractionItem, prompt: string): boolean {
+  if (item.month) return false;
+  const dated = /\b(?:next\s+(?:month|year)|in\s+(?:\d+|a|an|one|two|three|a couple|a few|several)\s+(?:months?|years?)|in\s+20\d{2})\b/i;
+  if (dated.test(item.quote)) return true;
+  const clauses = prompt.split(/[!?;\n]|[.,](?!\d)/);
+  return clauses.some(clause => clause.includes(item.quote) && dated.test(clause));
+}
 function numericEvidence(value: number, quote: string): boolean {
   const quantities = [...quote.matchAll(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k)?\b/gi)].map(m => Number(m[1].replaceAll(",", "")) * (m[2] ? 1000 : 1));
   const words: Record<string, number> = { zero: 0, one: 1, first: 1, two: 2, second: 2, three: 3, third: 3, four: 4, fourth: 4 };
@@ -50,16 +58,16 @@ function mappedValue(item: ExtractionItem): number | string | undefined {
 export function mapExtraction(input: unknown, context: InterpretContext, prompt: string): MappedExtraction {
   const extraction = ExtractionSchema.parse(input);
   InterpretContextSchema.parse(context);
-  if (extraction.unsupported) return { result: { aiAvailable: true, intent: extraction.intent, proposals: [], profilePatches: [], unsupportedReason: extraction.unsupported }, unresolved: [] };
+  if (extraction.unsupported) return { result: { aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [], unsupportedReason: extraction.unsupported }, unresolved: [] };
   if (!["CREATE_SCENARIO", "CLARIFY"].includes(extraction.intent)) return {
-    result: { aiAvailable: true, intent: extraction.intent, proposals: [], profilePatches: [] }, unresolved: extraction.items,
+    result: { aiAvailable: true, intent: extraction.intent, proposals: [], profilePatches: [] }, unresolved: [],
   };
   const unresolved: ExtractionItem[] = [], patches: ProfilePatch[] = [];
   const groups = new Map<string, { event: LifeEvent; items: ExtractionItem[] }>();
   // Compare resolved timing too: next year and in 12 months are the same slot.
   const seen = new Map<string, number | string>(), duplicates = new Set<string>();
   for (const item of extraction.items) {
-    if (!prompt.includes(item.quote) || item.certainty === "vague") continue;
+    if (!prompt.includes(item.quote) || missingQuotedTiming(item, prompt) || item.certainty === "vague") continue;
     const timing = resolveEventMonth(item.month, context.todayISO, item.field === "childrenDelta" && pregnancyMention(item.quote));
     const value = mappedValue(item);
     if (!timing.resolved || value === undefined) continue;
@@ -68,7 +76,8 @@ export function mapExtraction(input: unknown, context: InterpretContext, prompt:
     seen.set(key, value);
   }
   for (const item of extraction.items) {
-    if (!prompt.includes(item.quote) || (item.month && !item.quote.toLowerCase().includes(item.month.toLowerCase())) || item.certainty === "vague") {
+    if (!prompt.includes(item.quote) || missingQuotedTiming(item, prompt)
+      || (item.month && !item.quote.toLowerCase().includes(item.month.toLowerCase())) || item.certainty === "vague") {
       unresolved.push(item); continue;
     }
     const value = mappedValue(item);

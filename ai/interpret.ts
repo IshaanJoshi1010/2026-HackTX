@@ -43,9 +43,11 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
       .map(([field]) => [field, ctx.profile[field as keyof typeof ctx.profile]]).filter(([, value]) => value !== undefined));
     const minimalContext = { vehicle: { model: ctx.vehicle.model, year: ctx.vehicle.year }, profile,
       existingEvents: ctx.existingEvents.slice(-50), todayISO: ctx.todayISO };
+    let validationFeedback: string | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       let text: string;
-      try { text = await generate({ system: extractionInstructions, input: { prompt: request.data.prompt, context: minimalContext, retry: attempt === 1 }, schema: jsonSchema }); }
+      try { text = await generate({ system: extractionInstructions, input: { prompt: request.data.prompt, context: minimalContext, retry: attempt === 1,
+        ...(validationFeedback ? { validationFeedback } : {}) }, schema: jsonSchema }); }
       catch { return { aiAvailable: false }; }
       try {
         const extraction = ExtractionSchema.parse(JSON.parse(text));
@@ -53,7 +55,10 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
         if (!mapped.result.aiAvailable) return mapped.result;
         // Grounding/semantic failures also get one retry, never partially trusted changes.
         if (mapped.unresolved.some(item => item.certainty !== "vague")) {
-          if (attempt === 0) continue;
+          if (attempt === 0) {
+            validationFeedback = "Some items failed quote, value or timing validation. Use only prompt evidence, include the full date in quote and month, use absolute children for ordinal counts, and never copy context into items.";
+            continue;
+          }
           return clarify();
         }
         delete mapped.result.question;
@@ -64,7 +69,7 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
         const question = gatedQuestion(extraction, ctx);
         if (question) mapped.result.question = question;
         return mapped.result;
-      } catch { /* Invalid JSON/schema: retry once, then clarify without model output. */ }
+      } catch { validationFeedback = "Return valid schema JSON only, with exact prompt quotes and raw date phrases. Do not add fields or calculate values."; }
     }
     return clarify();
   };

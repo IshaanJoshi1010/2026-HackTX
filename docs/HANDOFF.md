@@ -6,5 +6,5 @@ End each working stretch with three lines per developer: what was built, what to
 | --- | --- | --- | --- |
 | Dev 1 (Kareem) | | | |
 | Dev 2 (Ishaan) | | | |
-| Dev 3 (Paarth) | Demo dry-run fixes: explicit Alex preset; household 3/child 1; low cargo/carSeats 0/equal priorities retained; action-first offline explanation; actual demo checked with Dev 4 5d9e299 | buildDemoTwin() from data/demo for explicit demo entry; existing buildTwin for generic onboarding; see data/DEMO-HANDOFF.md; npm test | Ishaan must wire explicit demo UI action to preset; model assets and live Gemini unverified; synthetic/estimated disclosures required |
+| Dev 3 (Paarth) | First live Gemini diagnostic: all 20 cases attempted, latest 15 match and five require revalidation after service errors; future-date grounding/query handling fixed with captured regressions; see ai/LIVE-EVALUATION.md | Existing interpret/explain signatures; model tested gemini-3.1-flash-lite; npm test | Five live cases remain unverified; no 20/20 claim; preserve manual mode/confirmation; demo preset UI wiring and assets remain integration work |
 | Dev 4 (Anirudh) | | | |
