@@ -4,7 +4,7 @@ End each working stretch with three lines per developer: what was built, what to
 
 | Developer | Built | How to call | Still mock |
 | --- | --- | --- | --- |
-| Dev 1 | | | |
-| Dev 2 | | | |
-| Dev 3 | | | |
-| Dev 4 | | | |
+| Dev 1 (Kareem) | | | |
+| Dev 2 (Ishaan) | | | |
+| Dev 3 (Paarth) | | | |
+| Dev 4 (Anirudh) | | | |
