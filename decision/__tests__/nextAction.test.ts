@@ -39,8 +39,18 @@ describe("nextAction", () => {
     const { a } = act(driver({ householdSize: 6, children: 4 }), baseline);
     expect(a.label).toBe("Investigate a RAV4 Hybrid");
     expect(a.factors).toEqual(["hard_constraint:seats_below_household"]);
+    expect(a.detail).toBe("Your Camry has 5 seats, fewer than your household of 6 today.");
     const later = act(twin, withEvents([ev("big", "family_change", 24, { householdSize: 6, children: 4 })])).a;
-    expect(later.detail).toContain("from month 24");
+    expect(later.detail).toBe("Your Camry has 5 seats, fewer than your household of 6 from month 24.");
+  });
+
+  it("too many car seats for the rear row is described as that, with the fit disclosure", () => {
+    const { a } = act(driver({ householdSize: 5, children: 3, carSeats: 4 }), baseline);
+    expect(a.factors).toEqual(["hard_constraint:car_seats_exceed_rear_positions"]);
+    expect(a.detail).toBe("Your Camry has 3 rear seat positions, fewer than the 4 car seats you need today. "
+      + "Fork does not verify physical car seat fit, so check it in person.");
+    const later = act(twin, withEvents([ev("kids", "family_change", 18, { householdSize: 5, children: 3, carSeats: 4 })])).a;
+    expect(later.detail).toContain("fewer than the 4 car seats you need from month 18");
   });
 
   it("replace with unknown finance: get a payoff or trade-in quote first", () => {

@@ -58,11 +58,16 @@ export function nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakE
   if (todayIssue || futureIssue) {
     const key = todayIssue ?? futureIssue!.suitability.constraints[0] ?? "seats_insufficient";
     const when = todayIssue ? "today" : `from month ${futureIssue!.month}`;
-    return {
-      label: `Investigate a ${replacement}`,
-      detail: `Your ${model} has ${current.seats} seats, which does not fit your household ${when}.`,
-      factors: [`hard_constraint:${key}`],
-    };
+    // Counts at the moment of the problem: today's profile, or the projected month's suitability notes.
+    const note = (k: string) => Number(futureIssue?.suitability.notes.find(n => n.startsWith(`${k}=`))?.split("=")[1]);
+    const household = todayIssue ? d.householdSize : note("household");
+    const carSeats = todayIssue ? d.carSeats : note("car_seats");
+    const rear = Math.max(0, current.seats - FRONT_SEATS);
+    const detail = key === "car_seats_exceed_rear_positions"
+      ? `Your ${model} has ${rear} rear seat positions, fewer than the ${carSeats} car seats you need ${when}. `
+        + "Fork does not verify physical car seat fit, so check it in person."
+      : `Your ${model} has ${current.seats} seats, fewer than your household of ${household} ${when}.`;
+    return { label: `Investigate a ${replacement}`, detail, factors: [`hard_constraint:${key}`] };
   }
 
   if (e.preferredScenarioId !== "inconclusive" && preferred) {
