@@ -78,7 +78,7 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
       if (!mileageSchema.safeParse(mileage).success) return { ok: false, error: "A valid mileage is required from input, provider signals, or a saved listing" };
       const mileageSource: Source = a.mileage !== undefined ? "user" : signals?.source ?? "synthetic";
       const note = a.mileage !== undefined ? "explicit input mileage" : signals ? "provider vehicle signals" : "fictional saved listing snapshot";
-      // Only registered primary sample records may use the minimal seeded history.
+      // Only registered primary sample records may use their synthetic ownership history.
       let history = saved && saved.listingSnapshot.id.endsWith("-primary") ? (deps.getHistory ?? getHistory)(vehicle.id) : [];
       if (history.some((record, index) => record.source !== "synthetic" || (index > 0 &&
         (record.date < history[index - 1].date || record.mileage < history[index - 1].mileage)))) {
@@ -89,7 +89,7 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
       const historyState = history.length > 0 ? "synthetic" : "unavailable";
       if (historyState === "unavailable") warnings.push("No history available for this vehicle and odometer; no historical events were inferred from the VIN");
       vehicle.specSources.push(`${mileageSource}: twin mileage from ${note}`,
-        historyState === "synthetic" ? "synthetic: minimal demo odometer history; detailed service history pending C4" : "history: no history available");
+        historyState === "synthetic" ? "synthetic: fictional demo ownership, maintenance and odometer history from data/history.ts" : "history: no history available");
       vehicle.specSources.push(...warnings);
       const parsed = VehicleTwinSchema.safeParse({ vehicle, mileage, history, driver, finance });
       return parsed.success ? { ok: true, twin: parsed.data, metadata: { mileage: { source: mileageSource, note }, historyState, warnings } }

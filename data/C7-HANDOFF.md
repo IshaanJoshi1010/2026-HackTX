@@ -1,5 +1,7 @@
 # D3-C7: validated twin builder
 
+**C4 follow-up:** getHistory now includes detailed synthetic purchase/service milestones and quarterly odometers for primary demo cars. The minimal-history limitations below describe C7 at delivery; see C4-HANDOFF.md for current behavior. C5/C6 remain pending.
+
 ## Files and exports
 
 Created data/twin.ts, data/twin-profile.ts, data/history.ts, data/twin.test.ts and this handoff. Updated the Dev 3 row in docs/HANDOFF.md. Shared contracts are unchanged.
