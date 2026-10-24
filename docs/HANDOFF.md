@@ -6,5 +6,5 @@ End each working stretch with three lines per developer: what was built, what to
 | --- | --- | --- | --- |
 | Dev 1 (Kareem) | | | |
 | Dev 2 (Ishaan) | | | |
-| Dev 3 (Paarth) | C0 proposed types, Zod schemas, synthetic fixtures and offline mocks; review contracts/REVIEW.md with Dev 4 before freezing | Import mockTwin, mockInterpret, mockQuestion, mockSpecs from contracts/mocks; validate from contracts/schemas; npm test | All twin/AI/question logic is mock; non-EPA specs illustrative; paint/assets/listings pending |
+| Dev 3 (Paarth) | C0 proposed contracts/fixtures/mocks; C1 VIN validation, offline-first registry adapter, NHTSA timeout and spec merge; see data/C1-HANDOFF.md and contracts/REVIEW.md | validateVin from data/vin; identifyVehicle/createVehicleIdentifier from data/decode; mocks from contracts/mocks; npm test | Production sample/backup VINs, listings/assets/spec entries pending C2/C3; twin/AI/question logic still mock; contract review pending |
 | Dev 4 (Anirudh) | | | |
