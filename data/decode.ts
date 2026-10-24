@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { IdentifyResult, Source, SpecSheet, VehicleConfig } from "../contracts";
 import { SpecSheetSchema, VehicleConfigSchema } from "../contracts/schemas";
 import { validateVin } from "./vin";
+import { getSpecEntries } from "./specs";
 import { getRegistryMatchStatus, getRegistryVehicles, isSupportedVehicle } from "./registry";
 
 export const NHTSA_BASE_URL = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/";
@@ -149,7 +150,7 @@ export function createVehicleIdentifier(deps: IdentifierDependencies = {}) {
   };
 }
 
-// Synthetic demo records resolve offline. Reviewed production spec sheets arrive in C3.
+// Synthetic demo records resolve offline; C3 supplies source-labeled spec sheets.
 export const identifyVehicle = createVehicleIdentifier({
-  registry: getRegistryVehicles(), registryMatchStatus: getRegistryMatchStatus,
+  registry: getRegistryVehicles(), registryMatchStatus: getRegistryMatchStatus, specs: getSpecEntries(),
 });

@@ -8,6 +8,7 @@ import rav4Primary from "./listings/rav4-primary.json";
 import rav4Backup from "./listings/rav4-backup.json";
 import { ListingSnapshotSchema, type ListingSnapshot } from "./listings/schema";
 import { validateVin } from "./vin";
+import { getSpecs, getSpecDetails } from "./specs";
 
 export interface VerificationFlags {
   model: boolean; year: boolean; trim: boolean; paint: boolean; geometry: boolean;
@@ -54,6 +55,8 @@ const makeEntry = (listing: ListingSnapshot): RegistryEntry => {
   if (!base || f.drive !== (base.id === camryVehicle.id ? "FWD" : "AWD")) {
     throw new Error(`Synthetic listing ${listing.id} does not match its supported vehicle/drivetrain fixture`);
   }
+  const specs = getSpecs(f.vehicleId);
+  const details = getSpecDetails(f.vehicleId);
   const fieldSources: Record<string, Source> = Object.fromEntries(Object.keys(base).map(key => [key, "synthetic"]));
   fieldSources.mpg = "sourced";
   fieldSources.vin = "synthetic";
@@ -62,11 +65,12 @@ const makeEntry = (listing: ListingSnapshot): RegistryEntry => {
   const config = VehicleConfigSchema.parse({
     ...base, vin: f.vin, id: f.vehicleId, make: f.make, model: f.model, year: f.year, trim: f.trim,
     powertrain: f.powertrain, paint: f.paint, paintCode: f.paintCode,
+    mpg: specs.mpgCombined, seats: specs.seats, cargoCuFt: specs.cargoCuFt, msrp: specs.msrp,
     modelAsset: "", matchStatus: "representative",
     specSources: [
       `synthetic: listing identity, VIN, paint, mileage and price from data/listings/${listing.id}.json; fictional demo, not a real advertisement`,
       `sourced: combined MPG from EPA record ${f.model === "Camry" ? "44348 (FWD LE/SE)" : "47392 (Hybrid AWD)"}; data/fixtures/epa.json`,
-      "synthetic: seats, cargoCuFt and msrp are plausible demo assumptions, not verified Toyota specifications",
+      ...["seats", "cargoCuFt", "msrp"].map(key => `${details.numericSources[key].label}: ${key} from ${details.numericSources[key].source}`),
       "modelAsset unavailable; visual verification pending Kareem's assets",
     ],
   });
