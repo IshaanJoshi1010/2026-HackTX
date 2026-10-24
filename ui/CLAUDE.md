@@ -91,15 +91,15 @@ You pass data between modules: pass `getSpecs` output and `VehicleConfig` into D
 - Never show a probability or confidence percentage. Robustness reads "held in X of Y tested cases."
 - Vague proposal rows pulse and ask for a number. Inferred rows say "confirm."
 - Source labels come from the data, never hardcoded in the component.
-- Layout: car center (45 to 60% width), command box directly under it, left panel (identity, history, saved scenarios, profile card), right panel (insights, assumptions, recommendation), bottom timeline. Panels collapse.
-- Style: near-black, dark navy surfaces, Toyota red accent, holographic cyan, silver and graphite, subtle grid. Casual short copy, no em dashes.
+- Layout: the car fills the screen. The command box sits directly under it. The left panel (car details, history, profile card) and right panel (insights, assumptions, recommendation) are frosted cards that float over the stage and open from small edge buttons; they start closed. The bottom is the branching timeline. Information arrives in layers: the car and its name, then the timeline, then one headline number, then detail on request. Never show the same number twice (the HUD hides its extra numbers while Insights is open).
+- Style: black and white only; every gray is white at some opacity. No neon, no glow, no grid, no colored accents. Clean sentence-case type, big light numerals, round icon buttons, solid white primary buttons, like a dark car-maker product page. The one accent is `--fork-accent` in `tokens.css` and it is white today. Source labels differ by shape (dot, hollow dot, dotted dot, square, diamond), and a missing source is an inverted white chip. Casual short copy, no em dashes.
 
 ## Tasks
 
 - **B0 Scaffold (hour 0 to 1).** Next.js App Router, TypeScript, Tailwind, shadcn/ui. Folders, copy all `CLAUDE.md` files, add `/contracts` placeholder, `npm test` script, `/docs/HANDOFF.md`.
 - **B1 Shell and store (hour 1 to 4).** Theme, layout zones, collapsible panels, store with mocks, `CarStageStub` in place, `SourceBadge`, reduced-motion and low-performance flags.
 - **B2 Entry and reveal (hour 4 to 8).** Landing, VIN entry with inline validation, sample picker, model and year picker, reveal overlay with the rider chips, profile confirm card, left panel. Gate 1.
-- **B3 Timeline (hour 8 to 11).** React Flow, nodes are real `Scenario` objects, 60-month axis, scrubber, event markers, branch animation, 4+ branches.
+- **B3 Timeline (hour 8 to 11).** Built early as a custom SVG timeline (no React Flow): one lane per real `Scenario`, branches leave the parent at the fork month, playhead crosses every lane with each future's net cost, draggable event markers, milestone ticks, focus mode. Still to do: edit and delete event controls, the break-even overlay.
 - **B4 Command box (hour 8 to 13).** Starter chips, voice, live profile card with quoted phrases and certainty styling, confirm flow, inline questions, tradeoff cards, weights editor, manual forms. Gate 2.
 - **B5 Comparison (hour 13 to 18).** Keep vs replace, three separate cost views, range display, recommendation and next action cards, assumptions editor, `BreakEvenViz`, cost curves. Gate 3.
 - **B6 Integration swap (hour 15 to 20).** Replace each mock with the real module as handoffs land, one `USE_MOCKS` flag at a time, run the demo after each.
