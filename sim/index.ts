@@ -1,6 +1,10 @@
 export { simulate, simulateDetailed } from "./simulate";
 export type { SimAssumption, DetailedSimulation } from "./simulate";
 export { applyEvents } from "./events";
+export { fork, moveEvent, editEvent, deleteEvent, canEditEvent, isInherited, affectedFromMonth, InheritedEventError } from "./branch";
+export { makeReplaceScenario } from "./makeReplace";
+export { purchaseTerms, taxAndFees, financedAmount, newLoanPayment, economicViews } from "./replacement";
+export type { PurchaseTerms } from "./replacement";
 export { fuelCost } from "./fuel";
 export { loanPayment, impliedApr, amortizeStep } from "./financing";
 export { retainedFraction, mileageFactor, vehicleValue } from "./depreciation";

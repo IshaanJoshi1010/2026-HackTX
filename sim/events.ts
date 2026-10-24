@@ -6,18 +6,22 @@ import { commuteAnnualMiles } from "./mileage";
  * Payload keys the sim understands, on any event type. Values are absolute unless named *Delta.
  *   annualMiles, commuteMilesOneWay, commuteDaysPerWeek, householdSize, children, carSeats,
  *   childrenDelta (also moves householdSize unless the event sets it), fuelPricePerGal, monthlyBudget,
- *   cargoNeed ("low" | "medium" | "high"), location, vehicleId (vehicle_replacement).
+ *   cargoNeed ("low" | "medium" | "high"), location,
+ *   vehicleId, price, mileage (vehicle_replacement only: the car bought, its price and its odometer).
  * A commute change without annualMiles shifts annualMiles by the change in round-trip commute miles.
  * Unknown keys and wrongly typed values are ignored with a warning.
  */
 export interface SimState extends MonthState {
   location: string; carSeats: number; commuteMilesOneWay?: number; commuteDaysPerWeek?: number;
+  /** The latest replacement that set vehicleId; simulate reads it when the vehicle changes. */
+  replacement?: { eventId: string; price?: number; mileage?: number };
 }
 
 const NUMERIC_KEYS = ["annualMiles", "commuteMilesOneWay", "commuteDaysPerWeek", "householdSize", "children",
   "carSeats", "fuelPricePerGal", "monthlyBudget"] as const;
 type NumericKey = typeof NUMERIC_KEYS[number];
 const STRING_KEYS = ["cargoNeed", "location", "vehicleId"] as const;
+const PURCHASE_KEYS = ["price", "mileage"] as const;
 const CARGO = ["low", "medium", "high"];
 
 function initialState(twin: VehicleTwin): SimState {
@@ -41,8 +45,10 @@ function applyPayload(prev: SimState, e: LifeEvent, warnings: string[]): { next:
   const bad = (key: string) => warnings.push(`Event ${e.id}: ignored invalid ${key} = ${JSON.stringify(p[key])}`);
 
   for (const key of Object.keys(p)) {
-    if (!(NUMERIC_KEYS as readonly string[]).includes(key) && !(STRING_KEYS as readonly string[]).includes(key) && key !== "childrenDelta") {
-      warnings.push(`Event ${e.id}: ignored unknown payload key ${key}`);
+    const known = [...NUMERIC_KEYS, ...STRING_KEYS, ...PURCHASE_KEYS, "childrenDelta"] as readonly string[];
+    if (!known.includes(key)) warnings.push(`Event ${e.id}: ignored unknown payload key ${key}`);
+    else if ((PURCHASE_KEYS as readonly string[]).includes(key) && e.type !== "vehicle_replacement") {
+      warnings.push(`Event ${e.id}: ${key} only applies to vehicle_replacement; ignored`);
     }
   }
   for (const key of NUMERIC_KEYS) {
@@ -79,8 +85,22 @@ function applyPayload(prev: SimState, e: LifeEvent, warnings: string[]): { next:
     next.annualMiles = Math.max(0, prev.annualMiles + delta);
     touched.push("annualMiles");
   }
-  if (e.type === "vehicle_replacement" && !touched.includes("vehicleId")) {
-    warnings.push(`Event ${e.id}: vehicle_replacement has no vehicleId, so it has no effect`);
+  if (e.type === "vehicle_replacement") {
+    if (!touched.includes("vehicleId")) warnings.push(`Event ${e.id}: vehicle_replacement has no vehicleId, so it has no effect`);
+    else {
+      const replacement: NonNullable<SimState["replacement"]> = { eventId: e.id };
+      for (const key of PURCHASE_KEYS) {
+        if (!(key in p)) continue;
+        const v = p[key];
+        if (typeof v !== "number" || !Number.isFinite(v) || v < 0) bad(key);
+        else replacement[key] = v;
+      }
+      next.replacement = replacement;
+    }
+  } else if (touched.includes("vehicleId")) {
+    warnings.push(`Event ${e.id}: vehicleId only changes through vehicle_replacement; ignored`);
+    next.vehicleId = prev.vehicleId;
+    touched.splice(touched.indexOf("vehicleId"), 1);
   }
   return { next, touched };
 }
@@ -121,7 +141,7 @@ export function resolveStates(twin: VehicleTwin, scenario: Scenario): { states: 
   return { states, warnings };
 }
 
-const toMonthState = (s: SimState): MonthState => {
+export const toMonthState = (s: SimState): MonthState => {
   const m: MonthState = {
     month: s.month, vehicleId: s.vehicleId, annualMiles: s.annualMiles, householdSize: s.householdSize,
     children: s.children, cargoNeed: s.cargoNeed, fuelPricePerGal: s.fuelPricePerGal,

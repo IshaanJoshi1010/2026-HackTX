@@ -41,6 +41,32 @@ So what's left over the horizon is the real cost: fuel, maintenance, insurance, 
 - Paid off: loan balance 0 and loan payments 0 at every month.
 - Negative equity: if the balance is more than the trade-in value, the gap is cash out at the trade-in. The identity still holds.
 
+## Replacement (keep vs replace over the same 60 months)
+
+A `vehicle_replacement` event at month m happens at the start of month m, in this order:
+
+1. **Sell or trade in** the current car at its modeled value (illustrative). Proceeds lower cash.
+2. **Pay off** whatever is still owed. Payoff raises cash. If the payoff is more than the proceeds, that's negative equity: it's paid in cash and flagged as a warning. A paid-off car has zero payoff. A lease is ended by paying its remaining payments (flagged).
+3. **Buy** the new car. Cash goes up by the down payment plus tax and fees, and the rest of the price is financed.
+4. From month m on, fuel, maintenance and value all follow the new car's spec sheet. Insurance uses the same monthly figure.
+
+Purchase inputs, in order of precedence:
+
+| Input | Where it comes from |
+| --- | --- |
+| Price | event `payload.price`, then `assumptions.replacementPrice`, then the car's modeled market value at purchase (labeled `estimated`) |
+| Odometer at purchase | event `payload.mileage`, then 12,000 mi per year of age (illustrative) |
+| Sales tax, fees, down payment, APR, term | `assumptions.salesTaxRate`, `purchaseFees`, `downPayment`, `newLoanApr`, `newLoanTermMonths`, then `/sim/config.ts` (6.25%, $450, 10% of price, 6.5%, 60 months, all illustrative) |
+
+The new car's value is anchored to its purchase price: `value_t = price * curve(age_t, odo_t) / curve(age_buy, odo_buy)`. So right at purchase, value equals price, and net cost moves by exactly the tax and fees. Raising the price by dP raises cash by dP x (1 + tax rate) for a cash purchase, and raises net cost by that amount minus the change in the car's value at the horizon.
+
+## Branching
+
+- `fork(parent, month, newEvents, name)` keeps the parent's events before the fork month, drops the parent's own future, and adds the new events at or after the fork month. Any new event dated earlier is moved to the fork month, and a note is added to it.
+- `makeReplaceScenario(parent, car, month?)` keeps all of the parent's events and adds a confirmed replacement. The default month is the first relocation or family change, else month 12.
+- The sim is causal: month t depends only on months up to t. So a branch's points before its fork month are byte-identical to its parent's, and so are the points before any moved, edited or deleted event.
+- A branch can't move, edit or delete an event it inherited (`InheritedEventError`). Use `canEditEvent` to disable those controls.
+
 ## Worked examples (each is a test)
 
 | Case | Inputs | Expected |

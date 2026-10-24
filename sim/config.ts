@@ -35,3 +35,15 @@ export const MILESTONE_MIN_INTERVAL_MILES = 30000;
 
 /** Upper bound when solving for the implied APR of an existing loan. */
 export const MAX_IMPLIED_APR = 0.3;
+
+// Replacement purchase defaults. Each can be overridden per scenario through scenario.assumptions
+// (replacementPrice, salesTaxRate, purchaseFees, downPayment, newLoanApr, newLoanTermMonths).
+
+/** Sales tax on the purchase price (Texas motor vehicle rate as an illustrative default). */
+export const DEFAULT_SALES_TAX_RATE = 0.0625;
+/** Title, registration and dealer fees, flat. */
+export const DEFAULT_PURCHASE_FEES = 450;
+/** Down payment as a fraction of price. Tax and fees are paid in cash on top. */
+export const DEFAULT_DOWN_PAYMENT_FRACTION = 0.1;
+export const DEFAULT_NEW_LOAN_APR = 0.065;
+export const DEFAULT_NEW_LOAN_TERM_MONTHS = 60;

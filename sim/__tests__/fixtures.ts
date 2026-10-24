@@ -22,7 +22,21 @@ export const camrySpec: SpecSheet = {
     mpgCombined: "sourced", msrp: "synthetic", maintenance: "illustrative", depreciation: "illustrative" },
 };
 
-export const ctx: SimContext = { vehicles: { [camry.id]: camry }, specs: { [camry.id]: camrySpec } };
+export const rav4: VehicleConfig = {
+  ...camry, id: "rav4-2024-hybrid-xle", model: "RAV4", year: 2024, trim: "Hybrid XLE", powertrain: "hybrid",
+  mpg: 39, cargoCuFt: 37, msrp: 33000,
+};
+
+export const rav4Spec: SpecSheet = {
+  ...camrySpec, vehicleId: rav4.id, cargoCuFt: 37, curbWeightLb: 3800, mpgCity: 41, mpgHwy: 38, mpgCombined: 39, msrp: 33000,
+  maintenance: camrySpec.maintenance.map(t => ({ ...t, costUsd: t.costUsd + 5 })),
+  depreciation: { retainedByYear: [0.88, 0.79, 0.72, 0.66, 0.61], mileageAdjPer10k: 0.018 },
+};
+
+export const ctx: SimContext = {
+  vehicles: { [camry.id]: camry, [rav4.id]: rav4 },
+  specs: { [camry.id]: camrySpec, [rav4.id]: rav4Spec },
+};
 
 export const twin: VehicleTwin = {
   vehicle: camry, mileage: 48000, history: [],
