@@ -43,7 +43,7 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 | `economicViews(result)` | `SimulationResult` | `{ cash, position, net }`, the three separate views |
 | `fuelCost`, `loanPayment`, `impliedApr`, `amortizeStep`, `retainedFraction`, `mileageFactor`, `vehicleValue`, `dueBetween`, `occurrencesUpTo` | numbers | Building blocks, each unit tested |
 
-**Event payload keys** (any event type; absolute unless named `*Delta`): `annualMiles`, `commuteMilesOneWay`, `commuteDaysPerWeek`, `householdSize`, `children`, `childrenDelta`, `carSeats`, `fuelPricePerGal`, `monthlyBudget`, `cargoNeed`, `location`. `vehicle_replacement` only: `vehicleId`, `price`, `mileage`. Unknown keys and bad values are ignored, with a warning.
+**Event payload keys** (any event type; absolute unless named `*Delta`): `annualMiles`, `commuteMilesOneWay`, `commuteDaysPerWeek`, `householdSize`, `children`, `childrenDelta`, `carSeats`, `fuelPricePerGal`, `monthlyBudget`, `cargoNeed`, `location`. `vehicle_replacement` only: `vehicleId`, `price`, `mileage`. `children` and `childrenDelta` also move `householdSize` by the same amount unless the event states it; car seats are never inferred. Unknown keys and bad values are ignored, with a warning.
 
 **Scenario assumption keys** (all optional): `insurancePerMonth`, `loanApr`, `startYear`, `replacementPrice`, `salesTaxRate`, `purchaseFees`, `downPayment`, `newLoanApr`, `newLoanTermMonths`. What-if keys used by break-even and sensitivity: `annualMilesOverride`, `fuelPricePerGalOverride`, `fuelPriceScale`, `depreciationScale`.
 

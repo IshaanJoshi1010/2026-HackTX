@@ -55,6 +55,17 @@ describe("applyEvents", () => {
     ]));
   });
 
+  it("an absolute children change moves household size too, unless the event states it", () => {
+    // Shape Dev 3's extraction produces for "expecting my second child in 2029".
+    const { timeline } = applyEvents(twin, withEvents([ev("kid", "family_change", 32, { children: 2 })]));
+    expect(timeline[30]).toMatchObject({ children: 0, householdSize: 2 });
+    expect(timeline[31]).toMatchObject({ children: 2, householdSize: 4 });
+    const stated = applyEvents(twin, withEvents([ev("kid", "family_change", 1, { children: 2, householdSize: 3 })]));
+    expect(stated.timeline[0]).toMatchObject({ children: 2, householdSize: 3 });
+    const fewer = applyEvents({ ...twin, driver: { ...twin.driver, householdSize: 4, children: 2 } }, withEvents([ev("k", "family_change", 1, { children: 1 })]));
+    expect(fewer.timeline[0]).toMatchObject({ children: 1, householdSize: 3 });
+  });
+
   it("does not invent car seats when a child is added", () => {
     const { timeline } = applyEvents(twin, withEvents([ev("b", "family_change", 1, { childrenDelta: 1 })]));
     expect(timeline[0]).toMatchObject({ children: 1, householdSize: 3 });

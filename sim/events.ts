@@ -5,7 +5,8 @@ import { commuteAnnualMiles } from "./mileage";
 /**
  * Payload keys the sim understands, on any event type. Values are absolute unless named *Delta.
  *   annualMiles, commuteMilesOneWay, commuteDaysPerWeek, householdSize, children, carSeats,
- *   childrenDelta (also moves householdSize unless the event sets it), fuelPricePerGal, monthlyBudget,
+ *   childrenDelta, fuelPricePerGal, monthlyBudget,
+ *   (children and childrenDelta also move householdSize by the change, unless the event sets householdSize),
  *   cargoNeed ("low" | "medium" | "high"), location,
  *   vehicleId, price, mileage (vehicle_replacement only: the car bought, its price and its odometer).
  * A commute change without annualMiles shifts annualMiles by the change in round-trip commute miles.
@@ -65,6 +66,12 @@ function applyPayload(prev: SimState, e: LifeEvent, warnings: string[]): { next:
     if (key === "cargoNeed") next.cargoNeed = v as SimState["cargoNeed"];
     else next[key] = v;
     touched.push(key);
+  }
+  // Children are household members: an absolute children change moves householdSize by the same amount
+  // unless the event states householdSize. Car seats are never inferred.
+  if (touched.includes("children") && !touched.includes("householdSize")) {
+    next.householdSize = Math.max(1, prev.householdSize + next.children - prev.children);
+    touched.push("householdSize");
   }
   if ("childrenDelta" in p) {
     const d = p.childrenDelta;
