@@ -34,7 +34,16 @@ import type {
   VehicleTwin,
 } from "@/contracts";
 import { mockInterpret, mockQuestion, mockSpecs, mockTwin } from "@/contracts/mocks";
+import { identifyVehicle as realIdentifyVehicle } from "@/data/decode";
+import { buildDemoTwin as realBuildDemoTwin, demoBrainDump, demoTodayISO } from "@/data/demo";
 import { vehicleFixtures } from "@/data/fixtures/vehicles";
+import { gapCheck as realGapCheck } from "@/data/gapCheck";
+import { getHistory as realGetHistory } from "@/data/history";
+import { demoVins, getRegistryVehicles } from "@/data/registry";
+import { getSpecs as realGetSpecs } from "@/data/specs";
+import { mapTradeoffs as realMapTradeoffs } from "@/data/tradeoffs";
+import { buildTwin as realBuildTwin } from "@/data/twin";
+import { validateVin as realValidateVin } from "@/data/vin";
 import { CarStageStub, preloadCarsStub, type CarStageProps } from "./CarStageStub";
 import * as local from "./local";
 import type { VinCheck } from "./local";
@@ -43,7 +52,7 @@ export type ModuleName = "car" | "data" | "ai" | "sim" | "decision";
 
 export const USE_MOCKS: Record<ModuleName, boolean> = {
   car: true, // Kareem: real CarStage reveal h14 to 18
-  data: true, // Paarth: buildTwin h6, gapCheck and history h8
+  data: false, // Paarth: real since the first integration merge (e935e1f)
   ai: true, // Paarth: interpret and explain h13
   sim: true, // Anirudh: simulate h5, fork h8
   decision: true, // Anirudh: evaluate h11, findBreakEven h14, nextAction h15
@@ -80,6 +89,13 @@ export interface DataApi {
    * replacement lookup. REQUEST to Paarth: export this from the registry.
    */
   listSampleVehicles(): VehicleConfig[];
+  /**
+   * NOT in INTERFACES.md. Paarth's explicit fictional demo (Alex): the only path that
+   * applies the persona. Ordinary entry uses buildTwin and never does.
+   */
+  buildDemoTwin(vehicleId: string): Promise<{ ok: true; twin: VehicleTwin } | { ok: false; error: string }>;
+  /** The demo sentence and the date its month offsets are measured from. */
+  demo: { brainDump: string; todayISO: string };
 }
 
 export interface AiApi {
@@ -138,6 +154,11 @@ const mockData: DataApi = {
   getHistory: local.getHistory,
   getSpecs: mockSpecs,
   listSampleVehicles: () => structuredClone(vehicleFixtures),
+  buildDemoTwin: async (vehicleId) => {
+    const vehicle = vehicleFixtures.find((v) => v.id === vehicleId);
+    return vehicle ? mockTwin({ vehicle: structuredClone(vehicle) }) : { ok: false, error: "Unsupported demo vehicle" };
+  },
+  demo: { brainDump: demoBrainDump, todayISO: demoTodayISO },
 };
 
 const mockAi: AiApi = {
@@ -180,7 +201,30 @@ function notLanded<T extends object>(module: ModuleName): T {
   });
 }
 
-const realData = notLanded<DataApi>("data");
+/** The two sample cars, in picker order: primary registry entries for the Camry then the RAV4. */
+function registrySamples(): VehicleConfig[] {
+  const all = getRegistryVehicles();
+  return [demoVins.camry.primary, demoVins.rav4.primary].map((vin) => structuredClone(all[vin]));
+}
+
+const DEMO_VEHICLE_IDS = ["camry-2022-se", "rav4-2024-hybrid-xle"] as const;
+
+const realData: DataApi = {
+  // The check digit is on: every North American VIN has one, and a typo should be caught here.
+  validateVin: (vin) => realValidateVin(vin.trim(), { checkDigit: true }),
+  identifyVehicle: realIdentifyVehicle,
+  buildTwin: realBuildTwin,
+  gapCheck: realGapCheck,
+  mapTradeoffs: realMapTradeoffs,
+  getHistory: realGetHistory,
+  getSpecs: realGetSpecs,
+  listSampleVehicles: registrySamples,
+  buildDemoTwin: async (vehicleId) => {
+    const id = DEMO_VEHICLE_IDS.find((v) => v === vehicleId);
+    return id ? realBuildDemoTwin(id) : { ok: false, error: "Unsupported demo vehicle" };
+  },
+  demo: { brainDump: demoBrainDump, todayISO: demoTodayISO },
+};
 const realAi = notLanded<AiApi>("ai");
 const realSim = notLanded<SimApi>("sim");
 const realDecision = notLanded<DecisionApi>("decision");

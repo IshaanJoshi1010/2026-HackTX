@@ -112,11 +112,48 @@ describe("start", () => {
   });
 
   it("surfaces a twin build failure instead of throwing", async () => {
-    vi.spyOn(data, "buildTwin").mockResolvedValue({ ok: false, error: "twin broke" });
+    vi.spyOn(data, "buildDemoTwin").mockResolvedValue({ ok: false, error: "twin broke" });
     await actions().startFromSample(CAMRY);
     expect(state().twin).toBeNull();
     expect(state().error).toBe("twin broke");
     expect(state().ui.busy).toBe("idle");
+
+    vi.spyOn(data, "buildTwin").mockResolvedValue({ ok: false, error: "ordinary twin broke" });
+    await actions().startFromPicker("Toyota", "Camry", 2022, "SE");
+    expect(state().twin).toBeNull();
+    expect(state().error).toBe("ordinary twin broke");
+    expect(state().ui.busy).toBe("idle");
+  });
+
+  it("a sample car opens the Alex demo: synthetic profile, pinned date", async () => {
+    await actions().startFromSample(CAMRY);
+    const { driver } = state().twin!;
+    expect(driver).toMatchObject({ householdSize: 3, children: 1, carSeats: 0, cargoNeed: "low", location: "Austin, TX" });
+    expect(driver.priorities).toEqual({ cost: 0.2, family: 0.2, longevity: 0.2, fuel: 0.2, comfort: 0.2 });
+    expect(driver.provenance.householdSize).toBe("synthetic");
+    expect(state().todayISO).toBe(data.demo.todayISO);
+  });
+
+  it("the registry's sample VIN opens the same demo, as typed", async () => {
+    await actions().startFromVin("4T1G11AK1NU900001");
+    expect(state().twin?.vehicle.id).toBe(CAMRY);
+    expect(state().twin?.driver.provenance.householdSize).toBe("synthetic");
+    expect(state().todayISO).toBe(data.demo.todayISO);
+  });
+
+  it("the model picker is ordinary entry: nothing about the driver is assumed to be Alex", async () => {
+    await actions().startFromPicker("Toyota", "Camry", 2022, "SE");
+    const { driver } = state().twin!;
+    expect(driver.householdSize).toBe(1);
+    expect(driver.location).toBe("Not provided");
+    expect(driver.provenance.householdSize).toBe("estimated");
+    expect(state().todayISO).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("a VIN with a bad check digit is refused before any twin is built", async () => {
+    await actions().startFromVin("4T1G11AK2NU900001");
+    expect(state().twin).toBeNull();
+    expect(state().error).toMatch(/check digit/i);
   });
 });
 
@@ -234,11 +271,20 @@ describe("dump and confirm", () => {
 });
 
 describe("questions and profile answers", () => {
-  it("shows at most one question and never repeats an answered field", async () => {
+  it("asks nothing about Alex: every number the comparison needs is already backed", async () => {
     await enterWorkspace();
     interpretReturning([denver]);
     await actions().submitDump("dump");
     actions().confirmDrafts(["e-denver"]);
+    await actions().openReplaceComparison();
+    expect(state().question).toBeNull();
+  });
+
+  it("shows at most one question and never repeats an answered field", async () => {
+    // Ordinary entry estimates cargo need, so the comparison asks about it.
+    await actions().startFromPicker("Toyota", "Camry", 2022, "SE");
+    actions().onRevealStage("done");
+    await actions().openReplaceComparison();
     expect(state().question?.field).toBe("cargoNeed");
 
     actions().answerQuestion("cargoNeed", "unsure");

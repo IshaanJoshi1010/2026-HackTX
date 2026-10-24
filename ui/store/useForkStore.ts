@@ -140,6 +140,8 @@ export interface ForkState {
   lastIntent: Intent | null;
   tradeoffPicks: TradeoffPick[];
   answeredFields: FieldKey[];
+  /** The date month 0 is measured from. The demo pins it so its months and numbers never drift. */
+  todayISO: string;
   modelStatus: Record<string, { ready: boolean; error?: string }>;
   error: string | null;
 
@@ -177,6 +179,8 @@ const INITIAL_STAGE: StageState = {
 
 type DataFields = Omit<ForkState, "actions" | "hydrated">;
 
+const realToday = (): string => new Date().toISOString().slice(0, 10);
+
 function initialData(): DataFields {
   return {
     phase: "landing",
@@ -196,6 +200,7 @@ function initialData(): DataFields {
     lastIntent: null,
     tradeoffPicks: [],
     answeredFields: [],
+    todayISO: realToday(),
     modelStatus: {},
     error: null,
     ui: {
@@ -375,6 +380,7 @@ function toSession(s: ForkState): Session | null {
     draftPatches: s.draftPatches,
     tradeoffPicks: s.tradeoffPicks,
     answeredFields: s.answeredFields,
+    todayISO: s.todayISO,
   };
 }
 
@@ -456,16 +462,21 @@ export const useForkStore = create<ForkState>()((set, get) => {
   const fail = (e: unknown) =>
     set((s) => ({ error: e instanceof Error ? e.message : String(e), ui: { ...s.ui, busy: "idle" } }));
 
-  /** Common tail of every start path: build the twin, reset the session, begin the reveal. */
-  async function begin(vehicle: VehicleConfig) {
+  /**
+   * Common tail of every start path: build the twin, reset the session, begin the reveal.
+   * Only the explicit demo applies the fictional Alex persona. Ordinary entry builds a
+   * generic twin with labeled estimates.
+   */
+  async function begin(vehicle: VehicleConfig, mode: "demo" | "ordinary") {
     setBusy("simulating");
     try {
-      const built = await data.buildTwin({ vehicle });
+      const built = mode === "demo" ? await data.buildDemoTwin(vehicle.id) : await data.buildTwin({ vehicle });
       if (!built.ok) return fail(new Error(built.error));
       const twin = built.twin;
       set((s) => ({
         ...initialData(),
         phase: "reveal",
+        todayISO: mode === "demo" ? data.demo.todayISO : realToday(),
         twin,
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
@@ -516,7 +527,9 @@ export const useForkStore = create<ForkState>()((set, get) => {
       try {
         const id = await data.identifyVehicle(check.vin);
         if (id.status !== "ok") return fail(new Error(id.reason));
-        await begin(id.vehicle);
+        // The sample VINs are fictional demo cars saved in the registry, so they open the demo.
+        // A VIN decoded from NHTSA is a real car and gets an ordinary twin.
+        await begin(id.vehicle, id.decodeState === "registry" ? "demo" : "ordinary");
       } catch (e) {
         fail(e);
       }
@@ -526,7 +539,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
       set({ error: null });
       const vehicle = data.listSampleVehicles().find((v) => v.id === vehicleId);
       if (!vehicle) return void set({ error: `No sample car with id ${vehicleId}.` });
-      await begin(vehicle);
+      await begin(vehicle, "demo");
     },
 
     async startFromPicker(make, model, year, trim) {
@@ -544,7 +557,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
       if (!vehicle) {
         return void set({ error: "We only model the 2022 Camry SE and the 2024 RAV4 Hybrid XLE for now." });
       }
-      await begin(vehicle);
+      await begin(vehicle, "ordinary");
     },
 
     answerRiders(choice) {
@@ -574,7 +587,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
           vehicle: { make: s.twin.vehicle.make, model: s.twin.vehicle.model, year: s.twin.vehicle.year, trim: s.twin.vehicle.trim },
           profile: s.explore.confirmedProfile,
           existingEvents: (active?.events ?? []).map((e) => ({ type: e.type, month: e.month })),
-          todayISO: new Date().toISOString().slice(0, 10),
+          todayISO: s.todayISO,
         };
         const result = await ai.interpret(prompt, ctx);
         if (!result.aiAvailable) {
@@ -807,6 +820,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
             draftPatches: ses.draftPatches,
             tradeoffPicks: ses.tradeoffPicks,
             answeredFields: ses.answeredFields,
+            todayISO: ses.todayISO ?? realToday(),
             stage: { ...INITIAL_STAGE, phase: "interactive" as const, revealStage: "done" as const },
           };
           const scenarios = base.explore.scenarios.some((sc) => sc.id === BASE_ID)
