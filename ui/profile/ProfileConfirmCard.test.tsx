@@ -1,5 +1,6 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { alexProfile } from "@/data/fixtures/alex";
 import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
 import { ProfileConfirmCard } from "./ProfileConfirmCard";
 
@@ -35,14 +36,15 @@ describe("ProfileConfirmCard", () => {
     expect(screen.getByText("Current odometer")).toBeInTheDocument();
     expect(screen.getByText("48,000 mi")).toBeInTheDocument();
 
+    // Persona values come from the shared fixture, so a persona change does not break this test.
     expect(screen.getByText("Annual driving")).toBeInTheDocument();
-    expect(screen.getByText("12,000 mi/yr")).toBeInTheDocument();
+    expect(screen.getByText(`${alexProfile.annualMiles.toLocaleString("en-US")} mi/yr`)).toBeInTheDocument();
 
     expect(screen.getByText("Household size")).toBeInTheDocument();
-    expect(screen.getByText("2 people")).toBeInTheDocument();
+    expect(screen.getByText(`${alexProfile.householdSize} people`)).toBeInTheDocument();
 
     expect(screen.getByText("Location")).toBeInTheDocument();
-    expect(screen.getByText("Austin, TX")).toBeInTheDocument();
+    expect(screen.getByText(alexProfile.location)).toBeInTheDocument();
 
     // Verify presence of source badges
     const badges = screen.getAllByTitle(/demo persona data/i);
