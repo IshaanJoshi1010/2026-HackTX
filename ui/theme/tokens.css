@@ -1,0 +1,85 @@
+/*
+ * Fork theme. Two colors: black and white. Every gray is white at some opacity.
+ * Clean, quiet, and close to a dark car-maker product page.
+ *
+ * --fork-accent is the one place a third color could ever go. It is white today.
+ * The shadcn tokens below point at the same two colors so shadcn components match.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --fork-bg: #000;
+  --fork-ink: #fff;
+  --fork-accent: var(--fork-ink);
+
+  --fork-line: rgb(255 255 255 / 0.12);
+  --fork-line-strong: rgb(255 255 255 / 0.28);
+  --fork-surface: rgb(255 255 255 / 0.06);
+  --fork-surface-2: rgb(255 255 255 / 0.1);
+
+  --background: var(--fork-bg);
+  --foreground: var(--fork-ink);
+  --card: #0b0b0b;
+  --card-foreground: var(--fork-ink);
+  --popover: #111;
+  --popover-foreground: var(--fork-ink);
+  --primary: var(--fork-ink);
+  --primary-foreground: var(--fork-bg);
+  --secondary: var(--fork-surface-2);
+  --secondary-foreground: var(--fork-ink);
+  --muted: var(--fork-surface);
+  --muted-foreground: rgb(255 255 255 / 0.6);
+  --accent: var(--fork-surface-2);
+  --accent-foreground: var(--fork-ink);
+  --destructive: var(--fork-ink);
+  --border: var(--fork-line);
+  --input: var(--fork-line-strong);
+  --ring: rgb(255 255 255 / 0.6);
+  --chart-1: rgb(255 255 255 / 0.95);
+  --chart-2: rgb(255 255 255 / 0.7);
+  --chart-3: rgb(255 255 255 / 0.5);
+  --chart-4: rgb(255 255 255 / 0.3);
+  --chart-5: rgb(255 255 255 / 0.15);
+  --radius: 0.5rem;
+  --sidebar: #0b0b0b;
+  --sidebar-foreground: var(--fork-ink);
+  --sidebar-primary: var(--fork-ink);
+  --sidebar-primary-foreground: var(--fork-bg);
+  --sidebar-accent: var(--fork-surface-2);
+  --sidebar-accent-foreground: var(--fork-ink);
+  --sidebar-border: var(--fork-line);
+  --sidebar-ring: rgb(255 255 255 / 0.6);
+}
+
+@theme inline {
+  /* Use text-ink/60, bg-ink/10, border-ink/20 for every gray. */
+  --color-ink: var(--fork-ink);
+  --color-canvas: var(--fork-bg);
+  --color-accent-ink: var(--fork-accent);
+  --color-line: var(--fork-line);
+  --color-line-strong: var(--fork-line-strong);
+  --color-surface: var(--fork-surface);
+  --color-surface-2: var(--fork-surface-2);
+}
+
+/* Motion off when the OS asks or when the store flag is set (see ForkApp). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
