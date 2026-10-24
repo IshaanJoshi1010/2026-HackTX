@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { IdentifyResult, Source, SpecSheet, VehicleConfig } from "../contracts";
 import { SpecSheetSchema, VehicleConfigSchema } from "../contracts/schemas";
 import { validateVin } from "./vin";
+import { getRegistryMatchStatus, getRegistryVehicles, isSupportedVehicle } from "./registry";
 
 export const NHTSA_BASE_URL = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/";
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Pick<Response, "ok" | "status" | "json">>;
@@ -117,12 +118,8 @@ export interface IdentifierDependencies {
   registry?: Readonly<Record<string, VehicleConfig>>;
   specs?: readonly SpecEntry[];
   fetch?: FetchLike;
+  registryMatchStatus?: (vehicle: VehicleConfig) => VehicleConfig["matchStatus"];
 }
-const supported = (v: Partial<VehicleConfig>) => v.make?.toLowerCase() === "toyota" && (
-  (v.model?.toLowerCase() === "camry" && v.year === 2022 && v.trim?.toLowerCase() === "se" && v.powertrain === "gas") ||
-  (v.model?.toLowerCase() === "rav4" && v.year === 2024 && ["xle", "hybrid xle"].includes(v.trim?.toLowerCase() ?? "") && v.powertrain === "hybrid")
-);
-
 /** Dependency injection supports saved registry entries and fully offline adapter tests. */
 export function createVehicleIdentifier(deps: IdentifierDependencies = {}) {
   return async (vin: string, opts?: { offline?: boolean; timeoutMs?: number }): Promise<IdentifyResult> => {
@@ -132,17 +129,18 @@ export function createVehicleIdentifier(deps: IdentifierDependencies = {}) {
     if (deps.registry && Object.hasOwn(deps.registry, valid.vin)) {
       const saved = VehicleConfigSchema.safeParse(deps.registry[valid.vin]);
       if (!saved.success || saved.data.vin !== valid.vin) return { status: "unsupported", partial: input, reason: "Saved registry entry is invalid" };
-      // C1 never certifies an exact match. C2 adds the five explicit verification flags.
+      // Bare injected configs have no verification evidence and remain representative.
       const vehicle = structuredClone(saved.data);
-      vehicle.matchStatus = supported(vehicle) ? "representative" : "unsupported";
-      return supported(vehicle) ? { status: "ok", vehicle, decodeState: "registry" }
+      vehicle.matchStatus = isSupportedVehicle(vehicle)
+        ? (deps.registryMatchStatus?.(structuredClone(vehicle)) ?? "representative") : "unsupported";
+      return isSupportedVehicle(vehicle) ? { status: "ok", vehicle, decodeState: "registry" }
         : { status: "unsupported", partial: vehicle, reason: "Vehicle is outside Fork's supported models" };
     }
     if (opts?.offline) return { status: "unsupported", partial: input, reason: "Decode unavailable: offline and VIN not in registry" };
     const result = await decodeVin(valid.vin, { timeoutMs: opts?.timeoutMs, fetch: deps.fetch });
     if (!result.ok) return { status: "unsupported", partial: input, reason: result.reason };
     const { vehicle } = mergeVehicleSpecs(result.decoded, deps.specs ?? []);
-    const isSupported = supported(vehicle);
+    const isSupported = isSupportedVehicle(vehicle);
     vehicle.matchStatus = isSupported ? "representative" : "unsupported";
     if (!isSupported) return { status: "unsupported", partial: vehicle, reason: "Vehicle is outside Fork's supported models or identity is incomplete" };
     const complete = VehicleConfigSchema.safeParse(vehicle);
@@ -151,6 +149,7 @@ export function createVehicleIdentifier(deps: IdentifierDependencies = {}) {
   };
 }
 
-// Real sample/backup VINs and production specs are pending C2/C3. Never use fabricated VINs
-// or C0's illustrative fixtures as a production registry or verified specifications.
-export const identifyVehicle = createVehicleIdentifier();
+// Synthetic demo records resolve offline. Reviewed production spec sheets arrive in C3.
+export const identifyVehicle = createVehicleIdentifier({
+  registry: getRegistryVehicles(), registryMatchStatus: getRegistryMatchStatus,
+});

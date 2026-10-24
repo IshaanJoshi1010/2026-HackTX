@@ -1,5 +1,7 @@
 # D3-C0 contract review for Anirudh and Ishaan
 
+C2 update: user-approved synthetic listing/VIN entries now live in data/registry.ts and data/listings. C0 fixtures retain their placeholder behavior. See data/C2-HANDOFF.md and data/SYNTHETIC-DATA.md. No shared type was changed.
+
 Status: proposed implementation, not a newly agreed contract freeze. Existing root types and canonical interface fields are copied without changes. Dev 4's `SuitabilityResult` is already defined in INTERFACES.md and is reused verbatim.
 
 ## Undefined shapes proposed for review

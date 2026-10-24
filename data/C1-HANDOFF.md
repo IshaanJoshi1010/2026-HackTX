@@ -1,5 +1,7 @@
 # D3-C1: VIN validation and decode
 
+**C2 follow-up:** the default identifier now uses four disclosed synthetic demo registry entries under Paarth's revised data permission. The empty-registry and real-listing prerequisites described below are historical C1 limitations; see C2-HANDOFF.md for current behavior.
+
 ## Exports
 
 ```ts

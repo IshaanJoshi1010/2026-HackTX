@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capturedOn": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "source": {
+      "type": "string",
+      "const": "synthetic"
+    },
+    "disclosure": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fields": {
+      "type": "object",
+      "properties": {
+        "vehicleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vin": {
+          "type": "string",
+          "pattern": "^[A-HJ-NPR-Z0-9]{17}$"
+        },
+        "make": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1886,
+          "maximum": 9007199254740991
+        },
+        "trim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "powertrain": {
+          "type": "string",
+          "enum": [
+            "gas",
+            "hybrid"
+          ]
+        },
+        "drive": {
+          "type": "string",
+          "enum": [
+            "FWD",
+            "AWD"
+          ]
+        },
+        "paint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "paintCode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "paintHex": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "mileage": {
+          "type": "number",
+          "minimum": 0
+        },
+        "priceUsd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "vehicleId",
+        "vin",
+        "make",
+        "model",
+        "year",
+        "trim",
+        "powertrain",
+        "drive",
+        "paint",
+        "paintCode",
+        "paintHex",
+        "mileage",
+        "priceUsd"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "vehicleId": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "vin": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "make": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "model": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "year": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "trim": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "powertrain": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "drive": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "paint": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "paintCode": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "paintHex": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "mileage": {
+          "type": "string",
+          "const": "synthetic"
+        },
+        "priceUsd": {
+          "type": "string",
+          "const": "synthetic"
+        }
+      },
+      "required": [
+        "vehicleId",
+        "vin",
+        "make",
+        "model",
+        "year",
+        "trim",
+        "powertrain",
+        "drive",
+        "paint",
+        "paintCode",
+        "paintHex",
+        "mileage",
+        "priceUsd"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "id",
+    "capturedOn",
+    "source",
+    "disclosure",
+    "fields",
+    "provenance"
+  ],
+  "additionalProperties": false
+}

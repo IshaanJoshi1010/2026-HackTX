@@ -1,5 +1,7 @@
 # Dev 3: Paarth, data and AI
 
+**Data policy update, 2026-10-24:** Paarth approved plausible fabricated demo data after consulting Toyota. Use labeled synthetic listings/VINs and assumptions instead of waiting for real CarMax records. Keep sourced EPA MPG and honest visual-match labels. See `/data/SYNTHETIC-DATA.md`. This supersedes the real-listing prerequisites below.
+
 Branch: `dev3-data-ai`
 You own: `/data`, `/ai`, `/app/api`. You co-write `/contracts` with Anirudh.
 Do not touch or import: `/sim`, `/decision` (Anirudh), `/ui` (Ishaan, Kareem).
