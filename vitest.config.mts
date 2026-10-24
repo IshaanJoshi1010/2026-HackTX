@@ -10,6 +10,8 @@ export default defineConfig({
     globals: true,
     include: ["**/*.test.{ts,tsx}"],
     exclude: ["node_modules", ".next"],
+    // The 100-rerun determinism audit takes about 3s alone and over 5s when every lane runs together.
+    testTimeout: 20_000,
   },
   resolve: {
     alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
