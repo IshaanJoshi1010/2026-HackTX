@@ -1,6 +1,6 @@
 import type {
-  DepreciationAssumptions, MaintenanceMilestone, MonthState, ProjectionPoint, Scenario, SimContext, SimulationResult, Source,
-  SpecSheet, SuitabilityResult, VehicleConfig, VehicleTwin,
+  DepreciationAssumptions, DriverProfile, MaintenanceMilestone, MonthState, ProjectionPoint, Scenario, SimContext, SimulationResult, Source,
+  SpecSheet, VehicleConfig, VehicleTwin,
 } from "../contracts";
 import { DEFAULT_DEPRECIATION, EXPECTED_MILES_PER_YEAR, HORIZON_MONTHS, MILESTONE_MIN_INTERVAL_MILES, SIM_START_YEAR } from "./config";
 import { mileageFactor, retainedFraction } from "./depreciation";
@@ -11,16 +11,13 @@ import { insurancePerMonth } from "./insurance";
 import { dueBetween } from "./maintenance";
 import { monthlyMiles } from "./mileage";
 import { financedAmount, newLoanPayment, purchaseTerms, taxAndFees } from "./replacement";
+import { assessSuitability, unverifiedSuitability } from "../decision/suitability";
+import type { SimState } from "./events";
 
 /** One labeled input the projection relied on. Every displayed number traces back to one of these. */
 export interface SimAssumption { key: string; value: number | string; source: Source; note: string }
 export interface DetailedSimulation { result: SimulationResult; assumptions: SimAssumption[]; timeline: MonthState[] }
 
-// Placeholder until assessSuitability lands (S4).
-const pendingSuitability = (): SuitabilityResult => ({
-  passengerFit: "needs_verification", cargoFit: "needs_verification", tradeoffs: [], constraints: [],
-  notes: ["suitability_pending"],
-});
 
 const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const mi = (n: number) => `${Math.round(n).toLocaleString("en-US")} mi`;
@@ -32,7 +29,7 @@ interface Financing { kind: "loan" | "lease" | "none"; payment: number; apr: num
  * with anchor 1; a purchased car is anchored so its value equals the purchase price at the instant of purchase.
  */
 interface Car {
-  vehicle: VehicleConfig; mpg: number; dep: DepreciationAssumptions; tasks: readonly MaintenanceMilestone[];
+  vehicle: VehicleConfig; spec?: SpecSheet; mpg: number; dep: DepreciationAssumptions; tasks: readonly MaintenanceMilestone[];
   base: number; anchor: number; age: number; odometer: number;
 }
 
@@ -46,10 +43,18 @@ function makeCar(vehicle: VehicleConfig, spec: SpecSheet | undefined, age: numbe
   if (mpg <= 0) warnings.push(`No usable MPG for ${vehicle.id}; fuel spend shows as 0`);
   const dep = spec?.depreciation ?? DEFAULT_DEPRECIATION;
   return {
-    vehicle, mpg, dep, tasks: spec?.maintenance ?? [], age, odometer,
+    vehicle, spec, mpg, dep, tasks: spec?.maintenance ?? [], age, odometer,
     base: price ?? spec?.msrp ?? vehicle.msrp,
     anchor: price === undefined ? 1 : curve(dep, age, odometer, scale),
   };
+}
+
+/** The driver profile as it stands in month s, for suitability. */
+function profileAt(base: DriverProfile, s: SimState): DriverProfile {
+  const p: DriverProfile = { ...base, location: s.location, annualMiles: s.annualMiles, householdSize: s.householdSize,
+    children: s.children, carSeats: s.carSeats, cargoNeed: s.cargoNeed, fuelPricePerGal: s.fuelPricePerGal };
+  if (s.monthlyBudget !== undefined) p.monthlyBudget = s.monthlyBudget;
+  return p;
 }
 
 const carValue = (c: Car, scale: number) => c.base * curve(c.dep, c.age, c.odometer, scale) / c.anchor;
@@ -224,7 +229,7 @@ export function simulateDetailed(twin: VehicleTwin, scenario: Scenario, ctx: Sim
       month: m, vehicleId: car.vehicle.id, mileage: car.odometer, fuelSpend, maintenanceSpend,
       vehicleValue: value, loanBalance: loan, cumulativeCash: cash,
       netEconomicCost: cash + (loan - loan0) - (value - value0),
-      suitability: pendingSuitability(),
+      suitability: car.spec ? assessSuitability(profileAt(twin.driver, s), car.vehicle, car.spec, m) : unverifiedSuitability(car.vehicle, m),
     });
   }
 
