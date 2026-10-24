@@ -1,0 +1,36 @@
+{
+  "id": "camry-backup",
+  "capturedOn": "2026-10-24",
+  "source": "synthetic",
+  "disclosure": "Fictional Fork demo listing and VIN. Not a real vehicle advertisement, assigned VIN, dealer price or verified paint match.",
+  "fields": {
+    "vehicleId": "camry-2022-se",
+    "vin": "4T1G11AK3NU900002",
+    "make": "Toyota",
+    "model": "Camry",
+    "year": 2022,
+    "trim": "SE",
+    "powertrain": "gas",
+    "drive": "FWD",
+    "paint": "Midnight Black Metallic",
+    "paintCode": "218",
+    "paintHex": "#1B1B1B",
+    "mileage": 52000,
+    "priceUsd": 21995
+  },
+  "provenance": {
+    "vehicleId": "synthetic",
+    "vin": "synthetic",
+    "make": "synthetic",
+    "model": "synthetic",
+    "year": "synthetic",
+    "trim": "synthetic",
+    "powertrain": "synthetic",
+    "drive": "synthetic",
+    "paint": "synthetic",
+    "paintCode": "synthetic",
+    "paintHex": "synthetic",
+    "mileage": "synthetic",
+    "priceUsd": "synthetic"
+  }
+}

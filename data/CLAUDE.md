@@ -1,5 +1,7 @@
 # Developer 3: Data and AI (`/data`, `/ai`, `/app/api`)
 
+**Current user-approved data policy (2026-10-24):** plausible synthetic demo listings, VINs and vehicle assumptions are allowed. See `/data/SYNTHETIC-DATA.md`; it supersedes the real-listing sourcing/wait requirements below. Label fictional data synthetic. Actual asset matching still requires verification.
+
 Read the root `CLAUDE.md` and `/contracts/INTERFACES.md` first. Copy this file to `/data/CLAUDE.md` and `/ai/CLAUDE.md`.
 
 ## Mission

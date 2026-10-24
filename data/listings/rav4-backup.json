@@ -1,0 +1,36 @@
+{
+  "id": "rav4-backup",
+  "capturedOn": "2026-10-24",
+  "source": "synthetic",
+  "disclosure": "Fictional Fork demo listing and VIN. Not a real vehicle advertisement, assigned VIN, dealer price or verified paint match.",
+  "fields": {
+    "vehicleId": "rav4-2024-hybrid-xle",
+    "vin": "4T3RWRFV2RU900002",
+    "make": "Toyota",
+    "model": "RAV4",
+    "year": 2024,
+    "trim": "Hybrid XLE",
+    "powertrain": "hybrid",
+    "drive": "AWD",
+    "paint": "Silver Sky Metallic",
+    "paintCode": "1D6",
+    "paintHex": "#A5A9AB",
+    "mileage": 28000,
+    "priceUsd": 31995
+  },
+  "provenance": {
+    "vehicleId": "synthetic",
+    "vin": "synthetic",
+    "make": "synthetic",
+    "model": "synthetic",
+    "year": "synthetic",
+    "trim": "synthetic",
+    "powertrain": "synthetic",
+    "drive": "synthetic",
+    "paint": "synthetic",
+    "paintCode": "synthetic",
+    "paintHex": "synthetic",
+    "mileage": "synthetic",
+    "priceUsd": "synthetic"
+  }
+}

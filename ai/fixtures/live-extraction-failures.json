@@ -1,0 +1,250 @@
+{
+  "_meta": {
+    "model": "gemini-3.1-flash-lite",
+    "date": "2026-10-24T23:11:55.964Z",
+    "source": "Captured raw Gemini outputs from the first live test, synthetic test prompts only. Failures retained for regression replay; no credentials or user account details."
+  },
+  "cases": [
+    {
+      "id": "demo",
+      "responses": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "location",
+              "value": "Denver",
+              "certainty": "clear",
+              "quote": "Denver",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 20000,
+              "certainty": "clear",
+              "quote": "20,000 miles",
+              "assumptions": []
+            },
+            {
+              "field": "childrenDelta",
+              "value": 1,
+              "certainty": "inferred",
+              "quote": "expecting my second child",
+              "assumptions": [
+                "The user currently has one child and is expecting one more."
+              ]
+            }
+          ]
+        },
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "location",
+              "value": "Denver",
+              "certainty": "clear",
+              "quote": "Denver",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 20000,
+              "certainty": "clear",
+              "quote": "20,000 miles",
+              "assumptions": []
+            },
+            {
+              "field": "childrenDelta",
+              "value": 1,
+              "certainty": "inferred",
+              "quote": "expecting my second child",
+              "assumptions": [
+                "The user currently has one child and is expecting one more."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vague-time",
+      "responses": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "location",
+              "value": "Denver",
+              "certainty": "clear",
+              "quote": "Denver",
+              "assumptions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "multiple",
+      "responses": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "location",
+              "value": "Austin",
+              "certainty": "clear",
+              "quote": "Austin",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 15000,
+              "certainty": "clear",
+              "quote": "15k",
+              "assumptions": []
+            },
+            {
+              "field": "householdSize",
+              "value": 4,
+              "certainty": "clear",
+              "quote": "four",
+              "assumptions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unsupported",
+      "responses": [
+        {
+          "intent": "EXPLAIN_RESULT",
+          "items": [],
+          "unsupported": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "pure-rav4-question",
+      "responses": [
+        {
+          "intent": "COMPARE_SCENARIOS",
+          "items": [
+            {
+              "field": "vehicleId",
+              "value": "2022 Camry SE",
+              "certainty": "clear",
+              "quote": "2022 Camry SE",
+              "assumptions": []
+            },
+            {
+              "field": "vehicleId",
+              "value": "2024 RAV4 Hybrid XLE",
+              "certainty": "clear",
+              "quote": "2024 RAV4 Hybrid XLE",
+              "assumptions": []
+            }
+          ],
+          "clarifyingQuestion": {
+            "field": "annualMiles",
+            "question": "How many miles do you drive annually?",
+            "options": [
+              "Under 10,000",
+              "10,000 - 15,000",
+              "Over 15,000",
+              "I'm not sure"
+            ]
+          }
+        },
+        {
+          "intent": "COMPARE_SCENARIOS",
+          "items": [
+            {
+              "field": "vehicleId",
+              "value": "2024 RAV4 Hybrid XLE",
+              "certainty": "clear",
+              "quote": "RAV4 Hybrid",
+              "assumptions": []
+            }
+          ],
+          "clarifyingQuestion": {
+            "field": "annualMiles",
+            "question": "How many miles do you drive annually?",
+            "options": [
+              "10000",
+              "15000",
+              "20000",
+              "I'm not sure"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "commute",
+      "responses": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "commuteMilesOneWay",
+              "value": 25,
+              "certainty": "clear",
+              "quote": "25 miles each way",
+              "assumptions": []
+            },
+            {
+              "field": "commuteDaysPerWeek",
+              "value": 3,
+              "certainty": "clear",
+              "quote": "3 days a week",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 12000,
+              "certainty": "clear",
+              "quote": "12000",
+              "assumptions": []
+            }
+          ]
+        },
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "commuteMilesOneWay",
+              "value": 25,
+              "certainty": "clear",
+              "quote": "25 miles each way",
+              "assumptions": []
+            },
+            {
+              "field": "commuteDaysPerWeek",
+              "value": 3,
+              "certainty": "clear",
+              "quote": "3 days a week",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 12000,
+              "certainty": "clear",
+              "quote": "12000",
+              "assumptions": []
+            },
+            {
+              "field": "vehicleId",
+              "value": "2022 Camry SE",
+              "certainty": "inferred",
+              "quote": "Camry",
+              "assumptions": [
+                "Mapping Camry to 2022 Camry SE"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

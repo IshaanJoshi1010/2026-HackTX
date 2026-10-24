@@ -1,0 +1,1344 @@
+{
+  "date": "2026-10-24",
+  "model": "gemini-3.1-flash-lite",
+  "scope": "20 authored synthetic prompts through actual createInterpreter/generateWithGemini. Multiple bounded passes as fixes landed; not a single clean run or a production accuracy estimate.",
+  "distinctCasesAttempted": 20,
+  "latestMatchingCases": 15,
+  "latestTransportFailures": [
+    "demo",
+    "multiple",
+    "pure-rav4-question",
+    "paid-off",
+    "break-even"
+  ],
+  "allContextsUnchanged": true,
+  "runs": [
+    {
+      "name": "initial",
+      "date": "2026-10-24T23:11:55.964Z",
+      "cases": [
+        {
+          "id": "demo",
+          "passed": false,
+          "calls": 2,
+          "elapsedMs": 22419,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 12,
+                "payload": {
+                  "location": "Denver"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 32,
+                "payload": {
+                  "children": 2
+                },
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "contradiction",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 3943,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": "annualMiles"
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": "annualMiles"
+          }
+        },
+        {
+          "id": "vague-time",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 1002,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "relocation",
+                "month": 0,
+                "payload": {
+                  "location": "Denver"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "vague-commute",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 2205,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": "commuteMilesOneWay"
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": "commuteMilesOneWay"
+          }
+        },
+        {
+          "id": "pregnancy",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 1181,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "family_change",
+                "month": 9,
+                "payload": {
+                  "childrenDelta": 1
+                },
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "family_change",
+                "month": 9,
+                "payload": {
+                  "childrenDelta": 1
+                },
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "multiple",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 2482,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 15000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 0,
+                "payload": {
+                  "householdSize": 4
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 6,
+                "payload": {
+                  "location": "Austin"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 15000,
+                "certainty": "clear"
+              },
+              {
+                "field": "householdSize",
+                "value": 4,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 15000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 0,
+                "payload": {
+                  "householdSize": 4
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 0,
+                "payload": {
+                  "location": "Austin"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 15000,
+                "certainty": "clear"
+              },
+              {
+                "field": "householdSize",
+                "value": 4,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "unsupported",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 5010,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": true,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "EXPLAIN_RESULT",
+            "proposals": [],
+            "patches": [],
+            "unsupported": true,
+            "questionField": null
+          }
+        },
+        {
+          "id": "greeting",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 1183,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "shorthand",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 4184,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "budget",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 4555,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "budget_change",
+                "month": 0,
+                "payload": {
+                  "monthlyBudget": 500
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "monthlyBudget",
+                "value": 500,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "budget_change",
+                "month": 0,
+                "payload": {
+                  "monthlyBudget": 500
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "monthlyBudget",
+                "value": 500,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "pure-rav4-question",
+          "passed": false,
+          "calls": 2,
+          "elapsedMs": 6383,
+          "transportError": null,
+          "expected": {
+            "intent": "COMPARE_SCENARIOS",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "annual",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 1205,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 12000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 12000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 12000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 12000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "commute",
+          "passed": false,
+          "calls": 2,
+          "elapsedMs": 5251,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "commuteMilesOneWay": 25,
+                  "commuteDaysPerWeek": 3
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "commuteDaysPerWeek",
+                "value": 3,
+                "certainty": "clear"
+              },
+              {
+                "field": "commuteMilesOneWay",
+                "value": 25,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "fuel",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 3336,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "fuel_price_change",
+                "month": 0,
+                "payload": {
+                  "fuelPricePerGal": 3.5
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "fuelPricePerGal",
+                "value": 3.5,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "fuel_price_change",
+                "month": 0,
+                "payload": {
+                  "fuelPricePerGal": 3.5
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "fuelPricePerGal",
+                "value": 3.5,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "children",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 2306,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "family_change",
+                "month": 0,
+                "payload": {
+                  "children": 2
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "children",
+                "value": 2,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "family_change",
+                "month": 0,
+                "payload": {
+                  "children": 2
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "children",
+                "value": 2,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "cargo",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 754,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "cargo_change",
+                "month": 0,
+                "payload": {
+                  "cargoNeed": "high"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "cargoNeed",
+                "value": "high",
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "cargo_change",
+                "month": 0,
+                "payload": {
+                  "cargoNeed": "high"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "cargoNeed",
+                "value": "high",
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "paid-off",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 193,
+          "transportError": {
+            "status": 429,
+            "name": "ApiError"
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [],
+            "patches": [
+              {
+                "field": "financeType",
+                "value": "paid_off",
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "follow-up after grounding fixes",
+      "date": "2026-10-24T23:14:53.422Z",
+      "cases": [
+        {
+          "id": "demo",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 15050,
+          "transportError": {
+            "status": 504,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 12,
+                "payload": {
+                  "location": "Denver"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 32,
+                "payload": {
+                  "children": 2
+                },
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "vague-time",
+          "passed": true,
+          "calls": 2,
+          "elapsedMs": 19212,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "multiple",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 14423,
+          "transportError": {
+            "status": 504,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 15000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 0,
+                "payload": {
+                  "householdSize": 4
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 6,
+                "payload": {
+                  "location": "Austin"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 15000,
+                "certainty": "clear"
+              },
+              {
+                "field": "householdSize",
+                "value": 4,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "unsupported",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 932,
+          "transportError": null,
+          "expected": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": true,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CLARIFY",
+            "proposals": [],
+            "patches": [],
+            "unsupported": true,
+            "questionField": null
+          }
+        },
+        {
+          "id": "pure-rav4-question",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 4885,
+          "transportError": {
+            "status": 503,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "COMPARE_SCENARIOS",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "commute",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 14581,
+          "transportError": {
+            "status": 504,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "commuteMilesOneWay": 25,
+                  "commuteDaysPerWeek": 3
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "commuteDaysPerWeek",
+                "value": 3,
+                "certainty": "clear"
+              },
+              {
+                "field": "commuteMilesOneWay",
+                "value": 25,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "paid-off",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 14367,
+          "transportError": {
+            "status": 504,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [],
+            "patches": [
+              {
+                "field": "financeType",
+                "value": "paid_off",
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "payment",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 6355,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [],
+            "patches": [
+              {
+                "field": "financePayment",
+                "value": 350,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [],
+            "patches": [
+              {
+                "field": "financePayment",
+                "value": 350,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "replacement",
+          "passed": true,
+          "calls": 2,
+          "elapsedMs": 9388,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "vehicle_replacement",
+                "month": 12,
+                "payload": {
+                  "vehicleId": "rav4-2024-hybrid-xle"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "vehicle_replacement",
+                "month": 12,
+                "payload": {
+                  "vehicleId": "rav4-2024-hybrid-xle"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "break-even",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 2230,
+          "transportError": null,
+          "expected": {
+            "intent": "FIND_BREAK_EVEN",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "COMPARE_SCENARIOS",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "final targeted retry after intent prompt update",
+      "date": "2026-10-24T23:17:17.888Z",
+      "cases": [
+        {
+          "id": "demo",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 8001,
+          "transportError": {
+            "status": 503,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 12,
+                "payload": {
+                  "location": "Denver"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 32,
+                "payload": {
+                  "children": 2
+                },
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "multiple",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 1024,
+          "transportError": {
+            "status": 503,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 15000
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "family_change",
+                "month": 0,
+                "payload": {
+                  "householdSize": 4
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "type": "relocation",
+                "month": 6,
+                "payload": {
+                  "location": "Austin"
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "annualMiles",
+                "value": 15000,
+                "certainty": "clear"
+              },
+              {
+                "field": "householdSize",
+                "value": 4,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "pure-rav4-question",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 17760,
+          "transportError": {
+            "status": null,
+            "name": "AbortError"
+          },
+          "expected": {
+            "intent": "COMPARE_SCENARIOS",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "commute",
+          "passed": true,
+          "calls": 1,
+          "elapsedMs": 14813,
+          "transportError": null,
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "commuteMilesOneWay": 25,
+                  "commuteDaysPerWeek": 3
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "commuteDaysPerWeek",
+                "value": 3,
+                "certainty": "clear"
+              },
+              {
+                "field": "commuteMilesOneWay",
+                "value": 25,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "commuteMilesOneWay": 25,
+                  "commuteDaysPerWeek": 3
+                },
+                "certainty": "clear",
+                "status": "proposed"
+              }
+            ],
+            "patches": [
+              {
+                "field": "commuteDaysPerWeek",
+                "value": 3,
+                "certainty": "clear"
+              },
+              {
+                "field": "commuteMilesOneWay",
+                "value": 25,
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          }
+        },
+        {
+          "id": "paid-off",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 14913,
+          "transportError": {
+            "status": 504,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "CREATE_SCENARIO",
+            "proposals": [],
+            "patches": [
+              {
+                "field": "financeType",
+                "value": "paid_off",
+                "certainty": "clear"
+              }
+            ],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        },
+        {
+          "id": "break-even",
+          "passed": false,
+          "calls": 1,
+          "elapsedMs": 13128,
+          "transportError": {
+            "status": 504,
+            "name": "ApiError",
+            "quota": []
+          },
+          "expected": {
+            "intent": "FIND_BREAK_EVEN",
+            "proposals": [],
+            "patches": [],
+            "unsupported": false,
+            "questionField": null
+          },
+          "actual": {
+            "aiAvailable": false
+          }
+        }
+      ]
+    }
+  ]
+}
