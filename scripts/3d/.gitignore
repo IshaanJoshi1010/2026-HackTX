@@ -1,0 +1,6 @@
+node_modules/
+# Raw marketplace downloads and rebuild intermediates stay local.
+# Prepared runtime GLBs and compact full-detail QA GLBs are committed.
+source-assets/**/original.glb
+source-assets/**/simplified.glb
+source-assets/**/surfaces.glb

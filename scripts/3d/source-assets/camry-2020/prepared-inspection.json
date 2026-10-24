@@ -1,0 +1,128 @@
+{
+  "file": "C:\\Users\\karee\\OneDrive\\Documents\\ChatGPT\\HackTX26\\public\\models\\camry-2022-se.glb",
+  "fileSizeBytes": 3359360,
+  "triangles": 176591,
+  "meshCount": 4,
+  "meshInstances": 4,
+  "primitiveInstances": 5,
+  "materials": [
+    {
+      "index": 0,
+      "name": "Index_0_1",
+      "baseColorTextured": true
+    },
+    {
+      "index": 1,
+      "name": "metal_white",
+      "baseColorTextured": true
+    },
+    {
+      "index": 2,
+      "name": "Index_0_2",
+      "baseColorTextured": true
+    },
+    {
+      "index": 3,
+      "name": "Index_0_2_SS",
+      "baseColorTextured": true
+    },
+    {
+      "index": 4,
+      "name": "Paint_Color",
+      "baseColorTextured": false
+    }
+  ],
+  "textureCount": 8,
+  "textures": [
+    {
+      "name": "Image_0",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_2",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "nomerSHAX",
+      "size": [
+        1280,
+        720
+      ]
+    },
+    {
+      "name": "Image_3",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_4",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_5",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_6",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "maxTextureSide": 2048,
+  "unknownTextureSizes": 0,
+  "boundingBox": {
+    "min": [
+      -2.2999999999999994,
+      0,
+      -1.0063635766259524
+    ],
+    "max": [
+      2.3,
+      1.385117580716363,
+      1.006259288961506
+    ],
+    "size": [
+      4.6,
+      1.385117580716363,
+      2.0126228655874585
+    ]
+  },
+  "bodyPaintCandidates": [
+    {
+      "index": 4,
+      "name": "Paint_Color",
+      "baseColorTextured": false
+    }
+  ],
+  "checks": {
+    "trianglesAtMost200k": true,
+    "fileAtMost10MB": true,
+    "texturesAtMost2048": true
+  },
+  "warnings": [
+    "Material names are guesses. Manually verify separate recolorable body, license, generation, trim, and front-end geometry."
+  ]
+}

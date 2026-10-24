@@ -1,0 +1,151 @@
+{
+  "file": "C:\\Users\\karee\\OneDrive\\Documents\\ChatGPT\\HackTX26\\scripts\\3d\\source-assets\\camry-v80\\original.glb",
+  "fileSizeBytes": 24366484,
+  "triangles": 704936,
+  "meshCount": 36,
+  "meshInstances": 36,
+  "primitiveInstances": 43,
+  "materials": [
+    {
+      "index": 0,
+      "name": "BODY.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 1,
+      "name": "BLACK12.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 2,
+      "name": "CHROME.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 3,
+      "name": "4BAB LED.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 4,
+      "name": "RGLASS2.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 5,
+      "name": "PLATE LED.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 6,
+      "name": "EGLASS1.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 7,
+      "name": "GLASS.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 8,
+      "name": "GLASS1.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 9,
+      "name": "SIGNALS.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 10,
+      "name": "MIRROR.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 11,
+      "name": "LED.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 12,
+      "name": "RVGLASS.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 13,
+      "name": "LWD.001",
+      "baseColorTextured": false
+    },
+    {
+      "index": 14,
+      "name": "CAMRY_INNER_RIM_MAT",
+      "baseColorTextured": false
+    },
+    {
+      "index": 15,
+      "name": "chror",
+      "baseColorTextured": false
+    },
+    {
+      "index": 16,
+      "name": "CAMRY_ROTOR_MAT",
+      "baseColorTextured": false
+    },
+    {
+      "index": 17,
+      "name": "tire",
+      "baseColorTextured": false
+    }
+  ],
+  "textureCount": 2,
+  "textures": [
+    {
+      "name": "f1VGuE9",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "tiree rg",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "maxTextureSide": 1024,
+  "unknownTextureSizes": 0,
+  "boundingBox": {
+    "min": [
+      -2.6556429862976074,
+      -0.0009813049807960161,
+      -1.047149896621704
+    ],
+    "max": [
+      2.2621561707156115,
+      1.4382449598793103,
+      1.0470497608184814
+    ],
+    "size": [
+      4.917799157013219,
+      1.4392262648601064,
+      2.0941996574401855
+    ]
+  },
+  "bodyPaintCandidates": [
+    {
+      "index": 0,
+      "name": "BODY.001",
+      "baseColorTextured": false
+    }
+  ],
+  "checks": {
+    "trianglesAtMost200k": false,
+    "fileAtMost10MB": false,
+    "texturesAtMost2048": true
+  },
+  "warnings": [
+    "Material names are guesses. Manually verify separate recolorable body, license, generation, trim, and front-end geometry."
+  ]
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "vehicleId": "camry-2022-se",
+    "glb": "/models/camry-v80.glb",
+    "points": "",
+    "bodyMaterialName": "BODY.001",
+    "paintHex": "",
+    "paintName": "",
+    "matchStatus": "representative",
+    "license": "CC BY 4.0 https://creativecommons.org/licenses/by/4.0/",
+    "credit": "toyota camry v80 by sultan (https://sketchfab.com/s122), https://sketchfab.com/3d-models/toyota-camry-v80-98c70e5aa53446728fea4d8f448bbf33. Modified for Fork: normal-aware mesh simplification, scale, centering, grounding, and Draco compression. Newer-generation representative selected for visual quality at the user's request; not an exact 2022 Camry SE."
+  },
+  {
+    "vehicleId": "rav4-hybrid-2024-xle",
+    "glb": "/models/rav4-hybrid-2024-xle.glb",
+    "points": "",
+    "bodyMaterialName": "2021_Toyota_RAV4_Adventure_Adventure_Rock",
+    "paintHex": "",
+    "paintName": "",
+    "matchStatus": "representative",
+    "license": "CC BY 4.0 https://creativecommons.org/licenses/by/4.0/",
+    "credit": "2021+Toyota+RAV4+Adventure by luisandradeandrade762, https://sketchfab.com/3d-models/2021toyotarav4adventure-366c46f72db64da2ac09777458506092. Modified for Fork: CAD edge removal, mesh simplification, orientation, scale, grounding, and Draco compression. Source is a 2021 Adventure, not a 2024 Hybrid XLE."
+  }
+]
