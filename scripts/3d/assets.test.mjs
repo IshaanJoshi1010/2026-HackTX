@@ -1,0 +1,22 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { inspectGlb } from './inspect-glb.mjs';
+const manifest = JSON.parse(await readFile(new URL('../../public/models/manifest.json',import.meta.url),'utf8'));
+for (const entry of manifest) test(`${entry.vehicleId}: prepared asset meets runtime gate`,async()=>{
+  const path=fileURLToPath(new URL(`../../public${entry.glb}`,import.meta.url));
+  const report=await inspectGlb(path);
+  assert.ok(Object.values(report.checks).every(value=>value===true));
+  assert.ok(report.primitiveInstances<=150);
+  assert.ok(Math.abs(report.boundingBox.size[0]-4.6)<0.002);
+  assert.ok(Math.abs(report.boundingBox.min[1])<0.002);
+  const material=report.materials.find(material=>material.name===entry.bodyMaterialName);
+  assert.ok(material);
+  assert.equal(material.baseColorTextured,false);
+  assert.equal(entry.matchStatus,'representative');
+  assert.ok(entry.credit && entry.license.includes('CC BY 4.0'));
+  const bytes=await readFile(path);
+  const json=JSON.parse(bytes.subarray(20,20+bytes.readUInt32LE(12)).toString());
+  assert.ok(json.extensionsRequired.includes('KHR_draco_mesh_compression'));
+});

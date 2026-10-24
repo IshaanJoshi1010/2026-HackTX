@@ -1,0 +1,13 @@
+toyota camry v80 by sultan (@s122)
+Creator: https://sketchfab.com/s122
+Source: https://sketchfab.com/3d-models/toyota-camry-v80-98c70e5aa53446728fea4d8f448bbf33
+License displayed by Sketchfab: CC BY 4.0, commercial use allowed with attribution.
+https://creativecommons.org/licenses/by/4.0/
+Downloaded 2026-10-24 through the authorized original-format download.
+Archive: toyota-camry-v80.zip; member: source/camry2025.glb.
+original.glb: unchanged source file, renamed only.
+full-detail.glb: normalized to length 4.6 on X, centered, grounded, Draco compressed.
+simplified.glb and public/models/camry-v80.glb: normal-aware mesh simplification;
+public model also normalized, centered, grounded, and Draco compressed.
+Not an exact 2022 SE. User explicitly allowed any Camry generation for better visual quality.
+Original paint retained in GLB. Red test paint in preview is illustrative, not sourced listing paint.

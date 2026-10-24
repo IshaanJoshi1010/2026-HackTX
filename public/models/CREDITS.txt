@@ -1,0 +1,32 @@
+camry-v80.glb (currently selected Camry)
+toyota camry v80 by sultan, https://sketchfab.com/s122
+Source: https://sketchfab.com/3d-models/toyota-camry-v80-98c70e5aa53446728fea4d8f448bbf33
+License: CC BY 4.0 https://creativecommons.org/licenses/by/4.0/
+Modified: normal-aware mesh simplification, scale, centering, grounding and Draco compression.
+Newer-generation representative chosen for visual quality. Not an exact 2022 SE.
+
+camry-2022-se.glb (previous candidate retained for comparison)
+Toyota Camry 2020 by ItsDiyor (https://sketchfab.com/ItsDiyor)
+Source: https://sketchfab.com/3d-models/toyota-camry-2020-236a5a6e2fa6420fbdf641f4800cd544
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Modified for Fork: rotated Z length to X, scaled length to 4.6 units,
+centered horizontally, grounded at y=0, and Draco compressed.
+Representative model only. Not an exact 2022 Camry SE.
+Original material color retained. Listing paint name and hex are unverified.
+
+rav4-hybrid-2024-xle.glb
+2021+Toyota+RAV4+Adventure by luisandradeandrade762
+Creator: https://sketchfab.com/luisandradeandrade762
+Source: https://sketchfab.com/3d-models/2021toyotarav4adventure-366c46f72db64da2ac09777458506092
+License: CC BY 4.0 https://creativecommons.org/licenses/by/4.0/
+Modified for Fork: removed CAD edge lines, simplified meshes while preserving source normals,
+rotated length to X, normalized length to 4.6, centered, grounded, and Draco compressed.
+Representative only: 2021 Adventure differs from 2024 Hybrid XLE. Two-tone roof retained.
+Original material colors retained. Listing paint name/hex are unverified.
+
+models/draco/ decoder files
+Draco, Copyright Google Inc. Apache License 2.0.
+Bundled from three 0.186.1 examples/jsm/libs/draco/gltf.
+Upstream: https://github.com/google/draco
+License text: /models/draco/LICENSE. Decoder binaries are served locally for offline operation.

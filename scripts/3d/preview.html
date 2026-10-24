@@ -1,0 +1,152 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Camry asset QA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#111214;color:#f4f4f4;font:13px Arial,Helvetica,sans-serif}canvas{display:block}
+header{position:absolute;top:36px;left:40px;right:40px;z-index:1;pointer-events:none}.brand{font-size:11px;font-weight:700;letter-spacing:4px;color:#bfc0c3;display:flex;align-items:center;gap:12px}.brand:before{content:"";width:24px;height:3px;background:#eb0a1e}strong{display:block;font-size:36px;font-weight:500;letter-spacing:-1px;margin-top:14px}#model-note{color:#999b9f;font-size:11px;letter-spacing:1px;margin-top:9px}
+#controls{position:absolute;bottom:62px;left:40px;right:40px;z-index:1;display:flex;gap:8px;flex-wrap:wrap}button{padding:10px 14px;border:1px solid #ffffff20;border-radius:3px;background:#141517e8;color:#c5c6c9;font:11px Arial,sans-serif;cursor:pointer}button:hover{border-color:#ffffff70;color:white}button:focus-visible{outline:2px solid #eb0a1e}button[aria-pressed="true"]{border-bottom:2px solid #eb0a1e;color:white}#status{position:absolute;bottom:24px;left:40px;right:40px;margin:0;font-size:10px;color:#8e9095}footer{position:absolute;right:40px;top:42px;color:#8e9095;font-size:10px;letter-spacing:1px;pointer-events:none}
+@media(max-width:640px){header{left:20px;top:24px}strong{font-size:28px}footer{display:none}#controls{left:20px;right:20px;bottom:70px;gap:5px}button{padding:9px 10px;font-size:10px}#status{left:20px;right:20px;bottom:20px;line-height:1.5}}
+</style>
+<header><div class="brand">FORK / TOYOTA</div><strong>Camry</strong><div id="model-note">Representative model Â· Studio study</div></header>
+<div id="controls"><button id="graphite">Graphite metallic</button><button id="original">Original paint</button><button id="red">Red paint</button><button id="side">Side view</button></div>
+<p id="status">Loading compressed GLB...</p>
+<footer>DRAG TO EXPLORE / SCROLL TO ZOOM</footer>
+<script type="importmap">{"imports":{"three":"/three/build/three.module.js","three/addons/":"/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+const status = document.querySelector('#status');
+const isRav4 = new URLSearchParams(location.search).get('car') === 'rav4';
+const isV80 = !isRav4 && new URLSearchParams(location.search).get('car') !== 'legacy';
+const fullDetail = new URLSearchParams(location.search).has('full');
+if(isV80 || isRav4) {
+  const detailButton=document.createElement('button');
+  detailButton.textContent=fullDetail?'Use optimized model':'Use full-detail model';
+  detailButton.onclick=()=>{const url=new URL(location.href);if(fullDetail)url.searchParams.delete('full');else url.searchParams.set('full','1');location.href=url.href;};
+  document.querySelector('#controls').appendChild(detailButton);
+}
+document.querySelector('strong').textContent=isRav4?'RAV4 Adventure':isV80?'Camry XV80':'Camry';
+document.querySelector('#model-note').textContent='Representative model / '+(fullDetail?'Full detail':'Optimized')+' / Independent concept';
+document.title=(isRav4?'RAV4':'Camry')+' | Fork studio';
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.0;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFShadowMap;
+renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio,2),2));
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#101114');
+scene.fog=new THREE.Fog('#101114',7,22);
+const pmrem = new THREE.PMREMGenerator(renderer);
+// Neutral photographic softboxes, separated by dark areas for metallic contrast.
+const room = new THREE.Scene();
+room.background=new THREE.Color('#292b30');
+for(const [position,size,power] of [
+  [[0,5,1],[8,3],5], [[-4,3,4],[7,3],3], [[2,3,-4],[7,2],4],
+]) {
+  const panel=new THREE.Mesh(new THREE.PlaneGeometry(...size),new THREE.MeshBasicMaterial({color:new THREE.Color(power,power,power)}));
+  panel.position.set(...position);panel.lookAt(0,0.6,0);room.add(panel);
+}
+const studio=pmrem.fromScene(room,0.06);
+scene.environment=studio.texture;scene.environmentIntensity=1;
+room.traverse(object=>{if(object.isMesh){object.geometry.dispose();object.material.dispose();}});
+pmrem.dispose();
+const camera = new THREE.PerspectiveCamera(35,innerWidth/innerHeight,0.1,50);
+camera.zoom=innerWidth/innerHeight<1.3?0.8:1;camera.updateProjectionMatrix();
+camera.position.set(4.8,1.85,5.6);
+if(isV80) camera.position.x=-4.8;
+const controls = new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0.7,0); controls.update();
+controls.enableDamping=true; controls.dampingFactor=0.08;
+controls.minDistance=3.5; controls.maxDistance=9; controls.maxPolarAngle=1.48;
+scene.add(new THREE.HemisphereLight(0xffffff,0x26272b,0.22));
+const key=new THREE.DirectionalLight(0xffffff,1.5);
+key.position.set(-3,7,4); key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);key.shadow.radius=6;
+Object.assign(key.shadow.camera,{left:-4,right:4,top:4,bottom:-4,near:0.5,far:18});
+key.shadow.bias=-0.00015; key.shadow.normalBias=0.015;
+key.shadow.camera.updateProjectionMatrix(); scene.add(key);
+const rim=new THREE.DirectionalLight(0xe6ebff,0.7); rim.position.set(4,3,-5); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x101114,roughness:0.9,metalness:0,envMapIntensity:0.25}));
+floor.rotation.x=-Math.PI/2; floor.position.y=-0.006; floor.receiveShadow=true; scene.add(floor);
+// Broad underbody occlusion complements the real light-cast wheel shadows.
+const contactCanvas=document.createElement('canvas'); contactCanvas.width=contactCanvas.height=128;
+const ctx=contactCanvas.getContext('2d');
+const gradient=ctx.createRadialGradient(64,64,14,64,64,64);
+gradient.addColorStop(0,'rgba(0,0,0,0.5)');gradient.addColorStop(0.55,'rgba(0,0,0,0.3)');gradient.addColorStop(1,'rgba(0,0,0,0)');
+ctx.fillStyle=gradient;ctx.fillRect(0,0,128,128);
+const contact=new THREE.Mesh(new THREE.PlaneGeometry(5.4,2.8),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,toneMapped:false}));
+contact.rotation.x=-Math.PI/2;contact.position.y=-0.003;scene.add(contact);
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const ao=new GTAOPass(scene,camera,innerWidth,innerHeight);
+ao.updateGtaoMaterial({radius:0.32,thickness:0.4,distanceExponent:2,distanceFallOff:1,scale:1,screenSpaceRadius:false});
+ao.blendIntensity=0.85;
+composer.addPass(ao);
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.025,0.25,3.0);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+composer.addPass(new SMAAPass());
+let cinematic=true;
+const qualityButton=document.createElement('button');
+qualityButton.textContent='Cinematic shading: on';qualityButton.setAttribute('aria-pressed','true');
+qualityButton.onclick=()=>{cinematic=!cinematic;ao.enabled=bloom.enabled=cinematic;qualityButton.textContent=`Cinematic shading: ${cinematic?'on':'off'}`;qualityButton.setAttribute('aria-pressed',String(cinematic));};
+document.querySelector('#controls').appendChild(qualityButton);
+const decoder = new DRACOLoader().setDecoderPath('/three/examples/jsm/libs/draco/gltf/');
+const loader = new GLTFLoader().setDRACOLoader(decoder);
+try {
+  const gltf = await loader.loadAsync(isRav4 ? (fullDetail?'/rav4-full.glb':'/rav4.glb') : isV80 ? (fullDetail?'/camry-v80-full.glb':'/camry-v80.glb') : '/camry.glb');
+  scene.add(gltf.scene);
+  gltf.scene.traverse(object=>{if(object.isMesh){object.castShadow=true;object.receiveShadow=true;}});
+  const paintName=isRav4?'2021_Toyota_RAV4_Adventure_Adventure_Rock':isV80?'BODY.001':'Paint_Color';
+  const materialCache=new Map();
+  gltf.scene.traverse(object=>{if(object.isMesh){
+    const convert=source=>{
+      if(materialCache.has(source))return materialCache.get(source);
+      const material=source.clone();
+      materialCache.set(source,material);
+      if(material.name!==paintName) {
+        if(/^GLASS(?:1)?\.001$/i.test(material.name)||material.name.endsWith('_Windows')) {
+          // Exterior showroom glass: opaque tint avoids expensive transmission
+          // through the source's incomplete cabin and keeps reflections clean.
+          const glass=new THREE.MeshPhysicalMaterial({name:material.name,
+            color:0x151b22,
+            metalness:0.05,roughness:0.12,clearcoat:1,clearcoatRoughness:0.08,side:material.side});
+          materialCache.set(source,glass);return glass;
+        }
+        if(/chrome|chror|rim/i.test(material.name)){material.metalness=0.92;material.roughness=0.22;}
+        if(/tire/i.test(material.name)){material.metalness=0;material.roughness=0.88;}
+        if(/black|grille|undercarrier/i.test(material.name)){material.metalness=0.05;material.roughness=0.48;}
+        if(/whiteRoof/i.test(material.name)){material.metalness=0.4;material.roughness=0.3;}
+        return material;
+      }
+      const paint=new THREE.MeshPhysicalMaterial({name:material.name,color:material.color,
+        metalness:0.78,roughness:0.3,clearcoat:1,clearcoatRoughness:0.12,side:material.side});
+      materialCache.set(source,paint);return paint;
+    };
+    object.material=Array.isArray(object.material)?object.material.map(convert):convert(object.material);
+  }});
+  const paints = new Set();
+  gltf.scene.traverse(object=>{if(object.isMesh) for(const material of (Array.isArray(object.material)?object.material:[object.material])) if(material.name===(isRav4?'2021_Toyota_RAV4_Adventure_Adventure_Rock':isV80?'BODY.001':'Paint_Color')) paints.add(material);});
+  const originals = new Map([...paints].map(material=>[material,material.color.clone()]));
+  function report(label) {for(const id of ['graphite','original','red'])document.querySelector('#'+id).setAttribute('aria-pressed',String(label.toLowerCase().startsWith(id)));status.textContent=`${label} / Clearcoat paint / Studio reflections / ${fullDetail?'Full geometry (higher GPU cost)':'Optimized geometry'}`;}
+  document.querySelector('#red').onclick=()=>{for(const material of paints) material.color.set('#cc2222'); report('Red test paint (illustrative)');};
+  document.querySelector('#original').onclick=()=>{for(const material of paints) material.color.copy(originals.get(material)); report('Original paint');};
+  document.querySelector('#side').onclick=()=>{camera.position.set(0,1.8,7);controls.update();report('Side view');};
+  document.querySelector('#graphite').onclick=()=>{for(const material of paints)material.color.set('#535862');report('Graphite metallic (illustrative)');};
+  document.querySelector('#graphite').click();
+} catch(error) {status.textContent=`Load failed: ${error.message}`;}
+renderer.setAnimationLoop(()=>{controls.update();composer.render();});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.zoom=camera.aspect<1.3?0.8:1;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);});
+</script>

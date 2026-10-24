@@ -1,0 +1,128 @@
+{
+  "file": "C:\\Users\\karee\\OneDrive\\Documents\\ChatGPT\\HackTX26\\scripts\\3d\\source-assets\\camry-2020\\original.glb",
+  "fileSizeBytes": 8978076,
+  "triangles": 176719,
+  "meshCount": 4,
+  "meshInstances": 4,
+  "primitiveInstances": 5,
+  "materials": [
+    {
+      "index": 0,
+      "name": "Index_0_1",
+      "baseColorTextured": true
+    },
+    {
+      "index": 1,
+      "name": "metal_white",
+      "baseColorTextured": true
+    },
+    {
+      "index": 2,
+      "name": "Index_0_2",
+      "baseColorTextured": true
+    },
+    {
+      "index": 3,
+      "name": "Index_0_2_SS",
+      "baseColorTextured": true
+    },
+    {
+      "index": 4,
+      "name": "Paint_Color",
+      "baseColorTextured": false
+    }
+  ],
+  "textureCount": 8,
+  "textures": [
+    {
+      "name": "Image_0",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_2",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "nomerSHAX",
+      "size": [
+        1280,
+        720
+      ]
+    },
+    {
+      "name": "Image_3",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_4",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_5",
+      "size": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "name": "Image_6",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "maxTextureSide": 2048,
+  "unknownTextureSizes": 0,
+  "boundingBox": {
+    "min": [
+      -1.0692596594878978,
+      -0.0013578988814040849,
+      -2.4337570553087744
+    ],
+    "max": [
+      1.0692596594878978,
+      1.4705246190804928,
+      2.45424197993043
+    ],
+    "size": [
+      2.1385193189757956,
+      1.4718825179618968,
+      4.887999035239204
+    ]
+  },
+  "bodyPaintCandidates": [
+    {
+      "index": 4,
+      "name": "Paint_Color",
+      "baseColorTextured": false
+    }
+  ],
+  "checks": {
+    "trianglesAtMost200k": true,
+    "fileAtMost10MB": true,
+    "texturesAtMost2048": true
+  },
+  "warnings": [
+    "Material names are guesses. Manually verify separate recolorable body, license, generation, trim, and front-end geometry."
+  ]
+}

@@ -1,0 +1,222 @@
+{
+  "file": "C:\\Users\\karee\\OneDrive\\Documents\\ChatGPT\\HackTX26\\public\\models\\rav4-hybrid-2024-xle.glb",
+  "fileSizeBytes": 1350892,
+  "triangles": 165419,
+  "meshCount": 36,
+  "meshInstances": 36,
+  "primitiveInstances": 36,
+  "materials": [
+    {
+      "index": 0,
+      "name": "2021_Toyota_RAV4_Adventure_lambert1",
+      "baseColorTextured": false
+    },
+    {
+      "index": 1,
+      "name": "2021_Toyota_RAV4_Adventure_SilverSkid",
+      "baseColorTextured": false
+    },
+    {
+      "index": 2,
+      "name": "2021_Toyota_RAV4_Adventure_BlackChrome",
+      "baseColorTextured": false
+    },
+    {
+      "index": 3,
+      "name": "2021_Toyota_RAV4_Adventure_Interior",
+      "baseColorTextured": false
+    },
+    {
+      "index": 4,
+      "name": "2021_Toyota_RAV4_Adventure_Rims1",
+      "baseColorTextured": false
+    },
+    {
+      "index": 5,
+      "name": "2021_Toyota_RAV4_Adventure_ChromeTrims",
+      "baseColorTextured": false
+    },
+    {
+      "index": 6,
+      "name": "2021_Toyota_RAV4_Adventure_BrakeRotors2",
+      "baseColorTextured": false
+    },
+    {
+      "index": 7,
+      "name": "2021_Toyota_RAV4_Adventure_UnderCarrier",
+      "baseColorTextured": false
+    },
+    {
+      "index": 8,
+      "name": "2021_Toyota_RAV4_Adventure_BlackTrims",
+      "baseColorTextured": false
+    },
+    {
+      "index": 9,
+      "name": "2021_Toyota_RAV4_Adventure_Rims2",
+      "baseColorTextured": false
+    },
+    {
+      "index": 10,
+      "name": "2021_Toyota_RAV4_Adventure_Adventure_Rock",
+      "baseColorTextured": false
+    },
+    {
+      "index": 11,
+      "name": "2021_Toyota_RAV4_Adventure_Calipers",
+      "baseColorTextured": false
+    },
+    {
+      "index": 12,
+      "name": "2021_Toyota_RAV4_Adventure_Tires",
+      "baseColorTextured": false
+    },
+    {
+      "index": 13,
+      "name": "2021_Toyota_RAV4_Adventure_Windows",
+      "baseColorTextured": false
+    },
+    {
+      "index": 14,
+      "name": "2021_Toyota_RAV4_Adventure_BrakeRotors1",
+      "baseColorTextured": true
+    },
+    {
+      "index": 15,
+      "name": "2021_Toyota_RAV4_Adventure_WindowsTrims",
+      "baseColorTextured": false
+    },
+    {
+      "index": 16,
+      "name": "2021_Toyota_RAV4_Adventure_BrakeLightsGlass",
+      "baseColorTextured": false
+    },
+    {
+      "index": 17,
+      "name": "2021_Toyota_RAV4_Adventure_AdventureBadge",
+      "baseColorTextured": true
+    },
+    {
+      "index": 18,
+      "name": "2021_Toyota_RAV4_Adventure_AdventureBadge_0",
+      "baseColorTextured": false
+    },
+    {
+      "index": 19,
+      "name": "2021_Toyota_RAV4_Adventure_Black1",
+      "baseColorTextured": false
+    },
+    {
+      "index": 20,
+      "name": "2021_Toyota_RAV4_Adventure_WhiteRoof",
+      "baseColorTextured": false
+    },
+    {
+      "index": 21,
+      "name": "2021_Toyota_RAV4_Adventure_Grille1",
+      "baseColorTextured": false
+    },
+    {
+      "index": 22,
+      "name": "2021_Toyota_RAV4_Adventure_HeadLightsGlass",
+      "baseColorTextured": false
+    },
+    {
+      "index": 23,
+      "name": "2021_Toyota_RAV4_Adventure_Grille2",
+      "baseColorTextured": false
+    },
+    {
+      "index": 24,
+      "name": "2021_Toyota_RAV4_Adventure_DRLs",
+      "baseColorTextured": false
+    },
+    {
+      "index": 25,
+      "name": "2021_Toyota_RAV4_Adventure_OrangeSide",
+      "baseColorTextured": false
+    },
+    {
+      "index": 26,
+      "name": "2021_Toyota_RAV4_Adventure_Red1",
+      "baseColorTextured": false
+    },
+    {
+      "index": 27,
+      "name": "2021_Toyota_RAV4_Adventure_Reflectors",
+      "baseColorTextured": false
+    },
+    {
+      "index": 28,
+      "name": "2021_Toyota_RAV4_Adventure_RedBrakeLightsGlass",
+      "baseColorTextured": false
+    },
+    {
+      "index": 29,
+      "name": "2021_Toyota_RAV4_Adventure_RedMain",
+      "baseColorTextured": false
+    },
+    {
+      "index": 30,
+      "name": "2021_Toyota_RAV4_Adventure_DarkRed",
+      "baseColorTextured": false
+    },
+    {
+      "index": 31,
+      "name": "2021_Toyota_RAV4_Adventure_Mirrors",
+      "baseColorTextured": false
+    }
+  ],
+  "textureCount": 3,
+  "textures": [
+    {
+      "name": "(unnamed)",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "(unnamed)",
+      "size": [
+        256,
+        64
+      ]
+    },
+    {
+      "name": "(unnamed)",
+      "size": [
+        1,
+        32
+      ]
+    }
+  ],
+  "maxTextureSide": 1024,
+  "unknownTextureSizes": 0,
+  "boundingBox": {
+    "min": [
+      -2.3000000000000003,
+      0,
+      -1.0831061624613987
+    ],
+    "max": [
+      2.3,
+      1.7876609324392823,
+      1.0830576110588452
+    ],
+    "size": [
+      4.6,
+      1.7876609324392823,
+      2.166163773520244
+    ]
+  },
+  "bodyPaintCandidates": [],
+  "checks": {
+    "trianglesAtMost200k": true,
+    "fileAtMost10MB": true,
+    "texturesAtMost2048": true
+  },
+  "warnings": [
+    "Material names are guesses. Manually verify separate recolorable body, license, generation, trim, and front-end geometry."
+  ]
+}

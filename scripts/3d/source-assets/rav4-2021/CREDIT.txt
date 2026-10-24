@@ -1,0 +1,11 @@
+2021+Toyota+RAV4+Adventure by luisandradeandrade762
+Creator: https://sketchfab.com/luisandradeandrade762
+Source: https://sketchfab.com/3d-models/2021toyotarav4adventure-366c46f72db64da2ac09777458506092
+License shown in source download dialog: CC BY 4.0, commercial use allowed with attribution.
+https://creativecommons.org/licenses/by/4.0/
+Downloaded 2026-10-24 through Sketchfab's authorized GLB download.
+original.glb is unchanged source data.
+simplified.glb and the prepared public GLB remove CAD edge lines and simplify surface meshes.
+The public GLB also rotates, normalizes length to 4.6, centers, grounds, and uses Draco.
+Representative only: 2021 Adventure differs from 2024 Hybrid XLE in year, trim, grille,
+wheels, two-tone roof and powertrain. Listing paint name/hex remain unknown.

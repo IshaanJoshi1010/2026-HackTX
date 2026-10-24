@@ -1,0 +1,10 @@
+Toyota Camry 2020 by ItsDiyor
+Creator: https://sketchfab.com/ItsDiyor
+Source: https://sketchfab.com/3d-models/toyota-camry-2020-236a5a6e2fa6420fbdf641f4800cd544
+License: Creative Commons Attribution 4.0 International
+License URL: https://creativecommons.org/licenses/by/4.0/
+Downloaded from the signed-in Sketchfab original-format download on 2026-10-24.
+Original archive: toyota-camry-2020.zip
+Original archive member: source/MDL14026_reversed.glb
+Changes: filename only, renamed to original.glb. Geometry and materials unchanged.
+This is a 2020 model with an unverified trim, not an exact 2022 Camry SE.
