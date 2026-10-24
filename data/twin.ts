@@ -60,12 +60,24 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
         if (prepared.profile.financeType !== undefined && driver.financeType !== finance.financeType) {
           return { ok: false, error: "Profile finance type conflicts with provider account; confirmation is required" };
         }
+        if (prepared.financeInput.payment !== undefined && prepared.financeInput.payment !== finance.monthlyPayment) {
+          return { ok: false, error: "Supplied payment conflicts with the provider account; confirmation is required" };
+        }
+        if (prepared.financeInput.endMonth !== undefined && prepared.financeInput.endMonth !== finance.leaseEndMonth) {
+          return { ok: false, error: "Supplied lease end month conflicts with the provider account; confirmation is required" };
+        }
         driver.financeType = finance.financeType;
         driver.provenance.financeType = finance.provenance.financeType;
       } else {
         if (saved && a.raw?.financeType === undefined && prepared.financeInput.payment === undefined && prepared.financeInput.endMonth === undefined) {
           finance = structuredClone(syntheticFinance);
-          driver.financeType = finance.financeType;
+          if (prepared.financeInput.payment !== undefined && prepared.financeInput.payment !== finance.monthlyPayment) {
+          return { ok: false, error: "Supplied payment conflicts with the provider account; confirmation is required" };
+        }
+        if (prepared.financeInput.endMonth !== undefined && prepared.financeInput.endMonth !== finance.leaseEndMonth) {
+          return { ok: false, error: "Supplied lease end month conflicts with the provider account; confirmation is required" };
+        }
+        driver.financeType = finance.financeType;
           driver.provenance.financeType = "synthetic";
         } else finance.provenance.financeType = driver.provenance.financeType;
         warnings.push(finance === financeResolution.finance ? "Finance amounts use labeled demo estimates, not a lender quote" : "Synthetic demo finance fixture; not a real account");
