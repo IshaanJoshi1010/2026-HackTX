@@ -3,6 +3,7 @@ vi.mock("server-only", () => ({}));
 import { createExplainer } from "./explain";
 import { DecisionEvaluationSchema, SimulationResultSchema } from "../contracts/schemas";
 import snapshot from "./fixtures/dev4-explanation.json";
+import carSeatSnapshot from "./fixtures/dev4-car-seat-actions.json";
 import { POST } from "../app/api/explain/route";
 
 const evaluation = DecisionEvaluationSchema.parse(snapshot.evaluation);
@@ -10,6 +11,23 @@ const results = snapshot.results.map(result => SimulationResultSchema.parse(resu
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Dev 4 explanation compatibility", () => {
+  it.each(carSeatSnapshot.cases)("preserves Ani's corrected $when car-seat action and disclosure through the real offline route", async captured => {
+    const e = DecisionEvaluationSchema.parse(captured.evaluation);
+    const r = captured.results.map(result => SimulationResultSchema.parse(result));
+    expect(e.nextAction.detail).toContain("3 rear seat positions, fewer than the 4 car seats");
+    expect(e.nextAction.detail).toContain(captured.when === "today" ? "today" : "from month 12");
+    expect(e.nextAction.detail).toContain("Fork does not verify physical car seat fit");
+    expect(e.nextAction.detail).not.toContain("does not fit your household");
+    vi.stubEnv("GEMINI_API_KEY", "");
+    const response = await POST(new Request("http://localhost/api/explain", {
+      method: "POST", body: JSON.stringify({ evaluation: e, results: r }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.usedFallback).toBe(true);
+    expect(body.text).toContain(e.nextAction.detail);
+  });
+
   it("retains the actual engine verdict, rationale and unverified fit in offline fallback without mutating input", async () => {
     const before = structuredClone({ evaluation, results });
     const response = await createExplainer(async () => { throw new Error("offline"); })(evaluation, results);

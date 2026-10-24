@@ -1,6 +1,6 @@
 # Dev 4 explanation integration
 
-Checked against dev4-sim commit 4c166ed on 2026-10-24.
+Checked against dev4-sim commit 1dfdf2e on 2026-10-24.
 
 ## Changes
 
@@ -23,7 +23,7 @@ This supersedes C8B-HANDOFF.md's description of a number-free fallback. Fallback
 
 ## Compatibility fixture
 
-ai/fixtures/dev4-explanation.json was captured by running the actual simulate, makeReplaceScenario, evaluate, sensitivity, withSensitivity, findBreakEven and nextAction implementations from origin/dev4-sim at the recorded commit in an isolated in-memory TypeScript loader. Inputs were Dev 3's synthetic Alex, vehicle, finance and spec fixtures at a439454. It compares keeping the Camry with a RAV4 replacement at the family change in month 12. The full horizon is 60 months; only monthly points 1, 12 and 60 were saved to keep the fixture small. Summary totals, milestones, warnings and evaluation rationale are unchanged engine outputs. The evaluation includes actual low/base/high sensitivity values, the robustness count line and the S7 action. Raw sensitivity and break-even outputs are retained alongside the request payload for traceability. The fixture is a regression snapshot, not a live integration or financial quote. Its metadata records both source commits.
+ai/fixtures/dev4-explanation.json was captured by running the actual simulate, makeReplaceScenario, evaluate, sensitivity, withSensitivity, findBreakEven and nextAction implementations from origin/dev4-sim at the recorded commit in an isolated in-memory TypeScript loader. Inputs were Dev 3's synthetic Alex, vehicle, finance and spec fixtures at 23b272f. It compares keeping the Camry with a RAV4 replacement at the family change in month 12. The full horizon is 60 months; only monthly points 1, 12 and 60 were saved to keep the fixture small. Summary totals, milestones, warnings and evaluation rationale are unchanged engine outputs. The evaluation includes actual low/base/high sensitivity values, the robustness count line and the S7 action. Raw sensitivity and break-even outputs are retained alongside the request payload for traceability. The fixture is a regression snapshot, not a live integration or financial quote. Its metadata records both source commits.
 
 Tests validate the fixture against frozen schemas, retain its rounded rationale numbers, check input immutability, retain an earlier passenger constraint when the final point no longer has it, reject invented savings/percentages, and preserve inconclusive decisions, warnings and constraints.
 
@@ -42,6 +42,8 @@ The explanation now rejects mismatched evaluation/result sets, duplicate scenari
 
 Dev 2 should pass the same twin/scenarios/results through evaluate, then use Dev 4's withSensitivity(evaluation, sensitivityResult). If break-even is available, call nextAction(evaluation, twin, breakEven, results) and project its label/detail/optional officialLink into evaluation.nextAction before POST /api/explain. Keep factors as the separate NextAction sidecar rather than extending the frozen evaluation type. evaluate already supplies a default action using its results; the explicit refresh adds the break-even context. Do not turn robustness counts into confidence percentages. No threshold found means only no threshold within the tested bounds.
 
-A concrete Dev 4 issue was sent to Ani: the car_seats_exceed_rear_positions action currently describes a total-seat/household issue. Those are different constraints. Dev 3 does not edit decision modules; the correction belongs to Ani. This note records the request, not a claim that his patch has landed.
+Ani fixed the reported car_seats_exceed_rear_positions detail in dev4-sim commit 1dfdf2e and confirmed the attach order above. The corrected action states rear positions versus required car seats and includes the physical-fit warning, both today and at a projected month. Dev 3 verified this by executing his actual simulate/evaluate code against synthetic current and future cases, then capturing ai/fixtures/dev4-car-seat-actions.json. Both cases are regression-tested through the real offline POST /api/explain handler. This confirms cross-module payload compatibility, not physical fit. Ani reports no remaining Dev 3 blockers on his side; the shared mock index is left to Ishaan.
 
 Follow-up verification: 201 tests across 14 files pass, plus type checks, full lint and production build. A temporary production server with GEMINI_API_KEY explicitly disabled returned HTTP 200 with deterministic explanation fallback, preserving the S7 action, robustness line and physical-fit disclosure. A mismatched result set returned HTTP 400. POST /api/interpret returned HTTP 200 with aiAvailable false. The temporary server was stopped after the check. This verifies the offline API path; live model access and browser UI integration remain separate.
+
+Car-seat follow-up: added two captured-output route regressions (current and month 12), with no production implementation or public signature changes. The next integration step belongs to Dev 2: merge dev3-data-ai and dev4-sim through the team process, wire the confirmed call order and rehearse the full UI flow. Model assets and live Gemini access remain separate dependencies; this work does not claim either is verified.
