@@ -25,6 +25,7 @@ npm ci
 
 Then open Claude Code in the repo and paste your kickoff prompt (`D1-00`, `D2-00`, `D3-00` or `D4-00`) from `docs/prompts/`.
 
+- Your first handoff: [`docs/handoffs/`](docs/handoffs/) (`DEV1-kareem.md`, `DEV2-ishaan.md`, `DEV3-paarth.md`, `DEV4-anirudh.md`)
 - Team guide: [`docs/TEAM_README.md`](docs/TEAM_README.md)
 - Shared rules: [`CLAUDE.md`](CLAUDE.md)
 - Interfaces between devs: [`contracts/INTERFACES.md`](contracts/INTERFACES.md)
