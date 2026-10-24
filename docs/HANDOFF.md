@@ -6,5 +6,5 @@ End each working stretch with three lines per developer: what was built, what to
 | --- | --- | --- | --- |
 | Dev 1 (Kareem) | | | |
 | Dev 2 (Ishaan) | | | |
-| Dev 3 (Paarth) | C0-C5 plus C7; deterministic normalization/defaults/gap checks/tradeoffs/finance now wired into twin; see data/C5-HANDOFF.md | normalizeProfile/normalizeOnboarding from data/normalize; applyDefaults from data/defaults; gapCheck, mapTradeoffs, resolveFinance from their data modules; buildTwin from data/twin; npm test | Listings/history synthetic; finance estimated or synthetic; C8a extraction/20-dump harness and C6 providers pending; assets/fit unverified; contract review pending |
+| Dev 3 (Paarth) | C0-C5/C7 plus C8a strict extraction schema, pure dates, proposed-only mapper and 20-case offline corpus/harness; see ai/C8A-HANDOFF.md | ExtractionSchema from ai/schema; mapExtraction from ai/mapper; resolveEventMonth from ai/dates; runExtractionCases from ai/testHarness; existing data exports unchanged; npm test | Fake extractor only; real model accuracy untested; C8b Gemini/routes/explanation guard and C6 providers pending; data synthetic/estimated; assets/fit unverified |
 | Dev 4 (Anirudh) | | | |
