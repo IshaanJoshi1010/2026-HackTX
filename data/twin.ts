@@ -8,6 +8,7 @@ import { type OnboardingHints, normalizeOnboarding } from "./normalize";
 import { applyDefaults } from "./defaults";
 import { resolveFinance } from "./finance";
 import { validateVin } from "./vin";
+import { ProviderNotConfiguredError } from "./providers/types";
 
 export interface BuildTwinInput { vehicle: VehicleConfig; mileage?: number; raw?: RawProfileInput; provider?: ConnectionProvider }
 export type BuildTwinResult = { ok: true; twin: VehicleTwin } | { ok: false; error: string };
@@ -96,8 +97,8 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
             financeQuestion: !a.provider && finance === financeResolution.finance ? financeResolution.question : null,
             nextAction: !a.provider && finance === financeResolution.finance ? financeResolution.nextAction : null } } }
         : { ok: false, error: parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ") };
-    } catch {
-      return { ok: false, error: "Twin could not be built: provider data or history is unavailable or invalid" };
+    } catch (error) {
+      return { ok: false, error: error instanceof ProviderNotConfiguredError ? error.message : "Twin could not be built: provider data or history is unavailable or invalid" };
     }
   };
 }
