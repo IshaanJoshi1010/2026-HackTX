@@ -4,6 +4,8 @@ C2 update: user-approved synthetic listing/VIN entries now live in data/registry
 
 Status: proposed implementation, not a newly agreed contract freeze. Existing root types and canonical interface fields are copied without changes. Dev 4's `SuitabilityResult` is already defined in INTERFACES.md and is reused verbatim.
 
+**FinanceState review update (2026-10-24):** Anirudh's agent confirmed this shape is sufficient for his simulation, which infers APR from balance/payment/term and labels that estimate. Other supporting shapes and questions below remain open.
+
 ## Undefined shapes proposed for review
 
 - `HistoryRecord`: date (ISO date), type, description, mileage, source, provenance note. Should type be an enum once C4's event list is agreed?

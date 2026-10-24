@@ -6,5 +6,5 @@ End each working stretch with three lines per developer: what was built, what to
 | --- | --- | --- | --- |
 | Dev 1 (Kareem) | | | |
 | Dev 2 (Ishaan) | | | |
-| Dev 3 (Paarth) | C0-C3, C7 twin orchestration, C4 synthetic primary-vehicle ownership/service history; see data/C4-HANDOFF.md | getHistory from data/history; buildTwin/buildTwinWithDetails from data/twin; getSpecs from data/specs; npm test | History/listings synthetic; finance defaults synthetic/illustrative; C5 normalization/gap checks and C6 providers pending; assets/fit unverified; shared-type review pending |
+| Dev 3 (Paarth) | C0-C5 plus C7; deterministic normalization/defaults/gap checks/tradeoffs/finance now wired into twin; see data/C5-HANDOFF.md | normalizeProfile/normalizeOnboarding from data/normalize; applyDefaults from data/defaults; gapCheck, mapTradeoffs, resolveFinance from their data modules; buildTwin from data/twin; npm test | Listings/history synthetic; finance estimated or synthetic; C8a extraction/20-dump harness and C6 providers pending; assets/fit unverified; contract review pending |
 | Dev 4 (Anirudh) | | | |
