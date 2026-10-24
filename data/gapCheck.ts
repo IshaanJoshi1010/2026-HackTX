@@ -2,6 +2,7 @@ import type { DriverProfile, FieldKey, Question } from "../contracts";
 export interface GapContext {
   view: "keep" | "compare";
   vagueCommute?: boolean; budgetMentioned?: boolean;
+  uncertainFields?: string[];
   declined?: FieldKey[]; financeQuestion?: Question | null;
 }
 const backed = (profile: DriverProfile, field: string) => ["user", "sourced", "listing", "synthetic"].includes(profile.provenance[field]);
@@ -19,6 +20,19 @@ export function gapCheck(profile: DriverProfile, ctx: GapContext): { missing: Fi
     field: "commuteDaysPerWeek", text: "How many days per week will you commute?", kind: "number", impactNote: "Completes the commute-based annual-mileage calculation." });
   if (ctx.budgetMentioned && profile.monthlyBudget === undefined) candidates.push({ field: "monthlyBudget",
     text: "What is your monthly vehicle budget?", kind: "number", impactNote: "Changes the budget constraint in the comparison." });
+  // Explicit incoming ambiguities can change a displayed number even when the old profile is backed.
+  const uncertainQuestions: Partial<Record<FieldKey, Question>> = {
+    annualMiles: { field: "annualMiles", text: "What annual mileage should we use?", kind: "number", impactNote: "Changes annual fuel and ownership cost projections." },
+    fuelPricePerGal: { field: "fuelPricePerGal", text: "What fuel price should we use?", kind: "number", impactNote: "Changes fuel spend." },
+    householdSize: { field: "householdSize", text: "How many people are in your household?", kind: "number", impactNote: "Changes passenger fit." },
+    children: { field: "children", text: "How many children should this scenario include?", kind: "number", impactNote: "Changes family fit." },
+    carSeats: { field: "carSeats", text: "How many child seats are needed?", kind: "number", impactNote: "Changes passenger fit checks." },
+    mileage: { field: "mileage", text: "What is the current odometer reading?", kind: "number", impactNote: "Changes maintenance timing and vehicle value." },
+  };
+  for (const field of ctx.uncertainFields ?? []) {
+    const question = uncertainQuestions[field as FieldKey];
+    if (question) candidates.push(question);
+  }
   // Finance-specific followups come after the canonical four impact priorities, one at a time.
   if (ctx.view === "compare" && ctx.financeQuestion &&
     ((["loan", "lease"].includes(profile.financeType) && ctx.financeQuestion.field === "financePayment") ||
