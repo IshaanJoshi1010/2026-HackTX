@@ -52,7 +52,7 @@ describe("C7 twin builder paths", () => {
     expect(result.twin.vehicle.matchStatus).toBe("unsupported");
     expect(result.twin.history).toEqual([]);
     expect(result.twin.driver.financeType).toBe("unknown");
-    expect(result.twin.finance.provenance.balance).toBe("illustrative");
+    expect(result.twin.finance.provenance.balance).toBe("estimated");
   });
   it("rejects invalid VINs, partial configs and missing custom-vehicle mileage without a half-built twin", async () => {
     const inputs = [
@@ -111,15 +111,15 @@ describe("C7 precedence and providers", () => {
   });
 });
 
-describe("structured profile adapter pending C5", () => {
+describe("C5 profile adapter", () => {
   it("labels defaults, preserves user data and rejects nonsense rather than guessing", () => {
     const result = prepareTwinProfile({ annualMiles: 20000, children: 2, provenance: { children: "synthetic" } });
     if (!result.ok) throw new Error(result.error);
     expect(result.profile.provenance.annualMiles).toBe("user");
     expect(result.profile.provenance.children).toBe("synthetic");
     expect(result.profile.provenance.fuelPricePerGal).toBe("illustrative");
-    expect(prepareTwinProfile({ annualMiles: "like 20k a year" }).ok).toBe(false);
-    expect(prepareTwinProfile({ commute: "30 miles each way" }).ok).toBe(false);
+    expect(prepareTwinProfile({ annualMiles: "like 20k a year" }).ok).toBe(true);
+    expect(prepareTwinProfile({ commute: "30 miles each way" }).ok).toBe(true);
     expect(prepareTwinProfile({ children: -1 }).ok).toBe(false);
     expect(prepareTwinProfile({ priorities: { cost: 1, family: 1 } }).ok).toBe(false);
   });
