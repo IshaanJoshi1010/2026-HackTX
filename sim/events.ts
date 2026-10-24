@@ -106,6 +106,19 @@ function applyPayload(prev: SimState, e: LifeEvent, warnings: string[]): { next:
 }
 
 /**
+ * What-if overrides from scenario.assumptions, used by break-even and sensitivity:
+ * annualMilesOverride / fuelPricePerGalOverride hold the value constant for every month (events cannot change it);
+ * fuelPriceScale multiplies whatever fuel price applies that month.
+ */
+function withOverrides(s: SimState, a: Record<string, number>): SimState {
+  const ok = (v: number | undefined): v is number => v !== undefined && Number.isFinite(v) && v >= 0;
+  if (ok(a.annualMilesOverride)) s.annualMiles = a.annualMilesOverride;
+  if (ok(a.fuelPricePerGalOverride)) s.fuelPricePerGal = a.fuelPricePerGalOverride;
+  if (ok(a.fuelPriceScale)) s.fuelPricePerGal *= a.fuelPriceScale;
+  return s;
+}
+
+/**
  * Month-by-month state for months 1..HORIZON_MONTHS. Only confirmed events apply, sorted by month
  * (stable inside a month), each from its month forward. Same variable, same month: later in the list wins.
  */
@@ -136,7 +149,7 @@ export function resolveStates(twin: VehicleTwin, scenario: Scenario): { states: 
         state = next;
       }
     }
-    states.push({ ...state, month });
+    states.push(withOverrides({ ...state, month }, scenario.assumptions));
   }
   return { states, warnings };
 }

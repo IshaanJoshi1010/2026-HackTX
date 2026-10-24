@@ -1,11 +1,12 @@
-import type { DecisionEvaluation, DriverProfile, ProjectionPoint, Scenario, SimulationResult, VehicleTwin } from "../contracts";
-import { DEFAULT_COMFORT, FIT_SCORE, INCONCLUSIVE_MARGIN, LONGEVITY_MILES, MEANINGFUL_DIFFERENCE } from "./config";
+import type { DecisionEvaluation, DriverProfile, Scenario, SimulationResult, VehicleTwin } from "../contracts";
+import { INCONCLUSIVE_MARGIN, LONGEVITY_MILES, MEANINGFUL_DIFFERENCE } from "./config";
+import { type Metrics, metricsOf } from "./metrics";
+import { nextAction } from "./nextAction";
 
 type Priorities = DriverProfile["priorities"];
 type Factor = keyof Priorities; // cost, family, longevity, fuel, comfort
 const FACTORS: Factor[] = ["cost", "family", "longevity", "fuel", "comfort"];
 
-export interface Metrics { netCost: number; fuel: number; longevity: number; family: number; comfort: number }
 export interface ScenarioScore {
   scenarioId: string; name: string; metrics: Metrics;
   normalized: Record<Factor, number>; contributions: Record<Factor, number>; total: number;
@@ -17,26 +18,6 @@ export interface EvaluateInput {
 
 const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const f2 = (n: number) => n.toFixed(2);
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-
-function comfortOf(p: ProjectionPoint): number {
-  const note = p.suitability.notes.find(n => n.startsWith("comfort_score="));
-  const v = note ? Number(note.slice("comfort_score=".length)) : NaN;
-  return Number.isFinite(v) ? v : DEFAULT_COMFORT;
-}
-
-/** Objective metrics from a simulation result. Family and comfort average every month of the horizon. */
-export function metricsOf(r: SimulationResult): Metrics {
-  const last = r.points[r.points.length - 1];
-  return {
-    netCost: r.summary.netCost,
-    fuel: r.points.reduce((a, p) => a + p.fuelSpend, 0),
-    longevity: 1 - Math.min((last?.mileage ?? 0) / LONGEVITY_MILES, 1),
-    family: mean(r.points.map(p => Math.min(FIT_SCORE[p.suitability.passengerFit], FIT_SCORE[p.suitability.cargoFit]))),
-    comfort: mean(r.points.map(comfortOf)),
-  };
-}
-
 /**
  * Recurring monthly cost (fuel, insurance, loan or lease payment): the month's cash minus maintenance.
  * Months where the car changes are skipped, since they hold one-time sale and purchase cash.
@@ -125,26 +106,17 @@ export function evaluateDetailed(a: EvaluateInput): { evaluation: DecisionEvalua
     ...scores.map(s => `${s.name} score ${f2(s.total)} = ${FACTORS.map(f => `${f} ${f2(s.contributions[f])}`).join(" + ")}`),
   );
 
-  return {
-    evaluation: {
-      scenarioIds: a.results.map(r => r.scenarioId),
-      hardConstraints: scores.flatMap(s => s.violations.map(v => `${s.name}: ${v}`)),
-      preferredScenarioId, rationale,
-      sensitivity: [], // filled from sensitivity() (S6); evaluate has no simulation context to rerun
-      nextAction: provisionalAction(preferredScenarioId, a.results, a.twin),
-    },
-    scores,
+  const evaluation: DecisionEvaluation = {
+    scenarioIds: a.results.map(r => r.scenarioId),
+    hardConstraints: scores.flatMap(s => s.violations.map(v => `${s.name}: ${v}`)),
+    preferredScenarioId, rationale,
+    sensitivity: [], // filled from sensitivity() (S6); evaluate has no simulation context to rerun
+    nextAction: { label: "", detail: "" },
   };
-}
-
-/** Basic action until nextAction (S7) lands. Never implies a booking or approval. */
-function provisionalAction(preferred: string, results: SimulationResult[], twin: VehicleTwin) {
-  if (preferred === "inconclusive") return { label: "Revisit the comparison later", detail: "No option leads by a clear margin on your priorities." };
-  const r = results.find(x => x.scenarioId === preferred);
-  const endsWith = r?.points[r.points.length - 1]?.vehicleId ?? twin.vehicle.id;
-  return endsWith === twin.vehicle.id
-    ? { label: `Keep your ${twin.vehicle.model}`, detail: "Keeping leads on your weighted priorities." }
-    : { label: "Look into the replacement", detail: `Replacing with ${endsWith} leads on your weighted priorities.` };
+  const action = nextAction(evaluation, a.twin, undefined, a.results);
+  evaluation.nextAction = action.officialLink ? { label: action.label, detail: action.detail, officialLink: action.officialLink }
+    : { label: action.label, detail: action.detail };
+  return { evaluation, scores };
 }
 
 export function evaluate(a: EvaluateInput): DecisionEvaluation {
