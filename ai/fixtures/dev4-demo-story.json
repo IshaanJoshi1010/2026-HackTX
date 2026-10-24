@@ -1,0 +1,313 @@
+{
+  "_meta": {
+    "simulationCommit": "5d9e2995d157e18a6fe485cc7127ddfada511be5",
+    "dataBaseCommit": "797ef88be781395be288a76d7986fb8be9cc593e",
+    "dataProfile": {
+      "householdSize": 3,
+      "children": 1,
+      "carSeats": 0
+    },
+    "source": "Synthetic Alex demo using the household/child correction in this patch, deterministic quoted extraction with explicit confirmation, and actual Dev 4 simulation/decision code. Points sampled at months 1, 12, 32 and 60."
+  },
+  "evaluation": {
+    "scenarioIds": [
+      "demo-confirmed",
+      "demo-confirmed/replace-rav4-2024-hybrid-xle-12"
+    ],
+    "hardConstraints": [],
+    "preferredScenarioId": "inconclusive",
+    "rationale": [
+      "Inconclusive: Keep Camry 0.50 vs Replace with RAV4 0.50, within the 0.05 margin",
+      "Net economic cost over 60 months: Keep Camry $31,287, Replace with RAV4 $35,862",
+      "Fuel spend over 60 months: Keep Camry $9,375, Replace with RAV4 $8,001",
+      "Longevity (miles left of 250,000): Keep Camry 0.41, Replace with RAV4 0.53",
+      "Family fit: Keep Camry 1.00, Replace with RAV4 1.00",
+      "Comfort: Keep Camry 0.50, Replace with RAV4 0.50",
+      "Weights: cost 0.20, family 0.20, longevity 0.20, fuel 0.20, comfort 0.20",
+      "Keep Camry score 0.50 = cost 0.20 + family 0.10 + longevity 0.05 + fuel 0.05 + comfort 0.10",
+      "Replace with RAV4 score 0.50 = cost 0.00 + family 0.10 + longevity 0.15 + fuel 0.15 + comfort 0.10",
+      "Held in 9 of 9 tested cases"
+    ],
+    "sensitivity": [
+      {
+        "low": 28045.599999999962,
+        "base": 31286.999999999956,
+        "high": 34528.39999999995
+      },
+      {
+        "low": 33142.37359342397,
+        "base": 35862.222336575316,
+        "high": 38582.071079726506
+      }
+    ],
+    "nextAction": {
+      "label": "Reevaluate if your driving drops below 14,434 mi/yr",
+      "detail": "Neither option leads by a clear margin today. The verdict changes at 14,434 mi/yr (modeled break-even, tested between 5000 and 40000)."
+    }
+  },
+  "results": [
+    {
+      "scenarioId": "demo-confirmed",
+      "points": [
+        {
+          "month": 1,
+          "vehicleId": "camry-2022-se",
+          "mileage": 49666.666666666664,
+          "fuelSpend": 156.25,
+          "maintenanceSpend": 0,
+          "vehicleValue": 16637.786666666667,
+          "loanBalance": 14613.310013180746,
+          "cumulativeCash": 736.25,
+          "netEconomicCost": 511.7733465140791,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=camry-2022-se",
+              "month=1",
+              "household=3",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=15",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        },
+        {
+          "month": 12,
+          "vehicleId": "camry-2022-se",
+          "mileage": 67999.99999999999,
+          "fuelSpend": 156.25,
+          "maintenanceSpend": 0,
+          "vehicleValue": 14878.080000000007,
+          "loanBalance": 10250.472264972983,
+          "cumulativeCash": 9895,
+          "netEconomicCost": 7067.392264972976,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=camry-2022-se",
+              "month=12",
+              "household=3",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=15",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        },
+        {
+          "month": 32,
+          "vehicleId": "camry-2022-se",
+          "mileage": 101333.33333333342,
+          "fuelSpend": 156.25,
+          "maintenanceSpend": 155,
+          "vehicleValue": 11794.34666666668,
+          "loanBalance": 1781.1661461060405,
+          "cumulativeCash": 25850,
+          "netEconomicCost": 17636.81947943936,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=camry-2022-se",
+              "month=32",
+              "household=4",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=15",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        },
+        {
+          "month": 60,
+          "vehicleId": "camry-2022-se",
+          "mileage": 148000.00000000006,
+          "fuelSpend": 156.25,
+          "maintenanceSpend": 0,
+          "vehicleValue": 7728.000000000016,
+          "loanBalance": 0,
+          "cumulativeCash": 37214.99999999997,
+          "netEconomicCost": 31286.999999999956,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=camry-2022-se",
+              "month=60",
+              "household=4",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=15",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        }
+      ],
+      "milestones": [
+        "Month 8: Illustrative air and cabin filter service at 60,000 mi ($180, illustrative)",
+        "Month 8: Illustrative fluids and component service at 60,000 mi ($450, illustrative)",
+        "Month 26: Illustrative air and cabin filter service at 90,000 mi ($180, illustrative)",
+        "Month 26: Illustrative extended inspection at 90,000 mi ($250, illustrative)",
+        "Month 36: loan paid off",
+        "Month 44: Illustrative air and cabin filter service at 120,000 mi ($180, illustrative)",
+        "Month 44: Illustrative fluids and component service at 120,000 mi ($450, illustrative)"
+      ],
+      "warnings": [],
+      "summary": {
+        "totalCash": 37214.99999999997,
+        "netCost": 31286.999999999956
+      }
+    },
+    {
+      "scenarioId": "demo-confirmed/replace-rav4-2024-hybrid-xle-12",
+      "points": [
+        {
+          "month": 1,
+          "vehicleId": "camry-2022-se",
+          "mileage": 49666.666666666664,
+          "fuelSpend": 156.25,
+          "maintenanceSpend": 0,
+          "vehicleValue": 16637.786666666667,
+          "loanBalance": 14613.310013180746,
+          "cumulativeCash": 736.25,
+          "netEconomicCost": 511.7733465140791,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=camry-2022-se",
+              "month=1",
+              "household=3",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=15",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        },
+        {
+          "month": 12,
+          "vehicleId": "rav4-2024-hybrid-xle",
+          "mileage": 36666.666666666664,
+          "fuelSpend": 128.20512820512823,
+          "maintenanceSpend": 0,
+          "vehicleValue": 23731.487999999892,
+          "loanBalance": 21252.22608881169,
+          "cumulativeCash": 9800.341006616713,
+          "netEconomicCost": 9121.079095428511,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=rav4-2024-hybrid-xle",
+              "month=12",
+              "household=3",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=37",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        },
+        {
+          "month": 32,
+          "vehicleId": "rav4-2024-hybrid-xle",
+          "mileage": 69999.99999999997,
+          "fuelSpend": 128.20512820512823,
+          "maintenanceSpend": 0,
+          "vehicleValue": 20158.863999999918,
+          "loanBalance": 14792.584796822895,
+          "cumulativeCash": 24755.290544483,
+          "netEconomicCost": 21189.011341305977,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=rav4-2024-hybrid-xle",
+              "month=32",
+              "household=4",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=37",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        },
+        {
+          "month": 60,
+          "vehicleId": "rav4-2024-hybrid-xle",
+          "mileage": 116666.66666666677,
+          "fuelSpend": 128.20512820512823,
+          "maintenanceSpend": 0,
+          "vehicleValue": 15840.395999999915,
+          "loanBalance": 4492.398439079391,
+          "cumulativeCash": 45410.21989749584,
+          "netEconomicCost": 35862.222336575316,
+          "suitability": {
+            "passengerFit": "good",
+            "cargoFit": "good",
+            "tradeoffs": [],
+            "constraints": [],
+            "notes": [
+              "vehicle=rav4-2024-hybrid-xle",
+              "month=60",
+              "household=4",
+              "seats=5",
+              "car_seats=0",
+              "rear_positions=3",
+              "cargo_need=low",
+              "cargo_cu_ft=37",
+              "cargo_needed_cu_ft=12"
+            ]
+          }
+        }
+      ],
+      "milestones": [
+        "Month 8: Illustrative air and cabin filter service at 60,000 mi ($180, illustrative)",
+        "Month 8: Illustrative fluids and component service at 60,000 mi ($450, illustrative)",
+        "Month 12: sell or trade in the Camry for $15,036 (modeled value, illustrative) and pay off $10,655",
+        "Month 12: buy the 2024 RAV4 Hybrid XLE for $23,952 plus $1,947 tax and fees",
+        "Month 27: Illustrative air and cabin filter service at 60,000 mi ($190, illustrative)",
+        "Month 27: Illustrative fluids and component service at 60,000 mi ($475, illustrative)",
+        "Month 44: Illustrative air and cabin filter service at 90,000 mi ($190, illustrative)",
+        "Month 44: Illustrative extended inspection at 90,000 mi ($275, illustrative)"
+      ],
+      "warnings": [],
+      "summary": {
+        "totalCash": 45410.21989749584,
+        "netCost": 35862.222336575316
+      }
+    }
+  ]
+}

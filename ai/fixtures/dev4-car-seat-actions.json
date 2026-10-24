@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "simulationCommit": "1dfdf2ec8f20a35f38face1f4a5df5bb44a142e4",
-    "dataCommit": "23b272f615abc40d40d36f95aec23eda550712d6",
+    "simulationCommit": "5d9e2995d157e18a6fe485cc7127ddfada511be5",
+    "dataCommit": "797ef88be781395be288a76d7986fb8be9cc593e",
     "source": "Actual simulate/evaluate outputs for synthetic current and future rear car-seat capacity constraints. Full 60-month rationale/totals; points sampled at months 1, 12, 60. Not a physical-fit verification."
   },
   "cases": [
@@ -191,7 +191,7 @@
                 "notes": [
                   "vehicle=camry-2022-se",
                   "month=1",
-                  "household=2",
+                  "household=3",
                   "seats=5",
                   "car_seats=0",
                   "rear_positions=3",

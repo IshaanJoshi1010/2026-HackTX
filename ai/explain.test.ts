@@ -4,6 +4,7 @@ import { createExplainer } from "./explain";
 import { DecisionEvaluationSchema, SimulationResultSchema } from "../contracts/schemas";
 import snapshot from "./fixtures/dev4-explanation.json";
 import carSeatSnapshot from "./fixtures/dev4-car-seat-actions.json";
+import demoStory from "./fixtures/dev4-demo-story.json";
 import { POST } from "../app/api/explain/route";
 
 const evaluation = DecisionEvaluationSchema.parse(snapshot.evaluation);
@@ -11,6 +12,23 @@ const results = snapshot.results.map(result => SimulationResultSchema.parse(resu
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Dev 4 explanation compatibility", () => {
+  it("opens the actual inconclusive demo with plain language and a computed next step", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "");
+    const e = DecisionEvaluationSchema.parse(demoStory.evaluation);
+    expect(e.preferredScenarioId).toBe("inconclusive");
+    const response = await POST(new Request("http://localhost/api/explain", {
+      method: "POST", body: JSON.stringify({ evaluation: e, results: demoStory.results }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.usedFallback).toBe(true);
+    expect(body.text.startsWith("No option clearly leads on your priorities yet.")).toBe(true);
+    expect(body.text).toContain(`Next step: ${e.nextAction.label}\n${e.nextAction.detail}`);
+    expect(body.text.indexOf(e.nextAction.label)).toBeLessThan(body.text.indexOf(e.rationale[0]));
+    for (const line of e.rationale) expect(body.text).toContain(line);
+    expect(body.text).toContain("not a financial quote");
+  });
+
   it.each(carSeatSnapshot.cases)("preserves Ani's corrected $when car-seat action and disclosure through the real offline route", async captured => {
     const e = DecisionEvaluationSchema.parse(captured.evaluation);
     const r = captured.results.map(result => SimulationResultSchema.parse(result));
@@ -36,6 +54,8 @@ describe("Dev 4 explanation compatibility", () => {
     expect(response.text).toContain("Physical car seat fit still needs verification.");
     expect(response.text).toContain("Packing fit still needs verification.");
     expect(response.text).toContain(evaluation.nextAction.detail);
+    expect(response.text.indexOf(evaluation.nextAction.detail)).toBeLessThan(response.text.indexOf(evaluation.rationale[0]));
+    expect(response.text).toContain("What drives this comparison:");
     expect(response.text).not.toContain("car_seat_fit=unverified");
     expect({ evaluation, results }).toEqual(before);
   });
@@ -69,7 +89,7 @@ describe("Dev 4 explanation compatibility", () => {
     const warned = structuredClone(results);
     warned[0].warnings.push("Finance type unknown; using the balance and payment on record as a loan");
     const response = await createExplainer(async () => "invented 99999")(constrained, warned);
-    expect(response.text).toContain("do not establish a clear preferred scenario");
+    expect(response.text).toContain("No option clearly leads on your priorities yet");
     expect(response.text).toContain(constrained.rationale[0]);
     expect(response.text).toContain(constrained.hardConstraints[0]);
     expect(response.text).toContain(warned[0].warnings.at(-1));

@@ -4,7 +4,7 @@ Dev 3 owns data, ai and app/api. This module never imports sim, decision or ui. 
 
 ## Demo and offline guarantee
 
-The approved demo dataset is fictional except the saved EPA MPG figures. Use demoVins from registry.ts, identifyVehicle(vin, { offline: true }), then buildTwin({ vehicle, raw, provider? }) only if identification status is ok. SyntheticProvider is the default configurable provider; omit provider to use saved listing mileage and labeled finance defaults. To show the complete fictional Alex profile, pass `{ ...alexProfile }` as raw and createProvider({ vehicleId }) as provider.
+The approved demo dataset is fictional except the saved EPA MPG figures. Use demoVins from registry.ts, identifyVehicle(vin, { offline: true }), then buildTwin({ vehicle, raw, provider? }) only if identification status is ok. SyntheticProvider is the default configurable provider; omit provider to use saved listing mileage and labeled finance defaults. For an explicit demo action, call buildDemoTwin() from data/demo.ts. It loads the primary Camry, all of Alex's synthetic fields and the matching synthetic provider offline. buildDemoTwin("rav4-2024-hybrid-xle") selects the other supported demo vehicle. For custom demo wiring, pass `{ ...alexProfile }` as raw and createProvider({ vehicleId }) as provider. Generic buildTwin({ vehicle }) deliberately retains neutral onboarding defaults and never silently loads Alex.
 
 All four saved primary/backup VIN-format keys resolve without a network request. Primary cars have synthetic ownership/service history; backup/custom/picker cars do not inherit it. A changed odometer discards the old history rather than fabricating a catch-up reading. Custom unregistered VINs with offline true return an explicit unavailable/unsupported partial. Online NHTSA requests are optional and time out after three seconds. The twin builder itself performs no network calls; supplied providers may do IO, but both shipped demo providers are local.
 
@@ -65,6 +65,7 @@ No live Toyota/Smartcar/TFS access is claimed. A synthetic VIN passing format/ch
 
 ## Fixtures and audit exports
 
+- demo.ts exports buildDemoTwin(vehicleId?: DemoVehicleId): Promise<BuildTwinResult>, demoBrainDump: string and demoTodayISO: string. The demo is opt-in, offline, synthetic and isolated between calls.
 - fixtures/alex.ts exports alexProfile: a synthetic complete DriverProfile for the fictional Austin persona. fixtures/finance.ts exports syntheticFinance, a synthetic loan. Their values are not real records.
 - fixtures/vehicles.ts exports camryVehicle, rav4Vehicle and vehicleFixtures, C0 placeholder configs with representative status and no asset. fixtures/specs.ts exports specFixtures, the original illustrative C0 integration sheets. Current registry/simulation inputs use specs.ts; old mocks deliberately retain their original fixtures. fixtures/epa.json is the sourced EPA snapshot and provider/limitations metadata.
 - audit.ts: `auditTwinSources(twin, metadata: Pick<TwinMetadata, "mileage">): SourceAudit` audits semantic leaf values, listing exact missing source paths. SourceAudit has labeled count, missing and path-to-Source fields. Source/citation/provenance containers are metadata, not recursively self-labeled data. Unknown or modified vehicle fields fail this strict saved-registry source audit rather than being given a made-up source.
@@ -74,3 +75,5 @@ No live Toyota/Smartcar/TFS access is claimed. A synthetic VIN passing format/ch
 Run npm test, npx tsc --noEmit, npm run lint, npm run build. The independent C9 checks are in data/audit.test.ts; detailed statuses and disclosures are in C9-AUDIT.md. All live-service success claims remain unverified: no actual Gemini key, Smartcar connection or TFS sandbox is configured.
 
 Missing model assets/manifest in this branch prevent exact visual acceptance. Real car-seat/packing fit is unverified. Shared type approval remains separate except Anirudh's reported FinanceState acceptance. This data module supplies drafts/fixtures and computed normalization; it does not own UI confirmation, the 3D viewer, simulation or recommendation formulas.
+
+Alex's current fictional baseline is a household of three with one existing child, low cargo need, zero explicitly configured car seats and equal priority weights. The second-child demo proposes children=2 at month 32; it does not infer car-seat need or change the current confirmed twin. See data/DEMO-HANDOFF.md.

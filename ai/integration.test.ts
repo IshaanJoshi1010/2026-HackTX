@@ -134,7 +134,7 @@ describe("explanation number guard and fallback", () => {
     expect(invented.text).not.toContain("99999");
     expect((await createExplainer(async () => { throw new Error("offline"); })(evaluation, results)).usedFallback).toBe(true);
     const inconclusive = await createExplainer(async () => "invented 42")({ ...evaluation, preferredScenarioId: "inconclusive" }, results);
-    expect(inconclusive.text).toContain("do not establish a clear");
+    expect(inconclusive.text).toContain("No option clearly leads");
   });
 });
 

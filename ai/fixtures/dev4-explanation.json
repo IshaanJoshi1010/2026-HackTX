@@ -1,7 +1,12 @@
 {
   "_meta": {
-    "simulationCommit": "1dfdf2ec8f20a35f38face1f4a5df5bb44a142e4",
-    "dataCommit": "23b272f615abc40d40d36f95aec23eda550712d6",
+    "dataProfile": {
+      "householdSize": 3,
+      "children": 1,
+      "carSeats": 0
+    },
+    "simulationCommit": "5d9e2995d157e18a6fe485cc7127ddfada511be5",
+    "dataCommit": "797ef88be781395be288a76d7986fb8be9cc593e",
     "source": "Actual simulate/evaluate/withSensitivity/nextAction output using synthetic Dev 3 demo fixtures. Points sampled at months 1, 12 and 60; summaries and rationale retain the full horizon. Not a financial quote."
   },
   "evaluation": {
@@ -62,7 +67,7 @@
             "notes": [
               "vehicle=camry-2022-se",
               "month=1",
-              "household=2",
+              "household=3",
               "seats=5",
               "car_seats=0",
               "rear_positions=3",
@@ -171,7 +176,7 @@
             "notes": [
               "vehicle=camry-2022-se",
               "month=1",
-              "household=2",
+              "household=3",
               "seats=5",
               "car_seats=0",
               "rear_positions=3",

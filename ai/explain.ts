@@ -40,20 +40,20 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       ]).filter(key => Object.hasOwn(fitMessages, key)))].map(key => fitMessages[key]),
     })) };
     const generic = e.preferredScenarioId === "inconclusive"
-      ? "The supplied results do not establish a clear preferred scenario. Review the computed comparison and its assumptions before deciding."
-      : "Review the preferred scenario in the computed comparison alongside its costs, fit checks and assumptions.";
+      ? "No option clearly leads on your priorities yet."
+      : "Compare the modeled costs and fit checks before deciding.";
     // Preserve the engine's verdict and arithmetic verbatim. Never derive a new amount or winner here.
     const fallback = () => ({ text: [
       ...(e.preferredScenarioId === "inconclusive" ? [generic] : []),
-      ...(e.rationale.length ? e.rationale : e.preferredScenarioId === "inconclusive" ? [] : [generic]),
-      ...e.hardConstraints,
-      ...input.results.flatMap(result => [
+      `Next step: ${e.nextAction.label}\n${e.nextAction.detail}`,
+      ...(e.rationale.length ? [`What drives this comparison:\n${e.rationale.join("\n")}`]
+        : e.preferredScenarioId === "inconclusive" ? [] : [generic]),
+      ...[...new Set([...e.hardConstraints, ...input.results.flatMap(result => [
         ...result.warnings.map(warning => `${result.scenarioId}: ${warning}`),
         ...result.fitChecks.map(check => `${result.scenarioId}: ${check}`),
-      ]),
-      `${e.nextAction.label}: ${e.nextAction.detail}`,
+      ])])],
       "These demo results are not a financial quote.",
-    ].join("\n"), usedFallback: true });
+    ].join("\n\n"), usedFallback: true });
     try {
       const text = (await generate({ system: explanationInstructions, input })).trim();
       // Engine scores are fractions, not confidence percentages. Numeric membership alone cannot check units.
