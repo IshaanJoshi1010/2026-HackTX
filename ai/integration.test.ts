@@ -21,7 +21,7 @@ import { POST as interpretRoute } from "../app/api/interpret/route";
 import { POST as explainRoute } from "../app/api/explain/route";
 
 const context: InterpretContext = { vehicle: { make: "Toyota", model: "Camry", year: 2022, trim: "SE" }, profile: { ...alexProfile, location: "PRIVATE LOCATION" }, existingEvents: [], todayISO: "2026-10-24" };
-const evaluation: DecisionEvaluation = { scenarioIds: ["keep", "replace"], hardConstraints: [], preferredScenarioId: "keep", rationale: [], sensitivity: [], nextAction: { label: "Review comparison", detail: "Verify assumptions" } };
+const evaluation: DecisionEvaluation = { scenarioIds: ["keep"], hardConstraints: [], preferredScenarioId: "keep", rationale: [], sensitivity: [], nextAction: { label: "Review comparison", detail: "Verify assumptions" } };
 const results: SimulationResult[] = [{ scenarioId: "keep", points: [], milestones: [], warnings: [], summary: { totalCash: 12000, netCost: 15000 } }];
 beforeEach(() => { sdk.generateContent.mockReset(); sdk.constructor.mockReset(); });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });

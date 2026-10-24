@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "simulationCommit": "146bd22cf8fdfcef27dc65ab23c3a32c4869f4bb",
-    "dataCommit": "e2cda7e0d71cf9dcf392cb7fd2d7da7be74d2c78",
-    "source": "Actual simulate/evaluate output using synthetic Dev 3 demo fixtures. Points sampled at months 1, 12 and 60; summaries and rationale retain the full horizon. Not a financial quote."
+    "simulationCommit": "4c166edffb657c369295a9aa73ecd9de97449730",
+    "dataCommit": "a4394541cb1dd192af61ecabd776ad7700df99ed",
+    "source": "Actual simulate/evaluate/withSensitivity/nextAction output using synthetic Dev 3 demo fixtures. Points sampled at months 1, 12 and 60; summaries and rationale retain the full horizon. Not a financial quote."
   },
   "evaluation": {
     "scenarioIds": [
@@ -20,12 +20,24 @@
       "Comfort: Keep Camry 0.50, Replace with RAV4 0.50",
       "Weights: cost 0.20, family 0.20, longevity 0.20, fuel 0.20, comfort 0.20",
       "Keep Camry score 0.45 = cost 0.20 + family 0.02 + longevity 0.06 + fuel 0.07 + comfort 0.10",
-      "Replace with RAV4 score 0.55 = cost 0.00 + family 0.18 + longevity 0.14 + fuel 0.13 + comfort 0.10"
+      "Replace with RAV4 score 0.55 = cost 0.00 + family 0.18 + longevity 0.14 + fuel 0.13 + comfort 0.10",
+      "Held in 9 of 9 tested cases"
     ],
-    "sensitivity": [],
+    "sensitivity": [
+      {
+        "low": 22569.999999999956,
+        "base": 25374.99999999995,
+        "high": 28179.999999999945
+      },
+      {
+        "low": 27076.16998316757,
+        "base": 29383.484490421422,
+        "high": 31690.798997675265
+      }
+    ],
     "nextAction": {
-      "label": "Look into the replacement",
-      "detail": "Replacing with rav4-2024-hybrid-xle leads on your weighted priorities."
+      "label": "Investigate a RAV4 Hybrid",
+      "detail": "Replacing leads on your weighted priorities. Modeled advantages: $825 less fuel, better family fit (0.59 vs 0.18), more miles of life left at the end."
     }
   },
   "results": [
@@ -132,9 +144,7 @@
         "Month 42: Illustrative air and cabin filter service at 90,000 mi ($180, illustrative)",
         "Month 42: Illustrative extended inspection at 90,000 mi ($250, illustrative)"
       ],
-      "warnings": [
-        "Month 12: cargoNeed set by both family and cargo; using cargo"
-      ],
+      "warnings": [],
       "summary": {
         "totalCash": 31974.999999999967,
         "netCost": 25374.99999999995
@@ -238,13 +248,54 @@
         "Month 36: Illustrative air and cabin filter service at 60,000 mi ($190, illustrative)",
         "Month 36: Illustrative fluids and component service at 60,000 mi ($475, illustrative)"
       ],
-      "warnings": [
-        "Month 12: cargoNeed set by both family and cargo; using cargo"
-      ],
+      "warnings": [],
       "summary": {
         "totalCash": 39921.08605134194,
         "netCost": 29383.484490421422
       }
     }
-  ]
+  ],
+  "sensitivity": {
+    "runs": [
+      {
+        "label": "low",
+        "depreciation": 0.8,
+        "fuelPrice": 2.4000000000000004,
+        "netCost": {
+          "keep": 22569.999999999956,
+          "keep/replace-rav4-2024-hybrid-xle-12": 27076.16998316757
+        }
+      },
+      {
+        "label": "base",
+        "depreciation": 1,
+        "fuelPrice": 3,
+        "netCost": {
+          "keep": 25374.99999999995,
+          "keep/replace-rav4-2024-hybrid-xle-12": 29383.484490421422
+        }
+      },
+      {
+        "label": "high",
+        "depreciation": 1.2,
+        "fuelPrice": 3.5999999999999996,
+        "netCost": {
+          "keep": 28179.999999999945,
+          "keep/replace-rav4-2024-hybrid-xle-12": 31690.798997675265
+        }
+      }
+    ],
+    "heldCount": 9,
+    "totalCount": 9,
+    "heldScenarioId": "keep/replace-rav4-2024-hybrid-xle-12"
+  },
+  "breakEven": {
+    "found": false,
+    "parameter": "annualMiles",
+    "reason": "no_threshold_within_bounds",
+    "testedBounds": [
+      5000,
+      40000
+    ]
+  }
 }

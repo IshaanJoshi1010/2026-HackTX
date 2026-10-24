@@ -1,11 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { createExplainer } from "./explain";
 import { DecisionEvaluationSchema, SimulationResultSchema } from "../contracts/schemas";
 import snapshot from "./fixtures/dev4-explanation.json";
+import { POST } from "../app/api/explain/route";
 
 const evaluation = DecisionEvaluationSchema.parse(snapshot.evaluation);
 const results = snapshot.results.map(result => SimulationResultSchema.parse(result));
+afterEach(() => vi.unstubAllEnvs());
 
 describe("Dev 4 explanation compatibility", () => {
   it("retains the actual engine verdict, rationale and unverified fit in offline fallback without mutating input", async () => {
@@ -53,5 +55,51 @@ describe("Dev 4 explanation compatibility", () => {
     expect(response.text).toContain(constrained.rationale[0]);
     expect(response.text).toContain(constrained.hardConstraints[0]);
     expect(response.text).toContain(warned[0].warnings.at(-1));
+  });
+
+  it("preserves S6 robustness counts, sensitivity values and S7 actions from the actual engine", async () => {
+    expect(evaluation.sensitivity).toHaveLength(evaluation.scenarioIds.length);
+    const robustness = `Held in ${snapshot.sensitivity.heldCount} of ${snapshot.sensitivity.totalCount} tested cases`;
+    expect(evaluation.rationale).toContain(robustness);
+    const generate = vi.fn().mockResolvedValue(`${robustness}. ${evaluation.nextAction.detail}`);
+    expect((await createExplainer(generate)(evaluation, results)).usedFallback).toBe(false);
+    expect(generate.mock.calls[0][0].input.evaluation.sensitivity).toEqual(evaluation.sensitivity);
+  });
+
+  it("runs the real route without a key and retains the latest computed action and robustness line", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "");
+    const response = await POST(new Request("http://localhost/api/explain", {
+      method: "POST", body: JSON.stringify({ evaluation, results }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.usedFallback).toBe(true);
+    expect(body.text).toContain(evaluation.nextAction.detail);
+    expect(body.text).toContain(evaluation.rationale.at(-1));
+  });
+
+  it.each(["missing", "extra", "duplicate_result", "duplicate_evaluation", "unknown_winner", "partial_sensitivity"])(
+    "rejects a %s comparison before generation and returns a route error", async kind => {
+      const e = structuredClone(evaluation), r = structuredClone(results);
+      if (kind === "missing") r.pop();
+      if (kind === "extra") r.push({ ...r[0], scenarioId: "unrelated" });
+      if (kind === "duplicate_result") r[1].scenarioId = r[0].scenarioId;
+      if (kind === "duplicate_evaluation") e.scenarioIds[1] = e.scenarioIds[0];
+      if (kind === "unknown_winner") e.preferredScenarioId = "unrelated";
+      if (kind === "partial_sensitivity") e.sensitivity.pop();
+      const generate = vi.fn();
+      await expect(createExplainer(generate)(e, r)).rejects.toThrow("same scenarios");
+      expect(generate).not.toHaveBeenCalled();
+      const response = await POST(new Request("http://localhost/api/explain", {
+        method: "POST", body: JSON.stringify({ evaluation: e, results: r }),
+      }));
+      expect(response.status).toBe(400);
+    },
+  );
+
+  it("allows reordered matching results without changing the scenario-aligned sensitivity array", async () => {
+    const generate = vi.fn().mockResolvedValue(evaluation.rationale[0]);
+    expect((await createExplainer(generate)(evaluation, [...results].reverse())).usedFallback).toBe(false);
+    expect(generate.mock.calls[0][0].input.evaluation.sensitivity).toEqual(evaluation.sensitivity);
   });
 });

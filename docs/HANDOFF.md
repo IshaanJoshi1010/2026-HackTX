@@ -6,5 +6,5 @@ End each working stretch with three lines per developer: what was built, what to
 | --- | --- | --- | --- |
 | Dev 1 (Kareem) | | | |
 | Dev 2 (Ishaan) | | | |
-| Dev 3 (Paarth) | C9 audit complete; explanation checked against Dev 4 146bd22, with computed rationale offline, historical fit disclosures and percentage guard; see ai/EXPLANATION-INTEGRATION.md | Existing data/API/provider exports unchanged; explain(evaluation, results) or POST /api/explain; npm test | Live Gemini unverified; model assets absent from this checkout; real Smartcar/TFS absent by design; synthetic/estimated disclosures remain required |
+| Dev 3 (Paarth) | C9 audit complete; explanation checked against Dev 4 4c166ed S6/S7; offline rationale/fit/robustness/action retained; mismatched scenario sets rejected; see ai/EXPLANATION-INTEGRATION.md | Existing data/API/provider exports unchanged; explain(evaluation, results) or POST /api/explain; npm test | Live Gemini unverified; model assets absent from this checkout; real Smartcar/TFS absent by design; synthetic/estimated disclosures remain required |
 | Dev 4 (Anirudh) | | | |

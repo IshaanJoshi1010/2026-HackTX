@@ -22,6 +22,15 @@ export function createExplainer(generate: Generator = generateWithGemini) {
   return async (evaluation: DecisionEvaluation, results: SimulationResult[]): Promise<{ text: string; usedFallback: boolean }> => {
     const e = DecisionEvaluationSchema.parse(evaluation);
     const r = results.map(result => SimulationResultSchema.parse(result));
+    // A stale UI evaluation must not be explained alongside a different set of scenario results.
+    const scenarioIds = new Set(e.scenarioIds);
+    const resultIds = new Set(r.map(result => result.scenarioId));
+    if (!scenarioIds.size || scenarioIds.size !== e.scenarioIds.length || resultIds.size !== r.length
+      || scenarioIds.size !== resultIds.size || [...scenarioIds].some(id => !resultIds.has(id))
+      || (e.preferredScenarioId !== "inconclusive" && !scenarioIds.has(e.preferredScenarioId))
+      || (e.sensitivity.length !== 0 && e.sensitivity.length !== e.scenarioIds.length)) {
+      throw new Error("Evaluation and results must describe the same scenarios");
+    }
     // Supply computed summaries, not raw driver/account/profile data or the full monthly timeline.
     const input = { evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,
       milestones: result.milestones, warnings: result.warnings, finalPoint: result.points.at(-1),
