@@ -177,12 +177,12 @@ describe("dump and confirm", () => {
     await enterWorkspace();
     const before = state().explore.scenarios;
     const outcome = await actions().submitDump("I'm moving to Denver");
-    expect(outcome).toEqual({ kind: "proposed" });
+    expect(outcome).toMatchObject({ kind: "proposed" });
     expect(state().ui.aiAvailable).toBe(false);
     const drafts = state().explore.draftChanges;
     expect(drafts).toHaveLength(1);
     expect(drafts[0]).toMatchObject({ type: "relocation", status: "proposed", payload: { location: "Denver" } });
-    expect(drafts[0].assumptions[0]).toMatch(/didn't say when/);
+    expect(drafts[0].assumptions[0]).toMatch(/no future timing stated/i); // the shared reader says so itself
     expect(state().explore.scenarios).toBe(before); // a proposal changes nothing
     expect(state().ui.busy).toBe("idle");
   });
@@ -199,7 +199,7 @@ describe("dump and confirm", () => {
     vi.spyOn(ai, "interpret").mockRejectedValue(new Error("gemini down"));
     const before = state().explore.scenarios;
     const outcome = await actions().submitDump("moving to Denver next year");
-    expect(outcome).toEqual({ kind: "proposed" });
+    expect(outcome).toMatchObject({ kind: "proposed" });
     expect(state().ui.aiAvailable).toBe(false);
     expect(state().error).toBeNull();
     expect(state().explore.scenarios).toBe(before);
@@ -706,7 +706,7 @@ describe("questions typed in the command bar (no AI: plain rules route them)", (
     await enterWorkspace();
     const profileBefore = structuredClone(state().explore.confirmedProfile);
     const outcome = await actions().submitDump("Would switching to a RAV4 Hybrid make more sense?");
-    expect(outcome).toEqual({ kind: "compared" });
+    expect(outcome).toMatchObject({ kind: "compared" });
     expect(state().comparison).not.toBeNull();
     expect(state().evaluation).not.toBeNull();
     expect(state().ui.view).toBe("future");
@@ -718,7 +718,7 @@ describe("questions typed in the command bar (no AI: plain rules route them)", (
     await enterWorkspace();
     expect(state().comparison).toBeNull();
     const outcome = await actions().submitDump("What would have to change for keeping the Camry to be the better option?");
-    expect(outcome).toEqual({ kind: "break_even" });
+    expect(outcome).toMatchObject({ kind: "break_even" });
     expect(state().comparison).not.toBeNull();
     expect(state().breakEven).toMatchObject({ parameter: "annualMiles" });
     expect(state().ui.view).toBe("future");
@@ -729,7 +729,7 @@ describe("questions typed in the command bar (no AI: plain rules route them)", (
     expect(breakEvenParameterFor("what if gas goes up, what would have to change?")).toBe("fuelPricePerGal");
     expect(breakEvenParameterFor("What would have to change for keeping the Camry?")).toBe("annualMiles");
     await enterWorkspace();
-    await actions().submitDump("What fuel price would have to change for keeping the Camry to be the better option?");
+    await actions().submitDump("What would have to change about the fuel price for keeping the Camry to be the better option?");
     expect(state().breakEven?.parameter).toBe("fuelPricePerGal");
   });
 
@@ -838,5 +838,264 @@ describe("a car the stage cannot show never leaves the app waiting", () => {
     actions().onModelStatus(broken(CAMRY));
     expect(state().phase).toBe("landing");
     expect(state().twin).toBeNull();
+  });
+});
+
+describe("an answer that arrives too late is dropped (stale guards)", () => {
+  /** An interpret call that stays pending until the test lets it answer. */
+  function pendingInterpret() {
+    let answer!: (r: Awaited<ReturnType<typeof ai.interpret>>) => void;
+    const spy = vi.spyOn(ai, "interpret").mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    return { spy, answer: (r: Awaited<ReturnType<typeof ai.interpret>>) => answer(r) };
+  }
+  const aiAnswer = (proposals: LifeEvent[]) => ({ aiAvailable: true as const, intent: "CREATE_SCENARIO" as const, proposals, profilePatches: [] });
+
+  it("a reset while it was thinking: nothing is added to the new session", async () => {
+    await enterWorkspace();
+    const pending = pendingInterpret();
+    const asked = actions().submitDump("moving to Denver next year");
+    actions().resetAll();
+    pending.answer(aiAnswer([denver]));
+    expect(await asked).toEqual({ kind: "stale" });
+    expect(state().explore.draftChanges).toEqual([]);
+    expect(state().twin).toBeNull();
+    expect(state().ui.busy).toBe("idle");
+  });
+
+  it("a different car while it was thinking: the old answer does not land on the new car", async () => {
+    await enterWorkspace(CAMRY);
+    const pending = pendingInterpret();
+    const asked = actions().submitDump("moving to Denver next year");
+    await actions().startFromSample(RAV4);
+    actions().onRevealStage("done");
+    pending.answer(aiAnswer([denver]));
+    expect(await asked).toEqual({ kind: "stale" });
+    expect(state().explore.draftChanges).toEqual([]);
+    expect(state().twin?.vehicle.id).toBe(RAV4);
+  });
+
+  it("a different future while it was thinking: the answer was about the old one, so it is dropped", async () => {
+    await enterWorkspace();
+    interpretReturning([denver]);
+    await actions().submitDump("first");
+    actions().confirmDrafts(["e-denver"]); // now there is a second future, and it is the active one
+    const [base] = state().explore.scenarios;
+    const pending = pendingInterpret();
+    const asked = actions().submitDump("something else");
+    actions().setActiveScenario(base.id);
+    pending.answer(aiAnswer([miles20k]));
+    expect(await asked).toEqual({ kind: "stale" });
+    expect(state().explore.draftChanges).toEqual([]);
+    expect(state().ui.busy).toBe("idle"); // nothing newer owns the busy flag, so it is released
+  });
+
+  it("a newer submission wins: the older answer is dropped, the newer one is kept", async () => {
+    await enterWorkspace();
+    const answers: Array<(r: Awaited<ReturnType<typeof ai.interpret>>) => void> = [];
+    vi.spyOn(ai, "interpret").mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+    const first = actions().submitDump("first sentence");
+    const second = actions().submitDump("second sentence");
+    answers[1](aiAnswer([miles20k]));
+    expect(await second).toMatchObject({ kind: "proposed" });
+    answers[0](aiAnswer([denver]));
+    expect(await first).toEqual({ kind: "stale" });
+    expect(state().explore.draftChanges.map((d) => d.id)).toEqual(["e-miles"]);
+  });
+
+  it("an answer in the same session, car and future is used as normal", async () => {
+    await enterWorkspace();
+    const pending = pendingInterpret();
+    const asked = actions().submitDump("moving to Denver next year");
+    pending.answer(aiAnswer([denver]));
+    expect(await asked).toMatchObject({ kind: "proposed" });
+    expect(state().explore.draftChanges.map((d) => d.id)).toEqual(["e-denver"]);
+  });
+
+  it("a late explanation never replaces the explanation of the numbers now on screen, even after a reset", async () => {
+    let late!: (v: { text: string; usedFallback: boolean }) => void;
+    vi.spyOn(ai, "explain").mockImplementation(() => new Promise((resolve) => (late = resolve)));
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().resetAll();
+    late({ text: "about numbers that are gone", usedFallback: false });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state().explanation).toBeNull();
+    expect(state().evaluation).toBeNull();
+  });
+});
+
+describe("when the AI is not available, the sentence is kept and can be retried or entered by hand", () => {
+  const unavailable = () => vi.spyOn(ai, "interpret").mockResolvedValue({ aiAvailable: false });
+
+  it("remembers the sentence, what the plain rules staged, and their note", async () => {
+    unavailable();
+    await enterWorkspace();
+    const outcome = await actions().submitDump("moving to Denver next year");
+    expect(outcome).toMatchObject({ kind: "proposed", offline: true });
+    const last = state().lastDump!;
+    expect(last.text).toBe("moving to Denver next year");
+    expect(last.draftIds).toEqual(state().explore.draftChanges.map((d) => d.id));
+    expect(state().ui.aiAvailable).toBe(false);
+  });
+
+  it("keeps the reader's note when it found nothing, so the person knows why", async () => {
+    unavailable();
+    await enterWorkspace();
+    const outcome = await actions().submitDump("I'm not pregnant.");
+    expect(outcome).toMatchObject({ kind: "nothing", offline: true });
+    expect(state().explore.draftChanges).toEqual([]);
+    expect(state().lastDump).toMatchObject({ text: "I'm not pregnant.", note: expect.stringMatching(/negatives|confirm/i), draftIds: [] });
+  });
+
+  it("a retry asks the AI again, replaces the offline drafts, and never stacks a second copy", async () => {
+    const spy = unavailable();
+    await enterWorkspace();
+    await actions().submitDump("moving to Denver next year");
+    expect(state().explore.draftChanges).toHaveLength(1);
+
+    spy.mockResolvedValue({ aiAvailable: true, intent: "CREATE_SCENARIO", proposals: [denver], profilePatches: [] });
+    const outcome = await actions().retryDump();
+    expect(outcome).toMatchObject({ kind: "proposed" });
+    expect(outcome).not.toHaveProperty("offline");
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(state().explore.draftChanges.map((d) => d.id)).toEqual(["e-denver"]); // the offline draft is gone, not duplicated
+    expect(state().lastDump).toBeNull();
+    expect(state().ui.aiAvailable).toBe(true);
+  });
+
+  it("a retry that is still unavailable asks once, not in a loop", async () => {
+    const spy = unavailable();
+    await enterWorkspace();
+    await actions().submitDump("moving to Denver next year");
+    await actions().retryDump();
+    await actions().retryDump();
+    expect(spy).toHaveBeenCalledTimes(3); // one call per request from the person, never automatic
+    expect(state().explore.draftChanges).toHaveLength(1); // still just one draft
+  });
+
+  it("with nothing to retry, retry does nothing", async () => {
+    const spy = vi.spyOn(ai, "interpret");
+    await enterWorkspace();
+    expect(await actions().retryDump()).toEqual({ kind: "nothing" });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("the notice goes once the drafts it staged are confirmed, and goes when discarded too", async () => {
+    unavailable();
+    await enterWorkspace();
+    await actions().submitDump("moving to Denver next year");
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    expect(state().lastDump).toBeNull();
+
+    await actions().submitDump("moving to Boise in 2 years");
+    state().explore.draftChanges.forEach((d) => actions().rejectDraft(d.id));
+    expect(state().lastDump).toBeNull();
+  });
+
+  it("a note with no drafts stays until dismissed", async () => {
+    unavailable();
+    await enterWorkspace();
+    await actions().submitDump("hi");
+    expect(state().lastDump).not.toBeNull();
+    actions().dismissDumpNotice();
+    expect(state().lastDump).toBeNull();
+  });
+
+  it("when the AI is available, nothing offline is recorded", async () => {
+    interpretReturning([denver]);
+    await enterWorkspace();
+    await actions().submitDump("moving to Denver next year");
+    expect(state().lastDump).toBeNull();
+    expect(state().ui.aiAvailable).toBe(true);
+  });
+
+  it("questions are answered by the plain rules, and the typed text is not kept for them", async () => {
+    unavailable();
+    await enterWorkspace();
+    const outcome = await actions().submitDump("Would switching to a RAV4 Hybrid make more sense?");
+    expect(outcome).toMatchObject({ kind: "compared", offline: true });
+    expect(state().comparison).not.toBeNull();
+  });
+});
+
+describe("purchase and insurance terms: applied only when confirmed, to every future, nothing edited in place", () => {
+  async function toComparison() {
+    await enterWorkspace();
+    interpretReturning([denver]);
+    await actions().submitDump("dump");
+    actions().confirmDrafts(["e-denver"]);
+    await actions().openReplaceComparison();
+    return state().comparison!;
+  }
+  const netAt60 = (id: string) => state().results[id].points.find((p) => p.month === 60)!.netEconomicCost;
+
+  it("applies the terms to every future and recomputes the numbers", async () => {
+    const { keepId, replaceId } = await toComparison();
+    const before = { keep: netAt60(keepId), replace: netAt60(replaceId) };
+    actions().applyScenarioTerms({ insurancePerMonth: 400, replacementPrice: 45000 });
+    for (const sc of state().explore.scenarios) expect(sc.assumptions).toMatchObject({ insurancePerMonth: 400, replacementPrice: 45000 });
+    expect(netAt60(keepId)).toBeGreaterThan(before.keep); // more insurance costs more
+    expect(netAt60(replaceId)).toBeGreaterThan(before.replace); // more insurance and a dearer car
+  });
+
+  it("never edits a future in place, never touches the profile or the events, and keeps the history of what was said", async () => {
+    await toComparison();
+    const old = state().explore.scenarios;
+    const profile = structuredClone(state().explore.confirmedProfile);
+    const events = old.map((sc) => structuredClone(sc.events));
+    actions().applyScenarioTerms({ insurancePerMonth: 400 });
+    const next = state().explore.scenarios;
+    next.forEach((sc, i) => {
+      expect(sc).not.toBe(old[i]); // a new future, not the old one edited
+      expect(old[i].assumptions).not.toHaveProperty("insurancePerMonth"); // the old one is exactly as it was
+      expect(sc.events).toEqual(events[i]);
+    });
+    expect(state().explore.confirmedProfile).toEqual(profile);
+  });
+
+  it("clears the old verdict inputs: a stale break-even is gone after the terms change", async () => {
+    await toComparison();
+    actions().runBreakEven("annualMiles");
+    expect(state().breakEven).not.toBeNull();
+    actions().applyScenarioTerms({ insurancePerMonth: 400 });
+    expect(state().breakEven).toBeNull();
+    expect(state().evaluation).not.toBeNull(); // re-evaluated on the new numbers
+  });
+
+  it("refuses a key that is not a term, or a number that is not usable, and changes nothing", async () => {
+    await toComparison();
+    const before = state().explore.scenarios;
+    actions().applyScenarioTerms({ annualMilesOverride: 9000 });
+    expect(state().explore.scenarios).toBe(before);
+    expect(state().error).toMatch(/nothing was changed/i);
+    actions().clearError();
+    actions().applyScenarioTerms({ insurancePerMonth: Number.NaN });
+    expect(state().explore.scenarios).toBe(before);
+    actions().applyScenarioTerms({});
+    expect(state().explore.scenarios).toBe(before);
+  });
+
+  it("back to estimates removes only the terms, and leaves every other assumption alone", async () => {
+    const { keepId } = await toComparison();
+    const original = netAt60(keepId);
+    actions().setAssumption("startYear", 2027);
+    const withYear = netAt60(keepId);
+    actions().applyScenarioTerms({ insurancePerMonth: 400, newLoanApr: 0.09 });
+    actions().resetScenarioTerms();
+    for (const sc of state().explore.scenarios) {
+      expect(sc.assumptions).not.toHaveProperty("insurancePerMonth");
+      expect(sc.assumptions).not.toHaveProperty("newLoanApr");
+      expect(sc.assumptions).toMatchObject({ startYear: 2027 });
+    }
+    expect(netAt60(keepId)).toBeCloseTo(withYear, 6);
+    expect(withYear).not.toBeCloseTo(original, 6); // sanity: the year did something, so it is a real check
+  });
+
+  it("the terms are saved with the session and survive a reload", async () => {
+    await toComparison();
+    actions().applyScenarioTerms({ insurancePerMonth: 400 });
+    const saved = state().explore.scenarios.map((sc) => sc.assumptions.insurancePerMonth);
+    expect(saved.every((v) => v === 400)).toBe(true);
   });
 });

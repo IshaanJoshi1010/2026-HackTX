@@ -29,6 +29,7 @@ import type {
   SensitivityResult,
   SimContext,
   SimulationResult,
+  Source,
   SpecSheet,
   SuitabilityResult,
   TradeoffPick,
@@ -37,6 +38,13 @@ import type {
 } from "@/contracts";
 import { mockInterpret, mockQuestion, mockSpecs, mockTwin } from "@/contracts/mocks";
 import { InterpretResultSchema } from "@/contracts/schemas";
+import { resolveEventMonth as realResolveEventMonth, type EventTiming } from "@/ai/dates";
+import { interpretOffline as realInterpretOffline, type OfflineReading } from "@/ai/offline";
+import {
+  prepareManualEvent as realPrepareManualEvent,
+  prepareScenarioTerms as realPrepareScenarioTerms,
+  scenarioTermFields as realScenarioTermFields,
+} from "@/ai/scenarioDraft";
 import { identifyVehicle as realIdentifyVehicle } from "@/data/decode";
 import { buildDemoTwin as realBuildDemoTwin, demoBrainDump, demoTodayISO } from "@/data/demo";
 import { vehicleFixtures } from "@/data/fixtures/vehicles";
@@ -59,6 +67,9 @@ import {
   type ReproductionSide,
 } from "@/decision";
 import {
+  simulateDetailed as realSimulateDetailed,
+  type DetailedSimulation,
+  type SimAssumption,
   fork as realFork,
   makeReplaceScenario as realMakeReplaceScenario,
   moveEvent as realMoveEvent,
@@ -68,6 +79,8 @@ import type { CarStageProps } from "@/ui/3d/types";
 import { CarStageStub, preloadCarsStub } from "./CarStageStub";
 import * as local from "./local";
 import type { VinCheck } from "./local";
+
+export type { SimAssumption };
 
 export type ModuleName = "car" | "data" | "ai" | "sim" | "decision";
 
@@ -120,13 +133,35 @@ export interface DataApi {
   demo: { brainDump: string; todayISO: string };
 }
 
+export type ManualEventResult =
+  | { ok: true; event: Omit<LifeEvent, "id"> }
+  | { ok: false; error: string };
+
+export type ScenarioTermsResult =
+  | { ok: true; status: "proposed"; assumptions: Record<string, number>; provenance: Record<string, Source> }
+  | { ok: false; error: string };
+
 export interface AiApi {
   interpret(prompt: string, ctx: InterpretContext): Promise<InterpretResult>;
   explain(e: DecisionEvaluation, r: SimulationResult[]): Promise<{ text: string; usedFallback: boolean }>;
+  /**
+   * Dev 3's shared reader for when the AI is not available. No network, and it never guesses:
+   * questions, negatives, odometer readings and unsupported dates come back as a note, not an event.
+   */
+  interpretOffline(text: string, todayISO: string): OfflineReading;
+  /** "in six months", "March 2027". Seasons and bare months need a clarification, not a guess. */
+  resolveEventMonth(phrase: string | undefined, todayISO: string, pregnancy?: boolean): EventTiming;
+  /** Validates one structured manual change. Zero children and zero miles are valid. Returns a proposal, never a confirmed event. */
+  prepareManualEvent(input: unknown): ManualEventResult;
+  /** Validates the purchase and insurance terms the person typed. Percent inputs are converted once, in code. */
+  prepareScenarioTerms(input: unknown): ScenarioTermsResult;
+  scenarioTermFields: ReadonlyArray<{ field: string; label: string; unit: string }>;
 }
 
 export interface SimApi {
   simulate(twin: VehicleTwin, scenario: Scenario, ctx: SimContext): SimulationResult;
+  /** The same projection plus every input it used, each with a source label. */
+  simulateDetailed(twin: VehicleTwin, scenario: Scenario, ctx: SimContext): DetailedSimulation;
   fork(parent: Scenario, month: number, newEvents: LifeEvent[], name: string): Scenario;
   moveEvent(s: Scenario, eventId: string, newMonth: number): Scenario;
   makeReplaceScenario(parent: Scenario, replacement: VehicleConfig, month?: number): Scenario;
@@ -154,7 +189,7 @@ export interface DecisionApi {
   withSensitivity(e: DecisionEvaluation, s: SensitivityResult): DecisionEvaluation;
   /**
    * Pass `results`: without them the rules for keep, replace and the threshold text cannot run.
-   * INTERFACES.md still shows three arguments; Dev 4's code takes the fourth (optional).
+   * The fourth argument is optional and documented in INTERFACES.md.
    */
   nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakEvenResult, results?: SimulationResult[]): NextAction;
 }
@@ -187,10 +222,17 @@ const mockData: DataApi = {
 const mockAi: AiApi = {
   interpret: mockInterpret,
   explain: async () => ({ text: "MOCK: explanations are off until the AI module lands.", usedFallback: true }),
+  // These are pure and have no stand-in; the mock and the real slot share them.
+  interpretOffline: realInterpretOffline,
+  resolveEventMonth: realResolveEventMonth,
+  prepareManualEvent: realPrepareManualEvent,
+  prepareScenarioTerms: realPrepareScenarioTerms,
+  scenarioTermFields: realScenarioTermFields,
 };
 
 const mockSim: SimApi = {
   simulate: local.simulate,
+  simulateDetailed: (twin, scenario, ctx) => ({ result: local.simulate(twin, scenario, ctx), assumptions: [], timeline: [] }),
   fork: local.fork,
   moveEvent: local.moveEvent,
   makeReplaceScenario: local.makeReplaceScenario,
@@ -272,9 +314,15 @@ const realAi: AiApi = {
     if (!parsed.success) throw new Error("No explanation is available right now.");
     return { text: parsed.data.text, usedFallback: parsed.data.usedFallback };
   },
+  interpretOffline: realInterpretOffline,
+  resolveEventMonth: realResolveEventMonth,
+  prepareManualEvent: realPrepareManualEvent,
+  prepareScenarioTerms: realPrepareScenarioTerms,
+  scenarioTermFields: realScenarioTermFields,
 };
 const realSim: SimApi = {
   simulate: realSimulate,
+  simulateDetailed: realSimulateDetailed,
   fork: realFork,
   moveEvent: realMoveEvent,
   makeReplaceScenario: realMakeReplaceScenario,
