@@ -1307,8 +1307,13 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     setActiveScenario(id) {
-      // Looking at another future is a manual move: it stops playback, and the selected month stays where it is.
-      set((s) => ({ ...activation(s, id), ui: { ...s.ui, playing: false } }));
+      // Looking at another future is a manual move: it stops playback, and the selected month stays where it is. A selected
+      // event that is not on the road of the future you moved to (it belonged to the life you left) is let go.
+      set((s) => {
+        const moved = activation(s, id);
+        const gone = s.selectedEventId !== null && eventMonthOf({ ...s, ...moved }, s.selectedEventId) === null;
+        return { ...moved, ...(gone ? { selectedEventId: null } : {}), ui: { ...s.ui, playing: false } };
+      });
     },
 
     selectEvent(id) {

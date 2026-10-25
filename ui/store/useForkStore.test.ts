@@ -1410,3 +1410,33 @@ describe("the car on stage follows a moved swap", () => {
   });
 });
 
+describe("switching to another life lets go of an event that was not in it", () => {
+  it("an event of the life you leave is not left selected, and the month stays", async () => {
+    await enterWorkspace();
+    actions().addDraft({ type: "relocation", month: 12, payload: { location: "Denver" }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    const life = state().activeScenarioId;
+    const move = state().explore.scenarios.find((sc) => sc.id === life)!.events.find((e) => e.type === "relocation")!;
+    actions().selectEvent(move.id);
+    expect(state().selectedEventId).toBe(move.id);
+    actions().setActiveScenario(BASE_ID); // the baseline has no such event
+    expect(state().selectedEventId).toBeNull();
+    expect(state().activeMonth).toBe(move.month);
+    actions().setActiveScenario(life);
+    expect(state().selectedEventId).toBeNull(); // coming back does not bring it back by itself
+  });
+
+  it("an event that is in both futures stays selected when you look at the other one", async () => {
+    await enterWorkspace();
+    actions().addDraft({ type: "relocation", month: 12, payload: { location: "Denver" }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    await actions().openReplaceComparison();
+    const move = state().explore.scenarios.find((sc) => sc.id === state().comparison!.keepId)!.events.find((e) => e.type === "relocation")!;
+    actions().selectEvent(move.id);
+    actions().setActiveScenario(state().comparison!.keepId);
+    expect(state().selectedEventId).toBe(move.id);
+    actions().setActiveScenario(state().comparison!.replaceId);
+    expect(state().selectedEventId).toBe(move.id);
+  });
+});
+
