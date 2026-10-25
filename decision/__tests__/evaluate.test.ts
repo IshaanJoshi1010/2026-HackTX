@@ -58,6 +58,46 @@ describe("evaluate", () => {
     expect(evaluation.preferredScenarioId).toBe(keep.id);
   });
 
+  describe("budget_change events move the budget the constraint checks", () => {
+    const budgeted = (monthlyBudget: number): VehicleTwin => ({ ...twin, driver: { ...twin.driver, monthlyBudget } });
+    const paidOff = (t: VehicleTwin): VehicleTwin => ({ ...t, finance: { ...t.finance, balance: 0 }, driver: { ...t.driver, financeType: "paid_off" as const } });
+    const run = (t: VehicleTwin, keep: Scenario, replaceAt = 12) => {
+      const replace = makeReplaceScenario(keep, rav4, replaceAt);
+      const scenarios = [keep, replace];
+      return evaluateDetailed({ twin: t, scenarios, results: scenarios.map(s => simulate(t, s, ctx)), priorities: equal });
+    };
+
+    it("a raised budget stops flagging both cars as over budget", () => {
+      const t = budgeted(600);
+      const stale = run(t, baseline);
+      expect(stale.scores.every(s => !s.eligible)).toBe(true); // $600 is under what this household spends a month
+      const raised = run(t, withEvents([ev("budget", "budget_change", 0, { monthlyBudget: 2000 })]));
+      expect(raised.scores.map(s => s.violations)).toEqual([[], []]);
+      expect(raised.evaluation.hardConstraints).toEqual([]);
+    });
+
+    it("a lowered budget flags the months after it, at that month's budget", () => {
+      const t = paidOff(budgeted(3000));
+      // Keeping the Camry costs about $224 a month here: fine under $3,000, over a $200 budget.
+      const lowered = run(t, withEvents([ev("budget", "budget_change", 20, { monthlyBudget: 200 })]), 40);
+      const keepViolation = lowered.scores[0].violations.find(v => v.startsWith("monthly cost"));
+      expect(keepViolation).toMatch(/over the \$200 budget at month \d+$/);
+      expect(Number(keepViolation!.match(/month (\d+)$/)![1])).toBeGreaterThanOrEqual(20); // never before the change
+      const earlier = run(t, baseline, 40);
+      expect(earlier.scores[0].violations).toEqual([]); // $3,000 a month is never reached
+    });
+
+    it("an explicit maxMonthlyBudget still overrides the events", () => {
+      const t = budgeted(600);
+      const keep = withEvents([ev("budget", "budget_change", 0, { monthlyBudget: 2000 })]);
+      const replace = makeReplaceScenario(keep, rav4);
+      const scenarios = [keep, replace];
+      const { scores } = evaluateDetailed({ twin: t, scenarios, results: scenarios.map(s => simulate(t, s, ctx)), priorities: equal, maxMonthlyBudget: 100 });
+      expect(scores.every(s => !s.eligible)).toBe(true);
+      expect(scores[0].violations[0]).toMatch(/over the \$100 budget/);
+    });
+  });
+
   it("a household too big for both cars: no scenario can be preferred", () => {
     const big = { ...twin, driver: { ...twin.driver, householdSize: 6, children: 4 } };
     const { evaluation, scores } = compare(big, baseline, equal);
