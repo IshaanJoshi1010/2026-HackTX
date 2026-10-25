@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { CommandBox } from "@/ui/command/CommandBox";
 import { car } from "@/ui/mocks";
 import { RevealOverlay } from "@/ui/reveal/RevealOverlay";
+import { SpecReadout } from "@/ui/reveal/SpecReadout";
 import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { CarView } from "./CarView";
@@ -17,6 +18,9 @@ import { ViewSwitch } from "./ViewSwitch";
 
 /** Room under the car for the command bar and the page switch, so the car sits above them. */
 const STAGE_BOTTOM = 176;
+
+/** While the car forms, the specs sit above the progress line and the rider question. After, they sit above the command bar. */
+const REVEAL_SPECS_BOTTOM = 240;
 
 /**
  * Two pages share one stage. The CarStage stays mounted the whole time (the 3D
@@ -73,6 +77,9 @@ export function Workspace() {
           />
         </div>
       </div>
+
+      {/* The specs outlive the reveal, so they live here, not in the overlay. They sit above whatever is at the bottom. */}
+      <SpecReadout bottom={revealing ? REVEAL_SPECS_BOTTOM : barHeight + 16} />
 
       {revealing ? (
         <>

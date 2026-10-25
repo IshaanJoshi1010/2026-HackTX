@@ -30,31 +30,14 @@ describe("RevealOverlay", () => {
     expect(screen.getByRole("button", { name: /mixed/i })).toBeInTheDocument();
   });
 
-  it("reveals specs only when stage reaches solid or done", () => {
-    const { rerender } = render(<RevealOverlay />);
-
-    // Initially at converge stage: specs are not revealed yet
-    act(() => {
-      useForkStore.setState((s) => ({
-        stage: { ...s.stage, revealStage: "converge" },
-      }));
-    });
-    rerender(<RevealOverlay />);
-    expect(screen.queryByTestId("reveal-specs")).toBeNull();
-
-    // Advance to solid stage
-    act(() => {
-      useForkStore.setState((s) => ({
-        stage: { ...s.stage, revealStage: "solid" },
-      }));
-    });
-    rerender(<RevealOverlay />);
-
-    const specs = screen.getByTestId("reveal-specs");
-    expect(specs).toBeInTheDocument();
-    expect(specs).toHaveTextContent("32 mpg");
-    expect(specs).toHaveTextContent("5 seats");
-    expect(specs).toHaveTextContent("15 cu ft");
+  it("does not carry the specs: they outlive the reveal, so SpecReadout shows them", () => {
+    for (const revealStage of ["converge", "solid", "done"] as const) {
+      act(() => useForkStore.setState((st) => ({ stage: { ...st.stage, revealStage } })));
+      const { unmount } = render(<RevealOverlay />);
+      expect(screen.queryByTestId("reveal-specs")).toBeNull();
+      expect(document.querySelectorAll('[data-slot="stat"]')).toHaveLength(0);
+      unmount();
+    }
   });
 
   it("handles rider quick-pick chips", async () => {
@@ -77,16 +60,5 @@ describe("RevealOverlay", () => {
     expect(skipSpy).toHaveBeenCalled();
     // replay lives in the details sheet, not here
     expect(screen.queryByRole("button", { name: /replay/i })).toBeNull();
-  });
-
-  it("the spec row has no boxes and every number has a source", () => {
-    act(() => {
-      useForkStore.setState((st) => ({ stage: { ...st.stage, revealStage: "done" } }));
-    });
-    render(<RevealOverlay />);
-    const specs = screen.getByTestId("reveal-specs");
-    const stats = specs.querySelectorAll('[data-slot="stat"]');
-    expect(stats).toHaveLength(4);
-    stats.forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
   });
 });

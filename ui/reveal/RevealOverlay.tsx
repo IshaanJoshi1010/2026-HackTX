@@ -2,9 +2,7 @@
 
 import { SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usd } from "@/ui/profile/format";
-import { Stat } from "@/ui/profile/Stat";
-import { selectActiveVehicle, specsFor } from "@/ui/store/selectors";
+import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore, type Riders } from "@/ui/store/useForkStore";
 
 const RIDER_CHOICES: Array<{ id: Riders; label: string; detail: string }> = [
@@ -32,8 +30,8 @@ function activeRider(householdSize: number, children: number): Riders | null {
 }
 
 /**
- * While the car assembles: a quiet progress line, the spec row once the car is solid,
- * one question, and Skip. No boxes. The name is shown by Identity above the car.
+ * While the car assembles: a quiet progress line, one question, and Skip. No boxes. The name is shown by Identity above
+ * the car, and the specs by SpecReadout, which stays up after this goes away.
  */
 export function RevealOverlay() {
   const vehicle = useForkStore(selectActiveVehicle);
@@ -43,9 +41,7 @@ export function RevealOverlay() {
 
   if (!vehicle) return null;
 
-  const spec = specsFor(vehicle.id);
   const revealStage = stage.revealStage ?? "converge";
-  const showSpecs = revealStage === "solid" || revealStage === "done";
   const selected = activeRider(profile.householdSize, profile.children);
 
   return (
@@ -56,15 +52,6 @@ export function RevealOverlay() {
       <p data-testid="reveal-stage-pill" className="text-sm text-ink/40">
         {STAGE_LABELS[revealStage] ?? "Assembling"}
       </p>
-
-      {showSpecs && (
-        <div data-testid="reveal-specs" className="fork-rise pointer-events-auto flex flex-wrap items-start justify-center gap-x-14 gap-y-6">
-          <Stat label="Combined" value={`${vehicle.mpg} mpg`} source={spec?.sources.mpgCombined ?? "sourced"} />
-          <Stat label="Seating" value={`${vehicle.seats} seats`} source={spec?.sources.seats ?? "illustrative"} />
-          <Stat label="Cargo" value={`${vehicle.cargoCuFt} cu ft`} source={spec?.sources.cargoCuFt ?? "illustrative"} />
-          <Stat label="Est. MSRP" value={usd(vehicle.msrp)} source={spec?.sources.msrp ?? "illustrative"} />
-        </div>
-      )}
 
       <div data-testid="reveal-riders" className="fork-fade pointer-events-auto flex flex-col items-center gap-3">
         <span className="text-sm text-ink/60">Who rides with you most?</span>

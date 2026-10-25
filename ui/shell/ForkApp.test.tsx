@@ -113,13 +113,16 @@ describe("flow", () => {
 });
 
 describe("the car page", () => {
-  it("is just the car, its name, the command bar and the page switch", async () => {
+  it("is just the car, its name, the command bar and the page switch, and the car's own specs for a while", async () => {
     await enterWorkspace();
     expect(screen.getByRole("heading", { level: 1, name: "2022 Toyota Camry" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/tell fork what's changing/i)).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Page" })).toBeInTheDocument();
 
-    // no numbers, no timeline, no side panels
+    // The only numbers are the car's own four specs, and they fade away. Never a timeline or a side panel.
+    expect(stats()).toHaveLength(4);
+    expect(screen.getByTestId("reveal-specs").querySelectorAll('[data-slot="stat"]')).toHaveLength(4);
+    await advance(60_000);
     expect(stats()).toHaveLength(0);
     expect(screen.queryByRole("slider")).toBeNull();
     expect(screen.queryByTestId("future-view")).toBeNull();
@@ -478,5 +481,69 @@ describe("preferences", () => {
     const saved = JSON.parse(localStorage.getItem("fork:v1")!);
     expect(saved.prefs).toEqual({ lowPerformance: true });
     expect(JSON.stringify(saved)).not.toMatch(/"view"|detailsOpen/);
+  });
+});
+
+describe("the specs after the car forms", () => {
+  it("are still on the car page when the car can first be turned, instead of flashing past", async () => {
+    await enterWorkspace();
+    expect(state().phase).toBe("workspace");
+    expect(state().ui.view).toBe("car");
+    const specs = screen.getByTestId("reveal-specs");
+    expect(specs).toHaveTextContent("5 seats");
+    expect(specs).toHaveTextContent("32 mpg");
+    expect(specs).toHaveAttribute("data-state", "holding");
+  });
+
+  it("stay while you look around, hold for about 30 seconds, then fade away slowly and stay gone", async () => {
+    await enterWorkspace();
+    await advance(20_000);
+    expect(screen.getByTestId("reveal-specs")).toHaveAttribute("data-state", "holding");
+    await advance(15_000); // past the hold: now fading, not gone
+    const el = screen.queryByTestId("reveal-specs");
+    expect(el === null || el.getAttribute("data-state") === "fading").toBe(true);
+    await advance(10_000);
+    expect(screen.queryByTestId("reveal-specs")).toBeNull();
+    goFuture();
+    goCar();
+    expect(screen.queryByTestId("reveal-specs")).toBeNull();
+  });
+
+  it("are not on the future page, and are there again on coming back within the time", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(screen.queryByTestId("reveal-specs")).toBeNull();
+    goCar();
+    expect(screen.getByTestId("reveal-specs")).toBeInTheDocument();
+  });
+
+  it("lift above the command bar instead of sitting under it", async () => {
+    await enterWorkspace();
+    const bottom = parseInt(screen.getByTestId("reveal-specs").style.bottom, 10);
+    expect(bottom).toBeGreaterThanOrEqual(150); // above the bar, never behind it
+  });
+
+  it("never block turning the car", async () => {
+    await enterWorkspace();
+    expect(screen.getByTestId("reveal-specs").className).toContain("pointer-events-none");
+  });
+
+  it("show again for the other car when you switch", async () => {
+    await enterWorkspace();
+    await advance(60_000);
+    expect(screen.queryByTestId("reveal-specs")).toBeNull();
+    openDetails();
+    const switchBtn = screen.getAllByRole("button").find((b) => /RAV4/.test(b.textContent ?? "") && /Switch|switch/.test(b.getAttribute("aria-label") ?? b.textContent ?? ""));
+    if (switchBtn) {
+      fireEvent.click(switchBtn);
+      await advance(4100);
+      expect(screen.getByTestId("reveal-specs")).toBeInTheDocument();
+    } else {
+      await act(async () => {
+        await state().actions.startFromSample("rav4-2024-hybrid-xle");
+      });
+      await advance(4100);
+      expect(screen.getByTestId("reveal-specs")).toHaveTextContent(`${state().twin!.vehicle.mpg} mpg`);
+    }
   });
 });
