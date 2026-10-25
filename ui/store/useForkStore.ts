@@ -28,7 +28,7 @@ import type {
   VehicleConfig,
   VehicleTwin,
 } from "@/contracts";
-import type { ReproductionSide } from "@/decision";
+import type { ReproductionSide, ScenarioScore } from "@/decision";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { CarStageProps } from "@/ui/3d/types";
 import { carryOver } from "./carryOver";
@@ -167,6 +167,11 @@ export interface ForkActions {
   runBreakEven(parameter: "annualMiles" | "fuelPricePerGal"): void;
   moveEvent(scenarioId: string, eventId: string, month: number): void;
   setActiveScenario(id: string): void;
+  /**
+   * Look at a future (the selector beside the timeline). With a comparison open it moves the comparison to that life, so
+   * the verdict, the costs and the path are always about the same future.
+   */
+  selectFuture(id: string): void;
   setActiveMonth(m: number): void;
 
   // UI and stage plumbing (not in the spec's action list, needed by its flows)
@@ -204,6 +209,8 @@ export interface ForkState {
   evaluation: DecisionEvaluation | null;
   /** Why the next step is what it is, from the engine. Travels with the evaluation, never typed in. */
   nextActionFactors: string[];
+  /** The engine's score for each compared future, broken down by priority. Why a close call is a close call. Derived, never saved. */
+  scores: ScenarioScore[];
   /** Words for the current evaluation. Null until written, and cleared whenever the evaluation changes. */
   explanation: Explanation | null;
   /** Set only while the last sentence was read without the AI. Not saved. */
@@ -273,6 +280,7 @@ function initialData(): DataFields {
     results: {},
     evaluation: null,
     nextActionFactors: [],
+    scores: [],
     explanation: null,
     lastDump: null,
     breakEven: null,
@@ -414,6 +422,7 @@ type ComparisonState = Pick<ForkState, "twin" | "explore" | "replacementVehicle"
 interface Verdict {
   evaluation: DecisionEvaluation;
   nextActionFactors: string[];
+  scores: ScenarioScore[];
 }
 
 /**
@@ -429,7 +438,7 @@ function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | nu
   const twin = simTwin(s);
   const scenarios = [keep, replace];
   const results = [s.results[keep.id], s.results[replace.id]];
-  const evaluated = decision.evaluate({
+  const { evaluation: evaluated, scores } = decision.evaluateDetailed({
     twin,
     scenarios,
     results,
@@ -447,13 +456,15 @@ function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | nu
       nextAction: { label: action.label, detail: action.detail, ...(action.officialLink ? { officialLink: action.officialLink } : {}) },
     },
     nextActionFactors: action.factors,
+    scores,
   };
 }
 
 /** The store fields that come from a verdict, or cleared ones when there is none. */
-const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors" | "explanation"> => ({
+const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors" | "scores" | "explanation"> => ({
   evaluation: v?.evaluation ?? null,
   nextActionFactors: v?.nextActionFactors ?? [],
+  scores: v?.scores ?? [],
   explanation: null, // the words belong to the numbers they came with
 });
 
@@ -1197,6 +1208,33 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
     setActiveScenario(id) {
       set((s) => activation(s, id));
+    },
+
+    selectFuture(id) {
+      const s = get();
+      const picked = findScenario(s, id);
+      if (!picked || !s.twin) return;
+      if (!s.comparison || !s.replacementVehicle) return actions.setActiveScenario(id);
+      try {
+        // The comparison follows the life you picked: that life, and the same life with the swap.
+        const life = lifeOf(s, picked);
+        const replace = sim.makeReplaceScenario(life, s.replacementVehicle);
+        const explore: ExploreState = { ...s.explore, scenarios: upsert(upsert(s.explore.scenarios, life), replace) };
+        const comparison: Comparison = { keepId: life.id, replaceId: replace.id };
+        const next = { ...s, explore, comparison };
+        const results = { ...s.results, ...simulateAll(next, [life, replace]) };
+        set({
+          ...activation({ ...next, results }, life.id),
+          explore,
+          results,
+          comparison,
+          ...verdictPatch(evaluateComparison({ ...next, results })),
+          breakEven: null,
+          breakEvenCheck: null,
+        });
+      } catch (e) {
+        fail(e);
+      }
     },
 
     setActiveMonth(m) {

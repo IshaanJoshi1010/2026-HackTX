@@ -18,7 +18,7 @@ import { WhyPanel } from "./WhyPanel";
  * Everything the keep vs replace parts share, read once from the store. Null until you have
  * asked to compare, so each part can render nothing before then. The engine did the work.
  */
-function useComparison() {
+export function useComparison() {
   const twin = useForkStore((s) => s.twin);
   const replacement = useForkStore((s) => s.replacementVehicle);
   const comparison = useForkStore((s) => s.comparison);
@@ -49,7 +49,7 @@ function useComparison() {
  * The purchase and insurance terms. "Now" is what the sim reports using for the car being compared, with its own
  * source labels. Confirming applies the terms to every future; resetting goes back to the estimates.
  */
-function TermsSection() {
+export function TermsSection() {
   const twin = useForkStore((s) => s.twin);
   const explore = useForkStore((s) => s.explore);
   const replacementVehicle = useForkStore((s) => s.replacementVehicle);

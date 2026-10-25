@@ -58,6 +58,7 @@ import { validateVin as realValidateVin } from "@/data/vin";
 import {
   assessSuitability as realAssessSuitability,
   evaluate as realEvaluate,
+  evaluateDetailed as realEvaluateDetailed,
   findBreakEven as realFindBreakEven,
   nextAction as realNextAction,
   reproduceBreakEven as realReproduceBreakEven,
@@ -65,6 +66,7 @@ import {
   withSensitivity as realWithSensitivity,
   type BreakEvenInput,
   type ReproductionSide,
+  type ScenarioScore,
 } from "@/decision";
 import {
   simulateDetailed as realSimulateDetailed,
@@ -176,6 +178,14 @@ export interface DecisionApi {
     priorities: DriverProfile["priorities"];
     maxMonthlyBudget?: number;
   }): DecisionEvaluation;
+  /** The same verdict plus each scenario's score broken down by priority: metrics, normalized values, weighted contributions. */
+  evaluateDetailed(a: {
+    twin: VehicleTwin;
+    scenarios: Scenario[];
+    results: SimulationResult[];
+    priorities: DriverProfile["priorities"];
+    maxMonthlyBudget?: number;
+  }): { evaluation: DecisionEvaluation; scores: ScenarioScore[] };
   findBreakEven(a: BreakEvenInput): BreakEvenResult;
   /** Just below and just above a found threshold, so the flip can be checked by typing the numbers in. */
   reproduceBreakEven(a: BreakEvenInput, be: BreakEvenResult): { below: ReproductionSide; above: ReproductionSide } | null;
@@ -241,6 +251,7 @@ const mockSim: SimApi = {
 const mockDecision: DecisionApi = {
   assessSuitability: local.assessSuitability,
   evaluate: local.evaluate,
+  evaluateDetailed: (a) => ({ evaluation: local.evaluate(a), scores: [] }),
   findBreakEven: local.findBreakEven,
   reproduceBreakEven: () => null,
   sensitivity: local.sensitivity,
@@ -330,6 +341,7 @@ const realSim: SimApi = {
 const realDecision: DecisionApi = {
   assessSuitability: realAssessSuitability,
   evaluate: realEvaluate,
+  evaluateDetailed: realEvaluateDetailed,
   findBreakEven: realFindBreakEven,
   reproduceBreakEven: (a, be) => realReproduceBreakEven(a, be),
   sensitivity: realSensitivity,
