@@ -78,7 +78,7 @@ interface ForkState {
 2. **Reveal.** `onRevealStage("solid")` shows specs. `"done"` sets `stage.phase = "interactive"` and `phase = "workspace"`. Skip increments `skipSignal`.
 3. **Baseline.** On entering the workspace create `Scenario` id `base` (no events), run `simulate`, store the result, render one timeline node.
 4. **Dump.** `submitDump` sets `busy = "interpreting"`, calls `interpret`. If `aiAvailable` is false switch to manual forms. Proposals go to `explore.draftChanges` only.
-5. **Confirm.** `confirmDrafts` marks events `confirmed`, calls `fork(activeScenario, minMonth, events, name)`, then `simulate`, then updates the store. Unconfirmed drafts never touch scenarios or the profile.
+5. **Confirm.** `confirmDrafts` marks events `confirmed`, calls `fork(activeScenario, minMonth, carryOver(...).events, name)`, then `simulate`, then updates the store. `fork` drops the parent's own future, so `ui/store/carryOver.ts` hands it the active future's later events too, except the ones a new event replaces (named in that event's assumptions). Unconfirmed drafts never touch scenarios or the profile.
 6. **Question.** After each interpret or confirm call `gapCheck`. Show at most one `InlineQuestionCard`. "I'm not sure" calls `answerQuestion(field, "unsure")`, which applies the labeled default.
 7. **Replace.** `openReplaceComparison`: `makeReplaceScenario`, set `stage.phase = "transition"` with `transitionTo` the RAV4, `simulate` both, `evaluate`, show `ComparisonView`. `onTransitionComplete` sets `stage.phase = "interactive"`.
 8. **Challenge.** `runBreakEven` then `BreakEvenViz`. Show "no threshold within tested bounds" plainly when `found` is false.

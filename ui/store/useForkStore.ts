@@ -31,6 +31,7 @@ import type {
 import type { ReproductionSide } from "@/decision";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { CarStageProps } from "@/ui/3d/types";
+import { carryOver } from "./carryOver";
 import { eventTitle } from "./eventLabels";
 import { MONTH_MAX, clampMonth } from "./months";
 import {
@@ -871,7 +872,9 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         const events = chosen.map((e): LifeEvent => ({ ...e, status: "confirmed" }));
         const parent = findScenario(s, s.activeScenarioId) ?? findScenario(s, BASE_ID);
         if (!parent) return;
-        const child = sim.fork(parent, Math.min(...events.map((e) => e.month)), events, scenarioName(events));
+        // A later dump keeps what the active future already planned after the new events, unless they replace it.
+        const forkMonth = Math.min(...events.map((e) => e.month));
+        const child = sim.fork(parent, forkMonth, carryOver(parent, forkMonth, events).events, scenarioName(events));
         const scenarios = upsert(s.explore.scenarios, child);
         const explore: ExploreState = {
           ...s.explore,

@@ -94,7 +94,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
   // Signposts: every decision in this future, with labels kept from overlapping.
   const decisions = decisionsOf(active);
   const parent = active.parentId ? byId.get(active.parentId) : undefined;
-  const inherited = inheritedIds(parent);
+  const inherited = inheritedIds(parent, active.forkMonth);
   const offsets = fanOffsets(decisions);
   const posts = decisions.map((e) => ({
     e,
