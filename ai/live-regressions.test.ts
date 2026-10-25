@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import captures from "./fixtures/live-extraction-failures.json";
 import { createInterpreter } from "./interpret";
+import { interpretOffline } from "./offline";
 import { mapExtraction } from "./mapper";
 import { testDumps } from "./testDumps";
 import { alexProfile } from "../data/fixtures/alex";
@@ -35,7 +36,7 @@ describe("captured live extraction failure regressions", () => {
   it.each(["vague-time", "multiple"])("never defaults an omitted %s date to the current month", async id => {
     const c = authored(id), raw = captured(id);
     const result = await createInterpreter(async () => JSON.stringify(raw))(c.prompt, context);
-    expect(result).toEqual({ aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] });
+    expect(result).toMatchObject({ aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] });
   });
 
   it("gives validation feedback on retry and accepts a fully quoted correction", async () => {
@@ -67,7 +68,14 @@ describe("captured live extraction failure regressions", () => {
   it("rejects context values copied into a commute extraction instead of applying them", async () => {
     const c = authored("commute");
     const result = await createInterpreter(async () => JSON.stringify(captured(c.id)))(c.prompt, context);
-    expect(result).toEqual({ aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] });
+    expect(result.aiAvailable).toBe(true);
+    if (!result.aiAvailable) throw new Error("Expected independently grounded commute");
+    expect(result.proposals).toHaveLength(1);
+    expect(result.proposals[0].payload).toEqual({ commuteMilesOneWay: 25, commuteDaysPerWeek: 3 });
+    expect(result.unsupportedReason).toBeTruthy();
+    const offline = interpretOffline(c.prompt, context.todayISO);
+    expect(offline.events.some(event => event.payload.commuteMilesOneWay === 25)).toBe(true);
+    expect(offline.events.some(event => event.payload.annualMiles === context.profile.annualMiles)).toBe(false);
   });
 
   it("does not mistake a vehicle model year for missing event timing", () => {

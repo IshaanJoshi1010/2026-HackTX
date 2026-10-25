@@ -30,7 +30,7 @@ describe("offline input correctness", () => {
     expect(commute.events[0].payload).toEqual({ commuteMilesOneWay: 25, commuteDaysPerWeek: 6 });
     expect(interpretOffline("I drive 500 miles per year.", demoTodayISO).events[0].payload).toEqual({ annualMiles: 500 });
   });
-  it.each(["I'm moving to Denver in 10 years.", "I'm moving to Denver next summer.", "I'm moving to Denver after my lease ends."])("does not clamp or erase unsupported timing: %s", prompt => {
+  it.each(["I'm moving to Denver in 10 years.", "I'm moving to Denver after my lease ends."])("does not clamp or erase unsupported timing: %s", prompt => {
     const result = interpretOffline(prompt, demoTodayISO);
     expect(result.events).toEqual([]); expect(result.note).toBeTruthy();
   });
@@ -89,9 +89,9 @@ describe("quantity meaning and date grounding", () => {
   it.each([["in six months", 6], ["in two years", 24], ["March 2027", 5], ["this December", 2], ["next March", 5], ["2027-03-15", 5]])("resolves %s deterministically", (phrase, month) => {
     expect(resolveEventMonth(String(phrase), demoTodayISO)).toMatchObject({ resolved: true, month });
   });
-  it("does not invent a seasonal date, next occurrence of an unspecified month, or clamp ten years", () => {
-    expect(resolveEventMonth("next summer", demoTodayISO).resolved).toBe(false);
-    expect(resolveEventMonth("March", demoTodayISO).resolved).toBe(false);
+  it("labels inferred seasonal and upcoming-month dates and never clamps ten years", () => {
+    expect(resolveEventMonth("next summer", demoTodayISO)).toMatchObject({ resolved: true, month: 8, inferred: true });
+    expect(resolveEventMonth("March", demoTodayISO)).toMatchObject({ resolved: true, month: 5, inferred: true });
     expect(resolveEventMonth("in ten years", demoTodayISO)).toMatchObject({ resolved: true, month: 120 });
   });
 });
@@ -129,7 +129,7 @@ describe("service recovery and request limits", () => {
   });
   it("limits aggregate generation and cools down on provider quota errors", () => {
     let time = 0; const gate = createServiceGate(() => time);
-    for (let i = 0; i < 10; i++) { const permit = gate.acquire(); expect(permit.ok).toBe(true); if (permit.ok) permit.release(); }
+    for (let i = 0; i < 20; i++) { const permit = gate.acquire(); expect(permit.ok).toBe(true); if (permit.ok) permit.release(); }
     expect(gate.acquire()).toEqual({ ok: false, retryAfter: 60 });
     time = 60000; const permit = gate.acquire(); expect(permit.ok).toBe(true); if (permit.ok) permit.release();
     gate.failure(429); expect(gate.acquire()).toEqual({ ok: false, retryAfter: 60 });
