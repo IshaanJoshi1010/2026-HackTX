@@ -1,6 +1,6 @@
 # Fork contract review, 2026-10-24
 
-Status: Paarth APPROVED and Anirudh confirmed; awaiting Ishaan's explicit OK to freeze and apply the nextAction documentation clarification. Do not mark newly frozen before that confirmation is recorded. Paarth is the sole editor of /contracts under the current team instructions; other developers send proposals here rather than editing these files directly.
+Status: FROZEN on 2026-10-24. Paarth, Anirudh and Ishaan explicitly approved the decisions and supporting types below. Paarth remains the sole editor of /contracts; future changes require team agreement.
 
 ## Agreed decisions from Paarth's current instructions
 
@@ -41,13 +41,13 @@ nextAction(e: DecisionEvaluation, twin: VehicleTwin,
   be?: BreakEvenResult, results?: SimulationResult[]): NextAction;
 ```
 
-The optional fourth argument defaults to an empty array. Dev 2 should pass the evaluated results to preserve result-dependent service/action reasoning. Anirudh proposed this exact amendment plus the comment that results default to [] and are needed by keep/replace rules; Dev 3 approved. Only Paarth applies the canonical INTERFACES.md edit once Ishaan says OK. It is a signature clarification, not permission to change the shared evaluation shape. Project label/detail/optional officialLink into DecisionEvaluation.nextAction; keep factors on the separate NextAction result.
+The optional fourth argument defaults to an empty array. Dev 2 should pass the evaluated results to preserve result-dependent service/action reasoning. Anirudh proposed this exact amendment plus the comment that results default to [] and are needed by keep/replace rules; Dev 3 approved. Paarth applied the approved canonical INTERFACES.md clarification on 2026-10-24. It is a signature clarification, not permission to change the shared evaluation shape. Project label/detail/optional officialLink into DecisionEvaluation.nextAction; keep factors on the separate NextAction result.
 
 ## Confirmation record
 
 - Paarth / Dev 3: APPROVED on 2026-10-24. All four decisions above are accepted. FinanceState, VehicleSignals and AccountData as written are sufficient for data/AI/providers, with no extra fields required. The optional fourth results argument and Anirudh's exact nextAction comment are approved. Real/mock builders implement the agreed odometer source. No objection to freezing this contract once Ishaan explicitly confirms; no further Dev 3 question remains open.
-- Anirudh: explicitly confirmed all three supporting shapes and their sufficiency, including estimated APR inference. Proposed the exact optional fourth nextAction argument plus its default/results comment; Dev 3 approved. Canonical INTERFACES.md application awaits Ishaan's OK.
-- Ishaan: agent acknowledged sole contract ownership and confirmed the UI already consumes driver.provenance.mileage. It reads finance.financeType/provenance and writes financeType/monthlyPayment/leaseEndMonth/provenance; no requested type change. The agent explicitly withheld approval to freeze on Ishaan's behalf, so Ishaan's freeze confirmation remains pending.
+- Anirudh: explicitly confirmed all three supporting shapes and their sufficiency, including estimated APR inference. Proposed the exact optional fourth nextAction argument plus its default/results comment; Dev 3 approved. Canonical INTERFACES.md clarification is now applied with Ishaan's explicit approval.
+- Ishaan: explicitly APPROVED on 2026-10-24, relayed by his agent 01d0 with direct human authorization. Approved all four decisions, FinanceState, VehicleSignals and AccountData, the exact optional fourth nextAction argument/comment, and freezing. Dev 2 verified the UI passes results, uses provenance.mileage and the documented finance fields, and prints ISO history dates. No shared runtime type changes were made.
 
 Freeze checklist: both reviewers explicitly confirm, supporting type/units accepted, signature proposal incorporated or explicitly deferred, current checks pass. Do not infer consent from silence, merged code or green CI.
 
