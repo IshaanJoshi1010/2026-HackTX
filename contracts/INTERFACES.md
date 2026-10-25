@@ -147,7 +147,8 @@ findBreakEven(a: { twin: VehicleTwin; keep: Scenario; replace: Scenario; paramet
   ctx: SimContext; priorities: DriverProfile["priorities"] }): BreakEvenResult;
 sensitivity(a: { twin: VehicleTwin; scenarios: Scenario[]; ctx: SimContext;
   priorities: DriverProfile["priorities"] }): SensitivityResult;
-nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakEvenResult): NextAction;
+nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakEvenResult, results?: SimulationResult[]): NextAction;
+    // results: the evaluated simulations (default []). The keep and replace rules need them; evaluate() already passes them.
 ```
 
 ## Dev 2 store contract (what the others can rely on)

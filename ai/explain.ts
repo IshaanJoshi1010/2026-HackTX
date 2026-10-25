@@ -18,6 +18,8 @@ const fitMessages: Record<string, string> = {
   "spec_sheet=missing": "The spec sheet is missing; vehicle fit needs verification.",
 };
 
+export class InvalidExplanationInput extends Error {}
+
 export function createExplainer(generate: Generator = generateWithGemini) {
   return async (evaluation: DecisionEvaluation, results: SimulationResult[]): Promise<{ text: string; usedFallback: boolean }> => {
     const e = DecisionEvaluationSchema.parse(evaluation);
@@ -29,7 +31,7 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       || scenarioIds.size !== resultIds.size || [...scenarioIds].some(id => !resultIds.has(id))
       || (e.preferredScenarioId !== "inconclusive" && !scenarioIds.has(e.preferredScenarioId))
       || (e.sensitivity.length !== 0 && e.sensitivity.length !== e.scenarioIds.length)) {
-      throw new Error("Evaluation and results must describe the same scenarios");
+      throw new InvalidExplanationInput("Evaluation and results must describe the same scenarios");
     }
     // Supply computed summaries, not raw driver/account/profile data or the full monthly timeline.
     const input = { evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,

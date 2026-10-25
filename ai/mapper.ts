@@ -2,7 +2,8 @@ import type { EventType, InterpretContext, InterpretResult, LifeEvent, ProfilePa
 import { FieldKeySchema, InterpretContextSchema, InterpretResultSchema } from "../contracts/schemas";
 import { normalizeProfile } from "../data/normalize";
 import { ExtractionSchema, type Extraction, type ExtractionItem } from "./schema";
-import { resolveEventMonth } from "./dates";
+import { resolveEventMonth, hasTimingLanguage } from "./dates";
+import { ambiguousStatement, hasNumericEvidence, isQuestion } from "./evidence";
 
 export interface MappedExtraction { result: InterpretResult; unresolved: ExtractionItem[]; clarification?: Extraction["clarifyingQuestion"] }
 const eventTypes: Partial<Record<ExtractionItem["field"], EventType>> = {
@@ -20,16 +21,10 @@ function pregnancyMention(quote: string): boolean { return /\bpregnant\b/i.test(
 /** A value-only quote must not silently erase a date in its source clause. Never invent the missing date. */
 function missingQuotedTiming(item: ExtractionItem, prompt: string): boolean {
   if (item.month) return false;
-  const dated = /\b(?:next\s+(?:month|year)|in\s+(?:\d+|a|an|one|two|three|a couple|a few|several)\s+(?:months?|years?)|in\s+20\d{2})\b/i;
-  if (dated.test(item.quote)) return true;
   const clauses = prompt.split(/[!?;\n]|[.,](?!\d)/);
-  return clauses.some(clause => clause.includes(item.quote) && dated.test(clause));
+  return hasTimingLanguage(item.quote) || clauses.some(clause => clause.includes(item.quote) && hasTimingLanguage(clause));
 }
-function numericEvidence(value: number, quote: string): boolean {
-  const quantities = [...quote.matchAll(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k)?\b/gi)].map(m => Number(m[1].replaceAll(",", "")) * (m[2] ? 1000 : 1));
-  const words: Record<string, number> = { zero: 0, one: 1, first: 1, two: 2, second: 2, three: 3, third: 3, four: 4, fourth: 4 };
-  return quantities.includes(value) || Object.entries(words).some(([word, number]) => number === value && new RegExp(`\\b${word}\\b`, "i").test(quote));
-}
+
 function mappedValue(item: ExtractionItem): number | string | undefined {
   if (item.value === null) return undefined;
   if (item.field === "childrenDelta") return item.certainty === "inferred" && pregnancyMention(item.quote) && item.value === 1 ? 1 : undefined;
@@ -42,13 +37,13 @@ function mappedValue(item: ExtractionItem): number | string | undefined {
   const rawKey = item.field === "mileage" ? "annualMiles" : item.field;
   if (item.field === "financePayment" || item.field === "financeEndMonth") {
     const parsed = typeof item.value === "number" ? item.value : Number(item.value.replaceAll(/[$,]/g, ""));
-    return Number.isFinite(parsed) && parsed >= 0 && (item.field !== "financeEndMonth" || Number.isInteger(parsed)) && numericEvidence(parsed, item.quote) ? parsed : undefined;
+    return Number.isFinite(parsed) && parsed >= 0 && (item.field !== "financeEndMonth" || Number.isInteger(parsed)) && hasNumericEvidence(item.field, parsed, item.quote) ? parsed : undefined;
   }
   const normalized = normalizeProfile({ [rawKey]: item.value });
   if (!normalized.ok) return undefined;
   const value = normalized.profile[rawKey as keyof typeof normalized.profile];
   if (typeof value !== "string" && typeof value !== "number") return undefined;
-  if (numericFields.has(item.field) && (typeof value !== "number" || !numericEvidence(value, item.quote))) return undefined;
+  if (numericFields.has(item.field) && (typeof value !== "number" || !hasNumericEvidence(item.field, value, item.quote))) return undefined;
   if (item.field === "cargoNeed" && !item.quote.toLowerCase().includes(String(value))) return undefined;
   if (item.field === "financeType" && !item.quote.toLowerCase().replaceAll(" ", "_").includes(String(value))) return undefined;
   return value;
@@ -62,27 +57,30 @@ export function mapExtraction(input: unknown, context: InterpretContext, prompt:
   if (!["CREATE_SCENARIO", "CLARIFY"].includes(extraction.intent)) return {
     result: { aiAvailable: true, intent: extraction.intent, proposals: [], profilePatches: [] }, unresolved: [],
   };
+  if (isQuestion(prompt) && extraction.items.length) return {
+    result: { aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] }, unresolved: extraction.items,
+  };
   const unresolved: ExtractionItem[] = [], patches: ProfilePatch[] = [];
   const groups = new Map<string, { event: LifeEvent; items: ExtractionItem[] }>();
   // Compare resolved timing too: next year and in 12 months are the same slot.
   const seen = new Map<string, number | string>(), duplicates = new Set<string>();
   for (const item of extraction.items) {
-    if (!prompt.includes(item.quote) || missingQuotedTiming(item, prompt) || item.certainty === "vague") continue;
+    if (!prompt.includes(item.quote) || ambiguousStatement(prompt) || missingQuotedTiming(item, prompt) || item.certainty === "vague") continue;
     const timing = resolveEventMonth(item.month, context.todayISO, item.field === "childrenDelta" && pregnancyMention(item.quote));
     const value = mappedValue(item);
-    if (!timing.resolved || value === undefined) continue;
+    if (!timing.resolved || timing.month > 60 || value === undefined) continue;
     const key = `${item.field}|${timing.month}`;
     if (seen.has(key) && seen.get(key) !== value) duplicates.add(key);
     seen.set(key, value);
   }
   for (const item of extraction.items) {
-    if (!prompt.includes(item.quote) || missingQuotedTiming(item, prompt)
+    if (!prompt.includes(item.quote) || ambiguousStatement(prompt) || missingQuotedTiming(item, prompt)
       || (item.month && !item.quote.toLowerCase().includes(item.month.toLowerCase())) || item.certainty === "vague") {
       unresolved.push(item); continue;
     }
     const value = mappedValue(item);
     const timing = resolveEventMonth(item.month, context.todayISO, item.field === "childrenDelta" && pregnancyMention(item.quote));
-    if (value === undefined || !timing.resolved || duplicates.has(`${item.field}|${timing.month}`)) { unresolved.push(item); continue; }
+    if (value === undefined || !timing.resolved || timing.month > 60 || duplicates.has(`${item.field}|${timing.month}`)) { unresolved.push(item); continue; }
     const certainty = item.certainty === "inferred" || timing.inferred ? "inferred" : "clear";
     // Never put a future value straight into the present profile.
     const fieldKey = FieldKeySchema.safeParse(item.field);
