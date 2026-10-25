@@ -1,4 +1,5 @@
 import type { NextAction, Source } from "@/contracts";
+import { customerText } from "@/ui/profile/customerText";
 import { SourceBadge } from "@/ui/profile/SourceBadge";
 
 export interface NextStepProps {
@@ -17,11 +18,11 @@ export function NextStep({ action, source }: NextStepProps) {
       <p className="text-sm text-ink/50">Next step</p>
       <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
         <p data-testid="next-step-label" className="text-xl font-medium text-ink">
-          {action.label}
+          {customerText(action.label)}
         </p>
         <SourceBadge compact source={source} />
       </div>
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink/60">{action.detail}</p>
+      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink/60">{customerText(action.detail)}</p>
       {action.officialLink && (
         <a
           href={action.officialLink}

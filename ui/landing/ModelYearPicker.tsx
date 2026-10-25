@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { customerText } from "@/ui/profile/customerText";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 export interface ModelYearPickerProps {
@@ -75,7 +76,7 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
 
       {storeError && (
         <p role="alert" className="text-xs font-medium text-ink/80">
-          {storeError}
+          {customerText(storeError)}
         </p>
       )}
 

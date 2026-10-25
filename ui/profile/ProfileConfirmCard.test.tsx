@@ -51,7 +51,7 @@ describe("ProfileConfirmCard", () => {
     expect(screen.getByText("Loan")).toBeInTheDocument();
 
     // Verify presence of source badges
-    const badges = screen.getAllByTitle(/demo persona data/i);
+    const badges = screen.getAllByTitle(/example figure/i);
     expect(badges.length).toBeGreaterThan(0);
   });
 });

@@ -7,6 +7,7 @@ import { FinanceChips } from "@/ui/command/FinanceChips";
 import { TradeoffCards } from "@/ui/command/TradeoffCards";
 import { WeightsEditor } from "@/ui/command/WeightsEditor";
 import { data } from "@/ui/mocks";
+import { customerText } from "@/ui/profile/customerText";
 import { DataRow } from "@/ui/profile/DataRow";
 import { miles } from "@/ui/profile/format";
 import { ProfileConfirmCard } from "@/ui/profile/ProfileConfirmCard";
@@ -128,9 +129,9 @@ export function DetailsSheet() {
                     <span>{record.date}</span>
                     <span className="tabular-nums">{miles(record.mileage)}</span>
                   </div>
-                  <p className="mt-0.5 text-ink">{record.description}</p>
+                  <p className="mt-0.5 text-ink">{customerText(record.description)}</p>
                   <div className="mt-1">
-                    <SourceBadge compact source={record.source} detail={record.provenance} />
+                    <SourceBadge compact source={record.source} />
                   </div>
                 </li>
               ))}

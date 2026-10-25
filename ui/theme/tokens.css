@@ -83,3 +83,17 @@ html[data-reduced-motion="true"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/*
+ * The 3D stage draws its own block of text in the top left corner (the model name, "Representative model", loading
+ * status), right on top of the FORK wordmark. The car's name is already set large at the top of the page, so this block
+ * stays for screen readers and is not seen. (The stage is ui/3d; when it drops that text this rule can go.)
+ */
+section[aria-label="Vehicle 3D preview"] > div[style*="system-ui"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

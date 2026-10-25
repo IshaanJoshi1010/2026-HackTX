@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { sim } from "@/ui/mocks";
+import { customerText } from "@/ui/profile/customerText";
 import { miles, monthLabel, usd } from "@/ui/profile/format";
 import { metricSource } from "@/ui/profile/metricSources";
 import { SourceBadge } from "@/ui/profile/SourceBadge";
@@ -83,7 +84,7 @@ export function FutureDetails() {
       )}
 
       {result && result.warnings.length > 0 && (
-        <p className="mx-auto max-w-2xl text-center text-xs leading-5 text-ink/40">{result.warnings.join(" ")}</p>
+        <p className="mx-auto max-w-2xl text-center text-xs leading-5 text-ink/40">{customerText(result.warnings.join(" "))}</p>
       )}
     </section>
   );

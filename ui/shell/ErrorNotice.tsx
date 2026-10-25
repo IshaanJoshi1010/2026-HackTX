@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { customerText } from "@/ui/profile/customerText";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 /**
@@ -12,14 +13,15 @@ export function ErrorNotice() {
   const error = useForkStore((s) => s.error);
   const clearError = useForkStore((s) => s.actions.clearError);
   if (!error) return null;
+  const text = customerText(error);
   return (
     <div
       role="alert"
       data-testid="error-notice"
       className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-full bg-ink/10 py-1.5 pr-1.5 pl-4 text-sm text-ink backdrop-blur-xl"
     >
-      <span className="min-w-0 flex-1 truncate" title={error}>
-        {error}
+      <span className="min-w-0 flex-1 truncate" title={text}>
+        {text}
       </span>
       <button
         type="button"

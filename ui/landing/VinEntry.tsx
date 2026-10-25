@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { data } from "@/ui/mocks";
+import { customerText } from "@/ui/profile/customerText";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 export interface VinEntryProps {
@@ -76,7 +77,7 @@ export function VinEntry({ className, onSuccess, onChooseCar }: VinEntryProps) {
 
   const isComplete = clean.length === 17;
   const isBusy = busy !== "idle";
-  const displayedError = localError || storeError;
+  const displayedError = localError || (storeError ? customerText(storeError) : null);
 
   return (
     <form onSubmit={handleSubmit} className={cn("flex w-full flex-col items-center gap-4", className)}>

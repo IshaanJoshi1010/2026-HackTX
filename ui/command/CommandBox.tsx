@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { customerText } from "@/ui/profile/customerText";
 import { useForkStore, type DumpOutcome } from "@/ui/store/useForkStore";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
 import { InlineQuestionCard } from "./InlineQuestionCard";
@@ -153,7 +154,7 @@ export function CommandBox({ className }: CommandBoxProps) {
       {offlineNotice ? (
         <div role="status" data-testid="offline-notice" className="flex flex-col items-center gap-1.5 text-center text-sm text-ink/60">
           <p>The AI isn&apos;t available right now, so I read that with plain rules.</p>
-          {lastDump.note && <p data-testid="offline-note">{lastDump.note}</p>}
+          {lastDump.note && <p data-testid="offline-note">{customerText(lastDump.note)}</p>}
           <div className="flex items-center gap-6">
             <button
               type="button"

@@ -10,8 +10,8 @@ describe("variantOf", () => {
       "listing",
       "your input",
       "estimated",
-      "demo data",
-      "demo data",
+      "illustrative",
+      "illustrative",
     ]);
   });
 
