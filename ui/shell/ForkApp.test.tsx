@@ -547,3 +547,178 @@ describe("the specs after the car forms", () => {
     }
   });
 });
+
+describe("the expanded timeline", () => {
+  const expandButton = () => screen.getByTestId("expand-timeline");
+  const confirmDenver = () =>
+    act(() => {
+      state().actions.addDraft(denver);
+      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    });
+
+  it("is a round button by the road, named for what it does", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(expandButton()).toHaveAccessibleName("Expand timeline");
+    expect(expandButton()).toHaveAttribute("aria-expanded", "false");
+    expect(expandButton()).toHaveAttribute("title", "Expand timeline");
+    expect(state().ui.futureExpanded).toBe(false);
+  });
+
+  it("expands the road to fill the page, with nothing else around it", async () => {
+    await enterWorkspace();
+    confirmDenver();
+    goFuture();
+    const normal = screen.getByTestId("road").style.height;
+    fireEvent.click(expandButton());
+    expect(state().ui.futureExpanded).toBe(true);
+
+    const road = screen.getByTestId("road");
+    expect(road).toHaveAttribute("data-expanded", "true");
+    expect(road.style.height).not.toBe(normal);
+    expect(road.style.height).toMatch(/100dvh/); // sized to the page, not to a fixed number
+
+    // the headline, the options row, the next step and the details are put away
+    expect(stats()).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
+    expect(screen.queryByTestId("future-name")).toBeNull();
+    expect(screen.queryByTestId("next-step")).toBeNull();
+    // what stays: the road with its readout, the command bar, the page switch, and the way back
+    expect(screen.getByTestId("road-readout")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/tell fork what's changing/i)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Future" })).toHaveAttribute("aria-selected", "true");
+    expect(expandButton()).toHaveAccessibleName("Collapse timeline");
+    expect(expandButton()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("expanded-title")).toHaveTextContent("Move to Denver"); // which future you are looking at
+  });
+
+  it("is a bigger road than the normal one, and the biggest of the three sizes", async () => {
+    const { roadHeight } = await import("@/ui/timeline/Road");
+    expect(roadHeight(false, false)).toMatch(/44vh/);
+    expect(roadHeight(true, false)).toMatch(/30vh/);
+    expect(roadHeight(false, true)).toMatch(/100dvh/);
+    expect(roadHeight(true, true)).toBe(roadHeight(false, true)); // once you ask for it, comparing does not shrink it back
+  });
+
+  it("collapses back to exactly the page it came from", async () => {
+    await enterWorkspace();
+    confirmDenver();
+    goFuture();
+    const before = screen.getByTestId("future-view").innerHTML;
+    fireEvent.click(expandButton());
+    fireEvent.click(expandButton());
+    expect(state().ui.futureExpanded).toBe(false);
+    expect(screen.getByRole("button", { name: "Details" })).toBeInTheDocument();
+    expect(screen.getByTestId("road")).toHaveAttribute("data-expanded", "false");
+    expect(screen.getByTestId("future-view").innerHTML).toBe(before);
+  });
+
+  it("Escape collapses it, and does nothing when it is not expanded", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state().ui.futureExpanded).toBe(false);
+    fireEvent.click(expandButton());
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(state().ui.futureExpanded).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state().ui.futureExpanded).toBe(false);
+  });
+
+  it("Escape closes the details sheet first and leaves the timeline expanded", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(expandButton());
+    openDetails();
+    expect(state().ui.detailsOpen).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state().ui.detailsOpen).toBe(false);
+    expect(state().ui.futureExpanded).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" }); // and the next one collapses it
+    expect(state().ui.futureExpanded).toBe(false);
+  });
+
+  it("collapses when you leave the future page, so it comes back normal", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(expandButton());
+    goCar();
+    expect(state().ui.futureExpanded).toBe(false);
+    goFuture();
+    expect(screen.getByRole("button", { name: "Details" })).toBeInTheDocument();
+    expect(screen.getByTestId("road")).toHaveAttribute("data-expanded", "false");
+  });
+
+  it("starting over, or opening another car, does not carry it along", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(expandButton());
+    act(() => state().actions.resetAll());
+    expect(state().ui.futureExpanded).toBe(false);
+    await act(async () => {
+      await state().actions.startFromSample("camry-2022-se");
+    });
+    expect(state().ui.futureExpanded).toBe(false);
+  });
+
+  it("keeps the other futures one tap away while expanded, and names them on the road", async () => {
+    await enterWorkspace();
+    confirmDenver();
+    goFuture();
+    fireEvent.click(expandButton());
+    const toggle = screen.getByRole("button", { name: "Other futures (1)" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(state().ui.futureCompare).toBe(true);
+    expect(screen.getAllByTestId("road-future")).toHaveLength(2);
+    expect(state().ui.futureExpanded).toBe(true);
+  });
+
+  it("with no other futures there is nothing extra to offer", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(expandButton());
+    expect(screen.queryByRole("button", { name: /Other futures/ })).toBeNull();
+    expect(screen.getByTestId("expanded-title")).toHaveTextContent("Keep the Camry");
+  });
+
+  it("works after comparing: titled for the options, with the verdict put away until you collapse", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
+    await advance(0);
+    expect(screen.getByTestId("verdict")).toBeInTheDocument();
+    fireEvent.click(expandButton());
+    expect(screen.queryByTestId("verdict")).toBeNull();
+    expect(screen.getByTestId("expanded-title")).toHaveTextContent("Your options over five years");
+    expect(screen.getAllByTestId("road-future")).toHaveLength(2);
+    expect(screen.getByTestId("road").style.height).toMatch(/100dvh/);
+    fireEvent.click(expandButton());
+    expect(screen.getByTestId("verdict")).toBeInTheDocument();
+    expect(screen.getByTestId("next-step")).toBeInTheDocument();
+  });
+
+  it("the road is still the same road: scrub it and the cost at the playhead moves", async () => {
+    await enterWorkspace();
+    confirmDenver();
+    goFuture();
+    fireEvent.click(expandButton());
+    const readout = () => screen.getByTestId("road-readout").textContent;
+    const at60 = readout();
+    scrubTo(24);
+    expect(state().activeMonth).toBe(24);
+    expect(readout()).not.toBe(at60);
+    expect(screen.getByTestId("road-effect").querySelector("[data-source]")).not.toBeNull(); // and still says where it comes from
+  });
+
+  it("keeps the command bar usable above the page, and reads no new words", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(expandButton());
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/demo|data/i);
+    expect(text).not.toContain("\u2014");
+    expect(screen.getByRole("button", { name: "Submit changes" })).toBeInTheDocument();
+  });
+});
+

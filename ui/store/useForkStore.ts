@@ -126,6 +126,8 @@ export interface UiState {
   futureDetails: boolean;
   /** Future page: draw every future on the road, not just the one you are looking at. Off by default. Not saved. */
   futureCompare: boolean;
+  /** Future page: the road fills the page, with nothing else around it. Off by default. Not saved. */
+  futureExpanded: boolean;
   /** Future page: the plain-language reasons behind the verdict. Off by default. Not saved. */
   futureWhy: boolean;
   /** Future page: review and confirm the purchase and insurance terms. Off by default. Not saved. */
@@ -173,6 +175,7 @@ export interface ForkActions {
   setDetailsOpen(open: boolean): void;
   setFutureDetails(on: boolean): void;
   setFutureCompare(on: boolean): void;
+  setFutureExpanded(on: boolean): void;
   setFutureWhy(on: boolean): void;
   setFutureTerms(on: boolean): void;
   /** Showing it for the first time runs the break-even on yearly miles. */
@@ -293,6 +296,7 @@ function initialData(): DataFields {
       detailsOpen: false,
       futureDetails: false,
       futureCompare: false,
+      futureExpanded: false,
       futureWhy: false,
       futureTerms: false,
       futureBreakEven: false,
@@ -648,7 +652,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureWhy: false, futureTerms: false, futureBreakEven: false },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureExpanded: false, futureWhy: false, futureTerms: false, futureBreakEven: false },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -1152,7 +1156,8 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         if (view === "future" && s.phase !== "workspace") return s; // nothing to look ahead at yet
         // The future page opens on the five year picture, not on a month with nothing in it.
         const activeMonth = view === "future" && s.activeMonth === 0 ? MONTH_MAX : s.activeMonth;
-        return { activeMonth, ui: { ...s.ui, view, detailsOpen: false } };
+        // Leaving the future page closes the expanded timeline, so it opens normally next time.
+        return { activeMonth, ui: { ...s.ui, view, detailsOpen: false, ...(view === "future" ? {} : { futureExpanded: false }) } };
       });
     },
 
@@ -1166,6 +1171,10 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
     setFutureCompare(on) {
       set((s) => ({ ui: { ...s.ui, futureCompare: on } }));
+    },
+
+    setFutureExpanded(on) {
+      set((s) => ({ ui: { ...s.ui, futureExpanded: on } }));
     },
 
     setFutureWhy(on) {

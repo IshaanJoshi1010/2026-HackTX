@@ -1099,3 +1099,31 @@ describe("purchase and insurance terms: applied only when confirmed, to every fu
     expect(saved.every((v) => v === 400)).toBe(true);
   });
 });
+
+describe("the expanded timeline flag", () => {
+  it("starts off, turns on and off, and is never saved", async () => {
+    await enterWorkspace();
+    expect(state().ui.futureExpanded).toBe(false);
+    actions().setFutureExpanded(true);
+    expect(state().ui.futureExpanded).toBe(true);
+    expect(JSON.stringify(localStorage.getItem("fork:v1") ?? "")).not.toContain("futureExpanded");
+    actions().setFutureExpanded(false);
+    expect(state().ui.futureExpanded).toBe(false);
+  });
+
+  it("closes when you go back to the car, stays through the future page, and resets with a new session", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    actions().setFutureExpanded(true);
+    actions().setView("future");
+    expect(state().ui.futureExpanded).toBe(true);
+    actions().setView("car");
+    expect(state().ui.futureExpanded).toBe(false);
+
+    actions().setView("future");
+    actions().setFutureExpanded(true);
+    actions().resetAll();
+    expect(state().ui.futureExpanded).toBe(false);
+  });
+});
+
