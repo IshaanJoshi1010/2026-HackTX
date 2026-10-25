@@ -8,6 +8,7 @@ import { VehicleModel } from "./VehicleModel";
 import { RendererDiagnostics } from "./diagnostics";
 import { ContactShadows } from "./ContactShadows";
 import { StudioEnvironment } from "./StudioEnvironment";
+import { StructureView } from "./StructureView";
 
 export function Scene({ props, onReady, spin = false, cameraView = "threeQuarter", viewSignal = 0, onBusyChange }: { props: CarStageProps; onReady: () => void; spin?: boolean; cameraView?: "threeQuarter" | "front" | "side"; viewSignal?: number; onBusyChange?: (busy: boolean) => void }) {
   const camera = useThree((state) => state.camera);
@@ -37,6 +38,7 @@ export function Scene({ props, onReady, spin = false, cameraView = "threeQuarter
       <planeGeometry args={[200, 200]} /><meshStandardMaterial color="#101114" roughness={0.9} envMapIntensity={0.25} />
     </mesh>
     <VehicleModel props={props} onReady={onReady} onBusy={setBusy} />
+    {props.viewMode === "wireframe" && props.phase === "interactive" && <StructureView key={props.vehicle.id} vehicle={props.vehicle} />}
     <ContactShadows low={props.quality === "low"} />
     <OrbitControls ref={controls} enabled={!busy} autoRotate={spin && !busy && !props.reducedMotion} autoRotateSpeed={0.6} target={[0, 0.7, 0]} enableDamping dampingFactor={0.08} minDistance={3.5} maxDistance={9} maxPolarAngle={1.5} />
   </>;

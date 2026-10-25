@@ -179,9 +179,9 @@ export class VehicleController {
         layer.cloud.material.opacity = layer.opacity; layer.root.visible = false;
       } else {
         if (layer.cloud) { disposeObject(layer.cloud); layer.cloud = undefined; }
-        layer.root.visible = layer.opacity > 0;
+        layer.root.visible = layer.opacity > 0 && mode !== "wireframe";
       }
-      layer.materials.update(this.fading ? "solid" : mode, layer.opacity);
+      layer.materials.update(this.fading || mode === "wireframe" ? "solid" : mode, layer.opacity);
     });
   }
 

@@ -7,6 +7,7 @@ import type { CarStageProps } from "./types";
 import { Scene } from "./Scene";
 import { stagePixelRatio } from "./pixelBudget";
 import styles from "./StageToolbar.module.css";
+export { MaintenanceProvider, type MaintenanceFinding, type CarComponent } from "./maintenance";
 
 class CanvasErrorBoundary extends Component<{ children: ReactNode; onError: (message: string) => void }, { error: string | null }> {
   state = { error: null as string | null };
