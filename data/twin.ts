@@ -89,6 +89,7 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
       const mileage = a.mileage ?? signals?.mileage ?? saved?.listingSnapshot.fields.mileage;
       if (!mileageSchema.safeParse(mileage).success) return { ok: false, error: "A valid mileage is required from input, provider signals, or a saved listing" };
       const mileageSource: Source = a.mileage !== undefined ? "user" : signals?.source ?? "synthetic";
+      driver.provenance.mileage = mileageSource;
       const note = a.mileage !== undefined ? "explicit input mileage" : signals ? "provider vehicle signals" : "fictional saved listing snapshot";
       // Only registered primary sample records may use their synthetic ownership history.
       let history = saved && saved.listingSnapshot.id.endsWith("-primary") ? (deps.getHistory ?? getHistory)(vehicle.id) : [];

@@ -11,6 +11,15 @@ import { extractionInstructions } from "./prompts/system";
 
 const jsonSchema = z.toJSONSchema(ExtractionSchema) as Record<string, unknown>;
 delete jsonSchema.$schema;
+interface SchemaNode { properties?: Record<string, SchemaNode>; items?: SchemaNode; [key: string]: unknown }
+function groundedResponseSchema(prompt: string): Record<string, unknown> {
+  // Constrain quote copying at generation time too, including dates before the event.
+  // Whole-prompt fallback preserves values containing conjunctions or punctuation.
+  const quotes = [...new Set([prompt, ...prompt.split(/[!?;\n]|[.,](?!\d)|\s+and\s+/i).map(part => part.trim()).filter(Boolean)])];
+  const schema = structuredClone(jsonSchema) as SchemaNode;
+  schema.properties!.items.items!.properties!.quote = { type: "string", enum: quotes };
+  return schema;
+}
 export const InterpretRequestSchema = z.object({ prompt: z.string().trim().min(1).max(8000), context: InterpretContextSchema }).strict();
 const clarify = (): InterpretResult => ({ aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] });
 
@@ -43,11 +52,12 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
       .map(([field]) => [field, ctx.profile[field as keyof typeof ctx.profile]]).filter(([, value]) => value !== undefined));
     const minimalContext = { vehicle: { model: ctx.vehicle.model, year: ctx.vehicle.year }, profile,
       existingEvents: ctx.existingEvents.slice(-50), todayISO: ctx.todayISO };
+    const responseSchema = groundedResponseSchema(request.data.prompt);
     let validationFeedback: string | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       let text: string;
       try { text = await generate({ system: extractionInstructions, input: { prompt: request.data.prompt, context: minimalContext, retry: attempt === 1,
-        ...(validationFeedback ? { validationFeedback } : {}) }, schema: jsonSchema }); }
+        ...(validationFeedback ? { validationFeedback } : {}) }, schema: responseSchema }); }
       catch { return { aiAvailable: false }; }
       try {
         const extraction = ExtractionSchema.parse(JSON.parse(text));
@@ -56,7 +66,9 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
         // Grounding/semantic failures also get one retry, never partially trusted changes.
         if (mapped.unresolved.some(item => item.certainty !== "vague")) {
           if (attempt === 0) {
-            validationFeedback = "Some items failed quote, value or timing validation. Use only prompt evidence, include the full date in quote and month, use absolute children for ordinal counts, and never copy context into items.";
+            const invalidTimingFields = mapped.unresolved.filter(item => item.month && !item.quote.toLowerCase().includes(item.month.toLowerCase())).map(item => item.field);
+            validationFeedback = "Some items failed quote, value or timing validation. Use only prompt evidence, include the full date in quote and month, use absolute children for ordinal counts, and never copy context into items."
+              + (invalidTimingFields.length ? ` Invalid date in quote for: ${invalidTimingFields.join(", ")}. Each month must occur in that item's own quote. Omit month for undated clauses; never carry another event's date into annual mileage.` : "");
             continue;
           }
           return clarify();

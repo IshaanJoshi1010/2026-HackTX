@@ -9,9 +9,11 @@ export async function mockTwin(a: { vehicle: VehicleConfig; mileage?: number; ra
 Promise<{ ok: true; twin: VehicleTwin } | { ok: false; error: string }> {
   const vehicle = validate(VehicleConfigSchema, a.vehicle);
   if (!vehicle.ok) return { ok: false, error: vehicle.error };
+  const driver = structuredClone(alexProfile);
+  driver.provenance.mileage = a.mileage === undefined ? "synthetic" : "user";
   const result = validate(VehicleTwinSchema, {
     vehicle: structuredClone(vehicle.data), mileage: a.mileage ?? 48000, history: [],
-    driver: structuredClone(alexProfile), finance: structuredClone(syntheticFinance),
+    driver, finance: structuredClone(syntheticFinance),
   });
   return result.ok ? { ok: true, twin: result.data } : result;
 }

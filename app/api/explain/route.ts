@@ -6,6 +6,8 @@ export async function POST(request: Request) {
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: "Invalid explain request" }, { status: 400 });
-    return Response.json(await explain(parsed.data.evaluation, parsed.data.results));
+    const result = await explain(parsed.data.evaluation, parsed.data.results);
+    // Add the requested no-key signal without changing the frozen explain() return type.
+    return Response.json({ ...result, ...(!process.env.GEMINI_API_KEY?.trim() ? { aiAvailable: false } : {}) });
   } catch { return Response.json({ error: "Invalid explain request" }, { status: 400 }); }
 }

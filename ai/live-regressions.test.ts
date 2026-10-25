@@ -11,6 +11,27 @@ const captured = (id: string) => captures.cases.find(c => c.id === id)!.response
 const authored = (id: string) => testDumps.find(c => c.id === id)!;
 
 describe("captured live extraction failure regressions", () => {
+  it("constrains generation quotes to exact source text, preserving dates before an event", async () => {
+    const prompt = "next year I'm moving to Denver. Driving 20k mi/yr. In 2029 we expect our second child.";
+    const generate = vi.fn().mockResolvedValue(JSON.stringify({ intent: "CLARIFY", items: [] }));
+    await createInterpreter(generate)(prompt, context);
+    const quotes = generate.mock.calls[0][0].schema.properties.items.items.properties.quote.enum as string[];
+    expect(quotes).toContain("next year I'm moving to Denver");
+    expect(quotes).toContain("In 2029 we expect our second child");
+    expect(quotes.every(quote => prompt.includes(quote))).toBe(true);
+    expect(quotes).not.toContain("moving to Denver next year");
+    expect(quotes).not.toContain("expect our second child in 2029");
+  });
+
+  it("identifies a date carried into an undated mileage clause during retry", async () => {
+    const c = authored("demo"), wrong = structuredClone(c.expected);
+    wrong.items.find(item => item.field === "annualMiles")!.month = "next year";
+    const generate = vi.fn().mockResolvedValueOnce(JSON.stringify(wrong)).mockResolvedValueOnce(JSON.stringify(c.expected));
+    const result = await createInterpreter(generate)(c.prompt, context);
+    expect(generate.mock.calls[1][0].input.validationFeedback).toContain("annualMiles");
+    expect(result.aiAvailable && result.proposals.find(event => event.type === "mileage_change")?.month).toBe(0);
+  });
+
   it.each(["vague-time", "multiple"])("never defaults an omitted %s date to the current month", async id => {
     const c = authored(id), raw = captured(id);
     const result = await createInterpreter(async () => JSON.stringify(raw))(c.prompt, context);

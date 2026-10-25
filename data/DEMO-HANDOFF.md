@@ -41,3 +41,5 @@ npm run lint
 npm run build
 
 Additional isolated check executed the real Dev 4 engine with buildDemoTwin, the authored quoted extraction and fixture-confirmed events. It verified household/child counts before and after month 32, unchanged confirmed inputs, no inferred car seats, the inconclusive verdict and the computed next action. Captured engine output is regression-tested through POST /api/explain without a key. Live Gemini and full browser UI/3D acceptance remain separate.
+
+Post-merge usage note: see ai/INTEGRATION.md for exact offline VIN, Alex preset, server interpretation/explanation and browser API calls. Odometer provenance now lives in driver.provenance["mileage"]. No-key /api/explain responses additionally carry aiAvailable: false while explain() still returns only text/usedFallback. The merged manifest/GLBs now exist; Kareem is applying the approved synthetic paint values and canonical RAV4 ID while retaining representative status.
