@@ -21,7 +21,7 @@ export function StarterChips({ onSelect, disabled = false, className }: StarterC
       disabled={disabled}
       onClick={() => onSelect(STARTER_PROMPT)}
       className={cn(
-        "mx-auto block max-w-full truncate px-2 text-sm text-ink/45 transition-colors hover:text-ink/80 disabled:opacity-40",
+        "mx-auto block max-w-xl px-2 text-center text-sm leading-5 text-ink/45 transition-colors hover:text-ink/80 disabled:opacity-40",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         className,
       )}
