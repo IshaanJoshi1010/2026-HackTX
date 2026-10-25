@@ -45,6 +45,17 @@ import { mapTradeoffs as realMapTradeoffs } from "@/data/tradeoffs";
 import { buildTwin as realBuildTwin } from "@/data/twin";
 import { validateVin as realValidateVin } from "@/data/vin";
 import {
+  assessSuitability as realAssessSuitability,
+  evaluate as realEvaluate,
+  findBreakEven as realFindBreakEven,
+  nextAction as realNextAction,
+  reproduceBreakEven as realReproduceBreakEven,
+  sensitivity as realSensitivity,
+  withSensitivity as realWithSensitivity,
+  type BreakEvenInput,
+  type ReproductionSide,
+} from "@/decision";
+import {
   fork as realFork,
   makeReplaceScenario as realMakeReplaceScenario,
   moveEvent as realMoveEvent,
@@ -61,7 +72,7 @@ export const USE_MOCKS: Record<ModuleName, boolean> = {
   data: false, // Paarth: real since the first integration merge (e935e1f)
   ai: true, // Paarth: interpret and explain h13
   sim: false, // Anirudh: real since the first integration merge (e935e1f)
-  decision: true, // Anirudh: evaluate h11, findBreakEven h14, nextAction h15
+  decision: false, // Anirudh: real since the first integration merge (e935e1f)
 };
 
 export const mockedModules = (): ModuleName[] =>
@@ -125,21 +136,22 @@ export interface DecisionApi {
     priorities: DriverProfile["priorities"];
     maxMonthlyBudget?: number;
   }): DecisionEvaluation;
-  findBreakEven(a: {
-    twin: VehicleTwin;
-    keep: Scenario;
-    replace: Scenario;
-    parameter: "annualMiles" | "fuelPricePerGal";
-    ctx: SimContext;
-    priorities: DriverProfile["priorities"];
-  }): BreakEvenResult;
+  findBreakEven(a: BreakEvenInput): BreakEvenResult;
+  /** Just below and just above a found threshold, so the flip can be checked by typing the numbers in. */
+  reproduceBreakEven(a: BreakEvenInput, be: BreakEvenResult): { below: ReproductionSide; above: ReproductionSide } | null;
   sensitivity(a: {
     twin: VehicleTwin;
     scenarios: Scenario[];
     ctx: SimContext;
     priorities: DriverProfile["priorities"];
   }): SensitivityResult;
-  nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakEvenResult): NextAction;
+  /** Adds the "held in X of Y tested cases" line and the low, base, high runs. */
+  withSensitivity(e: DecisionEvaluation, s: SensitivityResult): DecisionEvaluation;
+  /**
+   * Pass `results`: without them the rules for keep, replace and the threshold text cannot run.
+   * INTERFACES.md still shows three arguments; Dev 4's code takes the fourth (optional).
+   */
+  nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakEvenResult, results?: SimulationResult[]): NextAction;
 }
 
 export interface CarApi {
@@ -183,7 +195,9 @@ const mockDecision: DecisionApi = {
   assessSuitability: local.assessSuitability,
   evaluate: local.evaluate,
   findBreakEven: local.findBreakEven,
+  reproduceBreakEven: () => null,
   sensitivity: local.sensitivity,
+  withSensitivity: (e) => e,
   nextAction: local.nextAction,
 };
 
@@ -238,7 +252,15 @@ const realSim: SimApi = {
   moveEvent: realMoveEvent,
   makeReplaceScenario: realMakeReplaceScenario,
 };
-const realDecision = notLanded<DecisionApi>("decision");
+const realDecision: DecisionApi = {
+  assessSuitability: realAssessSuitability,
+  evaluate: realEvaluate,
+  findBreakEven: realFindBreakEven,
+  reproduceBreakEven: (a, be) => realReproduceBreakEven(a, be),
+  sensitivity: realSensitivity,
+  withSensitivity: realWithSensitivity,
+  nextAction: realNextAction,
+};
 const realCar = notLanded<CarApi>("car");
 
 export const data: DataApi = USE_MOCKS.data ? mockData : realData;

@@ -27,6 +27,7 @@ import type {
   VehicleConfig,
   VehicleTwin,
 } from "@/contracts";
+import type { ReproductionSide } from "@/decision";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { RevealStage } from "@/ui/mocks/CarStageStub";
 import { eventTitle } from "./eventLabels";
@@ -64,6 +65,8 @@ export interface Comparison {
   keepId: string;
   replaceId: string;
 }
+
+export type BreakEvenCheck = { below: ReproductionSide; above: ReproductionSide };
 
 export interface UiState {
   reducedMotion: boolean;
@@ -127,7 +130,11 @@ export interface ForkState {
   explore: ExploreState;
   results: Record<string, SimulationResult>;
   evaluation: DecisionEvaluation | null;
+  /** Why the next step is what it is, from the engine. Travels with the evaluation, never typed in. */
+  nextActionFactors: string[];
   breakEven: BreakEvenResult | null;
+  /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
+  breakEvenCheck: BreakEvenCheck | null;
   activeScenarioId: string;
   activeMonth: number;
   activeVehicleId: string;
@@ -189,7 +196,9 @@ function initialData(): DataFields {
     explore: { confirmedProfile: EMPTY_PROFILE, draftChanges: [], scenarios: [] },
     results: {},
     evaluation: null,
+    nextActionFactors: [],
     breakEven: null,
+    breakEvenCheck: null,
     activeScenarioId: BASE_ID,
     activeMonth: 0,
     activeVehicleId: "",
@@ -317,22 +326,53 @@ function simulateAll(
   return Object.fromEntries(scenarios.map((sc) => [sc.id, sim.simulate(twin, sc, ctx)]));
 }
 
-function evaluateComparison(
-  s: Pick<ForkState, "twin" | "explore" | "replacementVehicle" | "results" | "comparison">,
-): DecisionEvaluation | null {
-  if (!s.comparison) return null;
+type ComparisonState = Pick<ForkState, "twin" | "explore" | "replacementVehicle" | "results" | "comparison">;
+
+/** What the engine says about keep vs replace, plus why it says it. Null until both futures have a projection. */
+interface Verdict {
+  evaluation: DecisionEvaluation;
+  nextActionFactors: string[];
+}
+
+/**
+ * Dev 4's order: evaluate, then add the robustness count, then work out the next step with
+ * the simulations (and the break-even when there is one). Every number is his.
+ */
+function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | null): Verdict | null {
+  if (!s.comparison || !s.twin) return null;
   const keep = findScenario(s, s.comparison.keepId);
   const replace = findScenario(s, s.comparison.replaceId);
   if (!keep || !replace || !s.results[keep.id] || !s.results[replace.id]) return null;
   const profile = s.explore.confirmedProfile;
-  return decision.evaluate({
-    twin: simTwin(s),
-    scenarios: [keep, replace],
-    results: [s.results[keep.id], s.results[replace.id]],
+  const twin = simTwin(s);
+  const scenarios = [keep, replace];
+  const results = [s.results[keep.id], s.results[replace.id]];
+  const evaluated = decision.evaluate({
+    twin,
+    scenarios,
+    results,
     priorities: profile.priorities,
     maxMonthlyBudget: profile.monthlyBudget,
   });
+  const withRobustness = decision.withSensitivity(
+    evaluated,
+    decision.sensitivity({ twin, scenarios, ctx: buildCtx(s.twin, s.replacementVehicle), priorities: profile.priorities }),
+  );
+  const action = decision.nextAction(withRobustness, twin, breakEven ?? undefined, results);
+  return {
+    evaluation: {
+      ...withRobustness,
+      nextAction: { label: action.label, detail: action.detail, ...(action.officialLink ? { officialLink: action.officialLink } : {}) },
+    },
+    nextActionFactors: action.factors,
+  };
 }
+
+/** The store fields that come from a verdict, or cleared ones when there is none. */
+const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors"> => ({
+  evaluation: v?.evaluation ?? null,
+  nextActionFactors: v?.nextActionFactors ?? [],
+});
 
 /** At most one question, never one the user already answered or skipped. */
 function nextQuestion(
@@ -514,7 +554,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
     const merged = { ...get(), ...patch };
     const results = simulateAll(merged, merged.explore.scenarios);
     const next = { ...merged, results };
-    set({ ...patch, results, evaluation: evaluateComparison(next), breakEven: null });
+    set({ ...patch, results, ...verdictPatch(evaluateComparison(next)), breakEven: null, breakEvenCheck: null });
   }
 
   const actions: ForkActions = {
@@ -640,8 +680,9 @@ export const useForkStore = create<ForkState>()((set, get) => {
           ...activation({ ...withChild, results }, child.id),
           explore,
           results,
-          evaluation: s.comparison ? evaluateComparison({ ...withChild, results }) : s.evaluation,
+          ...(s.comparison ? verdictPatch(evaluateComparison({ ...withChild, results })) : {}),
           breakEven: null,
+          breakEvenCheck: null,
           question: nextQuestion(withChild),
         });
       } catch (e) {
@@ -706,7 +747,8 @@ export const useForkStore = create<ForkState>()((set, get) => {
         provenance: { ...s.explore.confirmedProfile.provenance, priorities: "user" },
       };
       const explore = { ...s.explore, confirmedProfile: profile };
-      set({ tradeoffPicks: picks, explore, evaluation: evaluateComparison({ ...s, explore }) ?? s.evaluation });
+      const verdict = evaluateComparison({ ...s, explore });
+      set({ tradeoffPicks: picks, explore, ...(verdict ? verdictPatch(verdict) : {}), breakEven: null, breakEvenCheck: null });
     },
 
     // ---- replace ----
@@ -733,8 +775,9 @@ export const useForkStore = create<ForkState>()((set, get) => {
           explore,
           results,
           comparison,
-          evaluation: evaluateComparison(next),
+          ...verdictPatch(evaluateComparison(next)),
           breakEven: null,
+          breakEvenCheck: null,
           question: nextQuestion(next),
           // You asked to compare, so the other futures appear on the road.
           ui: { ...get().ui, busy: "idle", futureCompare: true },
@@ -764,15 +807,22 @@ export const useForkStore = create<ForkState>()((set, get) => {
         return void set({ error: "Open the keep vs replace comparison first." });
       }
       try {
-        const breakEven = decision.findBreakEven({
+        const input = {
           twin: simTwin(s),
           keep,
           replace,
           parameter,
           ctx: buildCtx(s.twin, s.replacementVehicle),
           priorities: s.explore.confirmedProfile.priorities,
+        };
+        const breakEven = decision.findBreakEven(input);
+        // With the threshold known, the next step can name it.
+        set({
+          breakEven,
+          breakEvenCheck: decision.reproduceBreakEven(input, breakEven),
+          ...verdictPatch(evaluateComparison(s, breakEven)),
+          error: null,
         });
-        set({ breakEven, error: null });
       } catch (e) {
         fail(e);
       }
@@ -832,7 +882,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
             ...base,
             explore,
             results,
-            evaluation: evaluateComparison({ ...base, explore, results }),
+            ...verdictPatch(evaluateComparison({ ...base, explore, results })),
           });
         } catch {
           // Saved session no longer fits the modules. Start clean.

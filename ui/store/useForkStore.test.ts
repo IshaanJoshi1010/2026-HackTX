@@ -597,3 +597,92 @@ describe("future page options", () => {
     expect(simulationInputs(state())).toBeNull();
   });
 });
+
+describe("demo story A through the store (numbers pinned by sim/DEMO.md)", () => {
+  // The events Paarth's extraction gives the demo sentence, confirmed in the UI.
+  const storyEvent = (id: string, type: LifeEvent["type"], month: number, payload: LifeEvent["payload"]): LifeEvent => ({
+    id,
+    type,
+    month,
+    payload,
+    source: "ai",
+    assumptions: [],
+    certainty: "clear",
+    status: "proposed",
+  });
+  const storyA = [
+    storyEvent("a-move", "relocation", 12, { location: "Denver" }),
+    storyEvent("a-miles", "mileage_change", 0, { annualMiles: 20000 }),
+    storyEvent("a-kid", "family_change", 32, { children: 2 }),
+  ];
+
+  async function toComparison() {
+    await enterWorkspace();
+    interpretReturning(storyA);
+    await actions().submitDump("demo");
+    actions().confirmDrafts(storyA.map((e) => e.id));
+    await actions().openReplaceComparison();
+  }
+
+  it("uses Alex as given: no trade-off picks, equal priorities, low cargo, no car seats", async () => {
+    await toComparison();
+    const profile = state().explore.confirmedProfile;
+    expect(state().tradeoffPicks).toEqual([]);
+    expect(profile.priorities).toEqual({ cost: 0.2, family: 0.2, longevity: 0.2, fuel: 0.2, comfort: 0.2 });
+    expect(profile).toMatchObject({ cargoNeed: "low", carSeats: 0, householdSize: 3, children: 1 });
+  });
+
+  it("step 4: a close call, with keeping the cheaper of the two", async () => {
+    await toComparison();
+    const { evaluation, comparison, results } = state();
+    expect(evaluation?.preferredScenarioId).toBe("inconclusive");
+    expect(evaluation?.rationale[0]).toMatch(/^Inconclusive: /);
+    expect(results[comparison!.keepId].summary.netCost).toBeLessThan(results[comparison!.replaceId].summary.netCost);
+  });
+
+  it("step 5: keeping wins below about 14,434 mi/yr, and the flip reproduces on both sides", async () => {
+    await toComparison();
+    expect(state().breakEven).toBeNull(); // nothing is computed until it is asked for
+    actions().runBreakEven("annualMiles");
+    const { breakEven, breakEvenCheck, comparison } = state();
+    expect(breakEven).toMatchObject({ found: true, parameter: "annualMiles", direction: "below", currentValue: 20000 });
+    if (!breakEven?.found) throw new Error("expected a threshold");
+    expect(breakEven.threshold).toBeCloseTo(14434, 0);
+    expect(breakEvenCheck?.below.preferredScenarioId).toBe(comparison!.keepId);
+    expect(breakEvenCheck?.above.preferredScenarioId).not.toBe(comparison!.keepId);
+    expect(breakEvenCheck!.below.value).toBeLessThan(breakEven.threshold);
+    expect(breakEvenCheck!.above.value).toBeGreaterThan(breakEven.threshold);
+  });
+
+  it("step 6: the next step names the threshold, and the robustness count is a count", async () => {
+    await toComparison();
+    actions().runBreakEven("annualMiles");
+    const { evaluation, nextActionFactors } = state();
+    expect(evaluation?.nextAction.label).toBe("Reevaluate if your driving drops below 14,434 mi/yr");
+    expect(nextActionFactors).toEqual(["break_even", "annualMiles"]);
+    expect(evaluation?.rationale).toContain("Held in 9 of 9 tested cases");
+    expect(JSON.stringify(evaluation)).not.toMatch(/\d\s?%|probab|confiden/i);
+  });
+
+  it("changing an input clears the old threshold instead of showing a stale one", async () => {
+    await toComparison();
+    actions().runBreakEven("annualMiles");
+    expect(state().breakEven?.found).toBe(true);
+    actions().answerQuestion("annualMiles", 16000);
+    expect(state().breakEven).toBeNull();
+    expect(state().breakEvenCheck).toBeNull();
+    expect(state().evaluation?.nextAction.label).not.toMatch(/14,434/);
+  });
+
+  it("the road, the profile and the other futures stay as confirmed (exploring is not changing)", async () => {
+    await enterWorkspace();
+    const profileBefore = structuredClone(state().explore.confirmedProfile);
+    interpretReturning(storyA);
+    await actions().submitDump("demo");
+    actions().confirmDrafts(storyA.map((e) => e.id));
+    await actions().openReplaceComparison();
+    actions().runBreakEven("annualMiles");
+    expect(state().explore.confirmedProfile).toEqual(profileBefore);
+    expect(state().explore.scenarios.find((s) => s.id === BASE_ID)?.events).toEqual([]);
+  });
+});

@@ -57,9 +57,9 @@ describe("flow", () => {
     render(<ForkApp />);
     await advance(0);
     expect(screen.getByText("The future branches. Explore yours.", { selector: "p" })).toBeInTheDocument();
-    // Data and sim are real now. The banner lists only what is still a placeholder.
-    expect(screen.getByTestId("mock-banner")).toHaveTextContent("car, ai, decision");
-    expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim)\b/);
+    // Data, sim and decision are real now. The banner lists only what is still a placeholder.
+    expect(screen.getByTestId("mock-banner")).toHaveTextContent("car, ai");
+    expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim|decision)\b/);
     expect(screen.getByRole("button", { name: /2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
     // nothing to open before there is a car
     expect(screen.queryByRole("button", { name: "Your details" })).toBeNull();
@@ -266,7 +266,8 @@ describe("the future page", () => {
     await advance(1900);
     expect(screen.getByTestId("car-stage-stub")).toHaveAttribute("data-vehicle-id", "rav4-2024-hybrid-xle");
 
-    expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent("Inconclusive");
+    // The verdict is the engine's, so assert that there is one, not which it is (the demo story is pinned in its own test).
+    expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent(/Keep the Camry|Replace with RAV4|Close call/);
     // you asked to compare, so the other future is on the road without another click
     expect(state().ui.futureCompare).toBe(true);
     const names = screen.getAllByTestId("road-future");
