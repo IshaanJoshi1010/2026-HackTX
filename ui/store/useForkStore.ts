@@ -397,6 +397,51 @@ export function vehicleAtMonth(scenario: Scenario | undefined, twin: VehicleTwin
   return id;
 }
 
+/**
+ * The confirmed events on the road: the future you are looking at and the two being compared. Futures that were replaced
+ * by a newer comparison stay in the store but are not on the road, so their events are not selectable.
+ */
+function eventsOnTheRoad(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison">): LifeEvent[] {
+  const ids = new Set([s.activeScenarioId, s.comparison?.keepId, s.comparison?.replaceId]);
+  return s.explore.scenarios.filter((sc) => ids.has(sc.id)).flatMap((sc) => sc.events.filter((e) => e.status === "confirmed"));
+}
+
+/** The month of a confirmed event on the road, or null when there is no such event. */
+function eventMonthOf(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison">, id: string): number | null {
+  return eventsOnTheRoad(s).find((e) => e.id === id)?.month ?? null;
+}
+
+/** A selected event stays selected only while the clock is on its month: scrubbing off it puts the card back on the moment. */
+function selectionAt(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison" | "selectedEventId">, month: number): { selectedEventId?: null } {
+  if (s.selectedEventId === null) return {};
+  const at = eventMonthOf(s, s.selectedEventId);
+  return at !== null && clampMonth(at) === month ? {} : { selectedEventId: null };
+}
+
+/**
+ * After a recalculation: a selected event follows its event, and the clock follows both. The swap is rebuilt with each
+ * new comparison (its id comes from the future it belongs to), so a selected swap moves to the new one. An event that is
+ * gone clears the selection. This keeps the rule "selected means the clock is on its month" true through chat changes.
+ */
+function reconcileSelection(prev: Pick<ForkState, "explore">, cur: ForkState): Partial<ForkState> {
+  const id = cur.selectedEventId;
+  if (id === null) return {};
+  let now = id;
+  let at = eventMonthOf(cur, id);
+  if (at === null) {
+    const old = prev.explore.scenarios.flatMap((sc) => sc.events).find((e) => e.id === id);
+    const next =
+      old?.type === "vehicle_replacement" && cur.comparison
+        ? findScenario(cur, cur.comparison.replaceId)?.events.find((e) => e.type === "vehicle_replacement" && e.status === "confirmed")
+        : undefined;
+    if (!next) return { selectedEventId: null };
+    now = next.id;
+    at = next.month;
+  }
+  const month = clampMonth(at);
+  return now === id && month === cur.activeMonth ? {} : { selectedEventId: now, activeMonth: month };
+}
+
 export function vehicleById(
   s: Pick<ForkState, "twin" | "replacementVehicle">,
   id: string,
@@ -729,7 +774,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
   api.subscribe((state, prev) => {
     if (state.evaluation && state.evaluation !== prev.evaluation) void requestExplanation();
     // A new set of results is a new revision. (Only results: the same results with a new month is not a recalculation.)
-    if (state.results !== prev.results) set((cur) => ({ revision: cur.revision + 1 }));
+    if (state.results !== prev.results) set((cur) => ({ revision: cur.revision + 1, ...reconcileSelection(prev, cur) }));
   });
 
   let changeSeq = 0;
@@ -1257,10 +1302,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       set((s) => {
         if (id === null) return { selectedEventId: null, ui: { ...s.ui, playing: false } };
         // The event can be in the future you are looking at, or only in the other one (the swap).
-        const inView = [s.activeScenarioId, s.comparison?.keepId, s.comparison?.replaceId]
-          .map((sid) => (sid ? findScenario(s, sid) : undefined))
-          .filter((sc): sc is Scenario => sc !== undefined);
-        const found = inView.flatMap((sc) => sc.events).find((e) => e.id === id && e.status === "confirmed");
+        const found = eventsOnTheRoad(s).find((e) => e.id === id);
         if (!found) return s;
         return { selectedEventId: id, activeMonth: clampMonth(found.month), ui: { ...s.ui, playing: false } };
       });
@@ -1281,7 +1323,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     advanceMonth(m) {
       set((s) => {
         const month = clampMonth(m);
-        return { activeMonth: month, ui: month >= MONTH_MAX && s.ui.playing ? { ...s.ui, playing: false } : s.ui };
+        return { activeMonth: month, ...selectionAt(s, month), ui: month >= MONTH_MAX && s.ui.playing ? { ...s.ui, playing: false } : s.ui };
       });
     },
 
@@ -1323,7 +1365,10 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
     setActiveMonth(m) {
       // A manual move of the clock stops playback. The player moves it with advanceMonth instead.
-      set((s) => ({ activeMonth: clampMonth(m), ui: s.ui.playing ? { ...s.ui, playing: false } : s.ui }));
+      set((s) => {
+        const month = clampMonth(m);
+        return { activeMonth: month, ...selectionAt(s, month), ui: s.ui.playing ? { ...s.ui, playing: false } : s.ui };
+      });
     },
 
     // ---- stage and ui plumbing ----

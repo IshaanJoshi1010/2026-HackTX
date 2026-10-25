@@ -224,9 +224,7 @@ describe("Future page, spec section 8", () => {
     }
   });
 
-  // KNOWN BUG (kept as the assertion it should be): scrubbing off a selected event leaves the card on that event and its date while
-  // the scrubber and road are on another month. buildJourney (model.ts selectedEventId) never checks the month; the store never clears it.
-  it.fails("1 an event on the card follows the clock: scrubbing off it shows the month you are on", async () => {
+  it("1 an event on the card follows the clock: scrubbing off it shows the month you are on", async () => {
     await world();
     const denver = lifeEvents().find((e) => e.type === "relocation")!;
     fireEvent.click(marker(denver.id));
@@ -454,6 +452,10 @@ describe("Future page, spec section 8", () => {
       expect(marker(event.id).getAttribute("data-month")).toBe(String(event.month));
       expect(marker(event.id).getAttribute("aria-label")).toContain(calendar(event.month));
     }
+    // selection kept (the event still exists), and the month with it. Checked before scrubbing, which leaves an event's month and so clears it
+    expect(state().selectedEventId).toBe(child.id);
+    expect(state().activeMonth).toBe(child.month);
+    expect(tid("event-card-title")).toHaveTextContent(eventTitle(child));
     // the split moved to the right month, on the road and on the scrubber
     expect(tid("road-path-switch")).toHaveAttribute("data-split-month", "4");
     scrub(3);
@@ -466,10 +468,6 @@ describe("Future page, spec section 8", () => {
     expect(text(dest("switch"))).toContain(money(fiveYear(replaceId)));
     expect(text(tid("journey-difference"))).toBe(`${diffPhrase()} over five years.`);
     expect(heading()).toBe(callWords());
-    // selection kept (the event still exists), and the month with it
-    expect(state().selectedEventId).toBe(child.id);
-    expect(state().activeMonth).toBe(child.month);
-    expect(tid("event-card-title")).toHaveTextContent(eventTitle(child));
 
     // the change is highlighted, then lets go after two seconds
     const lit = () => markers().filter((m) => m.getAttribute("data-changed") === "true").map((m) => m.getAttribute("data-event-id"));
@@ -515,9 +513,7 @@ describe("Future page, spec section 8", () => {
     expect(tid("event-card").textContent).toContain(`${calendar(denver.month)}: you are in the`);
   });
 
-  // KNOWN BUG (kept as the assertion it should be): the swap's id is "<replace scenario id>/event" and every confirm builds a new replace
-  // scenario, so selectedEventId names a swap that no longer exists although it is where it was (confirmDrafts never remaps it).
-  it.fails("6 the swap stays selected when a chat change leaves it where it was", async () => {
+  it("6 the swap stays selected when a chat change leaves it where it was", async () => {
     await world();
     const before = swap();
     fireEvent.click(marker(before.id));
@@ -913,9 +909,7 @@ describe("Future page, spec section 8", () => {
       expect(document.querySelector('[data-source="none"]')).toBeNull();
     });
 
-    // KNOWN BUG (kept as the assertion it should be): ui/profile/SourceBadge.tsx lines 46 and 62 use text-[11px]; the badge is in the
-    // Future header and every drawer. Remove `.fails` once it is text-xs.
-    it.fails("no text is smaller than 12px anywhere on the Future page or in its drawers", async () => {
+    it("no text is smaller than 12px anywhere on the Future page or in its drawers", async () => {
       await world();
       const small = (root: Element): string[] => {
         const found: string[] = [];

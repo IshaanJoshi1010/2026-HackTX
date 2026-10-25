@@ -1298,3 +1298,68 @@ describe("a change from chat keeps what you were looking at", () => {
   });
 });
 
+describe("a selected event and the clock stay together", () => {
+  const confirmMove = () => {
+    actions().addDraft({ type: "relocation", month: 12, payload: { location: "Denver" }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    return state().explore.scenarios.find((sc) => sc.id === state().activeScenarioId)!.events.find((e) => e.type === "relocation")!;
+  };
+
+  it("scrubbing off the selected event clears the selection, and scrubbing onto its month does not", async () => {
+    await enterWorkspace();
+    const move = confirmMove();
+    actions().selectEvent(move.id);
+    actions().setActiveMonth(move.month);
+    expect(state().selectedEventId).toBe(move.id);
+    actions().setActiveMonth(move.month + 6);
+    expect(state().selectedEventId).toBeNull();
+    expect(state().activeMonth).toBe(move.month + 6);
+  });
+
+  it("the player leaving the event's month clears it too", async () => {
+    await enterWorkspace();
+    const move = confirmMove();
+    actions().selectEvent(move.id);
+    actions().advanceMonth(move.month);
+    expect(state().selectedEventId).toBe(move.id);
+    actions().advanceMonth(move.month + 1);
+    expect(state().selectedEventId).toBeNull();
+  });
+
+  it("the swap stays selected through a chat change, following to the rebuilt swap, at its month", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    const swapOf = () => state().explore.scenarios.find((sc) => sc.id === state().comparison!.replaceId)!.events.find((e) => e.type === "vehicle_replacement")!;
+    const before = swapOf();
+    actions().selectEvent(before.id);
+    expect(state().selectedEventId).toBe(before.id);
+    actions().addDraft({ type: "mileage_change", month: 30, payload: { annualMiles: 25000 }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    const after = swapOf();
+    expect(state().selectedEventId).toBe(after.id);
+    expect(state().activeMonth).toBe(after.month);
+  });
+
+  it("a selected event whose date moves keeps the selection and the clock goes with it", async () => {
+    await enterWorkspace();
+    const move = confirmMove();
+    actions().selectEvent(move.id);
+    actions().moveEvent(state().activeScenarioId, move.id, 20);
+    const moved = state().explore.scenarios.flatMap((sc) => sc.events).find((e) => e.id === move.id)!;
+    expect(moved.month).toBe(20);
+    expect(state().selectedEventId).toBe(move.id);
+    expect(state().activeMonth).toBe(20);
+  });
+
+  it("an event that no longer exists clears the selection instead of pointing at nothing", async () => {
+    await enterWorkspace();
+    const move = confirmMove();
+    actions().selectEvent(move.id);
+    actions().resetScenarioTerms(); // recalculates; the event is still there, so it stays
+    expect(state().selectedEventId).toBe(move.id);
+    useForkStore.setState((s) => ({ explore: { ...s.explore, scenarios: s.explore.scenarios.map((sc) => ({ ...sc, events: sc.events.filter((e) => e.id !== move.id) })) } }));
+    actions().setActiveMonth(1);
+    expect(state().selectedEventId).toBeNull();
+  });
+});
+
