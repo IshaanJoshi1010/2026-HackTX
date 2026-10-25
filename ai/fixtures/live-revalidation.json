@@ -1,0 +1,361 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "date": "2026-10-25T01:54:00.725Z",
+  "comparison": "Semantic intent/event/payload/month/certainty/patch comparison; excludes wording, quote span choice, IDs and assumption phrasing. One live run, not a reliability guarantee.",
+  "cases": [
+    {
+      "id": "demo",
+      "passed": true,
+      "calls": 1,
+      "elapsedMs": 4778,
+      "transportError": null,
+      "expected": {
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "type": "mileage_change",
+            "month": 0,
+            "payload": {
+              "annualMiles": 20000
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "relocation",
+            "month": 12,
+            "payload": {
+              "location": "Denver"
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "family_change",
+            "month": 32,
+            "payload": {
+              "children": 2
+            },
+            "certainty": "inferred",
+            "status": "proposed"
+          }
+        ],
+        "patches": [
+          {
+            "field": "annualMiles",
+            "value": 20000,
+            "certainty": "clear"
+          }
+        ],
+        "unsupported": false,
+        "questionField": null
+      },
+      "actual": {
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "type": "mileage_change",
+            "month": 0,
+            "payload": {
+              "annualMiles": 20000
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "relocation",
+            "month": 12,
+            "payload": {
+              "location": "Denver"
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "family_change",
+            "month": 32,
+            "payload": {
+              "children": 2
+            },
+            "certainty": "inferred",
+            "status": "proposed"
+          }
+        ],
+        "patches": [
+          {
+            "field": "annualMiles",
+            "value": 20000,
+            "certainty": "clear"
+          }
+        ],
+        "unsupported": false,
+        "questionField": null
+      },
+      "raw": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "location",
+              "value": "Denver",
+              "certainty": "clear",
+              "quote": "I'm moving to Denver next year",
+              "month": "next year",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 20000,
+              "certainty": "clear",
+              "quote": "driving 20,000 miles annually",
+              "assumptions": []
+            },
+            {
+              "field": "children",
+              "value": 2,
+              "certainty": "clear",
+              "quote": "expecting my second child in 2029",
+              "month": "in 2029",
+              "assumptions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "multiple",
+      "passed": true,
+      "calls": 1,
+      "elapsedMs": 1049,
+      "transportError": null,
+      "expected": {
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "type": "mileage_change",
+            "month": 0,
+            "payload": {
+              "annualMiles": 15000
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "family_change",
+            "month": 0,
+            "payload": {
+              "householdSize": 4
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "relocation",
+            "month": 6,
+            "payload": {
+              "location": "Austin"
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          }
+        ],
+        "patches": [
+          {
+            "field": "annualMiles",
+            "value": 15000,
+            "certainty": "clear"
+          },
+          {
+            "field": "householdSize",
+            "value": 4,
+            "certainty": "clear"
+          }
+        ],
+        "unsupported": false,
+        "questionField": null
+      },
+      "actual": {
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "type": "mileage_change",
+            "month": 0,
+            "payload": {
+              "annualMiles": 15000
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "family_change",
+            "month": 0,
+            "payload": {
+              "householdSize": 4
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          },
+          {
+            "type": "relocation",
+            "month": 6,
+            "payload": {
+              "location": "Austin"
+            },
+            "certainty": "clear",
+            "status": "proposed"
+          }
+        ],
+        "patches": [
+          {
+            "field": "annualMiles",
+            "value": 15000,
+            "certainty": "clear"
+          },
+          {
+            "field": "householdSize",
+            "value": 4,
+            "certainty": "clear"
+          }
+        ],
+        "unsupported": false,
+        "questionField": null
+      },
+      "raw": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "location",
+              "value": "Austin",
+              "certainty": "clear",
+              "quote": "Move to Austin in 6 months",
+              "month": "in 6 months",
+              "assumptions": []
+            },
+            {
+              "field": "annualMiles",
+              "value": 15000,
+              "certainty": "clear",
+              "quote": "I drive 15k a year",
+              "assumptions": []
+            },
+            {
+              "field": "householdSize",
+              "value": 4,
+              "certainty": "clear",
+              "quote": "our household is four",
+              "assumptions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pure-rav4-question",
+      "passed": true,
+      "calls": 1,
+      "elapsedMs": 6710,
+      "transportError": null,
+      "expected": {
+        "intent": "COMPARE_SCENARIOS",
+        "proposals": [],
+        "patches": [],
+        "unsupported": false,
+        "questionField": null
+      },
+      "actual": {
+        "intent": "COMPARE_SCENARIOS",
+        "proposals": [],
+        "patches": [],
+        "unsupported": false,
+        "questionField": null
+      },
+      "raw": [
+        {
+          "intent": "COMPARE_SCENARIOS",
+          "items": []
+        }
+      ]
+    },
+    {
+      "id": "paid-off",
+      "passed": true,
+      "calls": 1,
+      "elapsedMs": 4504,
+      "transportError": null,
+      "expected": {
+        "intent": "CREATE_SCENARIO",
+        "proposals": [],
+        "patches": [
+          {
+            "field": "financeType",
+            "value": "paid_off",
+            "certainty": "clear"
+          }
+        ],
+        "unsupported": false,
+        "questionField": null
+      },
+      "actual": {
+        "intent": "CREATE_SCENARIO",
+        "proposals": [],
+        "patches": [
+          {
+            "field": "financeType",
+            "value": "paid_off",
+            "certainty": "clear"
+          }
+        ],
+        "unsupported": false,
+        "questionField": null
+      },
+      "raw": [
+        {
+          "intent": "CREATE_SCENARIO",
+          "items": [
+            {
+              "field": "financeType",
+              "value": "paid off",
+              "certainty": "clear",
+              "quote": "My car is paid off.",
+              "assumptions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "break-even",
+      "passed": true,
+      "calls": 1,
+      "elapsedMs": 1447,
+      "transportError": null,
+      "expected": {
+        "intent": "FIND_BREAK_EVEN",
+        "proposals": [],
+        "patches": [],
+        "unsupported": false,
+        "questionField": null
+      },
+      "actual": {
+        "intent": "FIND_BREAK_EVEN",
+        "proposals": [],
+        "patches": [],
+        "unsupported": false,
+        "questionField": null
+      },
+      "raw": [
+        {
+          "intent": "FIND_BREAK_EVEN",
+          "items": []
+        }
+      ]
+    }
+  ],
+  "passed": 5,
+  "completed": 5,
+  "requested": 5,
+  "profileUnchanged": true,
+  "scope": "Targeted live revalidation of the five cases previously blocked by errors. All five matched in this single targeted pass; this is not a fresh full 20-case pass.",
+  "sourceCommit": "7524da7c884898cf53e1ad30b3487871b06dc276"
+}

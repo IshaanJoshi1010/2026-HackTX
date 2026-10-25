@@ -51,3 +51,7 @@ Recorded Paarth's earlier report that the Toyota representative permits plausibl
 633 tests across 49 files pass; TypeScript, full lint and production build checks run for this patch. The new review tests cover agreed provenance/time/date/supporting shapes. Quote-schema and retry tests cover original-order quotes and per-clause timing. No new public function signatures; the existing calls are listed in ai/INTEGRATION.md.
 
 Commands: npm test; npx tsc --noEmit; npm run lint; npm run build.
+
+## Subsequent live revalidation
+
+The five earlier unverified cases (demo, multiple, pure-rav4-question, paid-off, break-even) now all pass in one targeted run on the source-grounded interpreter: one call each, no transport errors, confirmed context unchanged. See ai/fixtures/live-revalidation.json and the latest update in ai/LIVE-EVALUATION.md. This resolves the old five-case status; a fresh complete 20-case pass remains a separate reliability check.
