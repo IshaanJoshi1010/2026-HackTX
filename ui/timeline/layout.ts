@@ -25,9 +25,12 @@ export function decisionsOf(scenario: Scenario): LifeEvent[] {
     .map(({ e }) => e);
 }
 
-/** Ids of decisions a future inherited from its parent. They belong to the parent, so they are read-only here. */
-export function inheritedIds(parent: Scenario | undefined): Set<string> {
-  return new Set((parent?.events ?? []).map((e) => e.id));
+/**
+ * Ids of decisions a future inherited from its parent: the ones before it branched. They belong to the parent, so
+ * they are read-only here. A later parent decision the branch carried forward is the branch's own, so it can move.
+ */
+export function inheritedIds(parent: Scenario | undefined, forkMonth: number): Set<string> {
+  return new Set((parent?.events ?? []).filter((e) => e.month < forkMonth).map((e) => e.id));
 }
 
 export interface Milestone {
