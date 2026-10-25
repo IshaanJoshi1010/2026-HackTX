@@ -802,3 +802,41 @@ describe("the explanation", () => {
     expect(state().evaluation).not.toBeNull();
   });
 });
+
+describe("a car the stage cannot show never leaves the app waiting", () => {
+  const broken = (vehicleId: string) => ({ vehicleId, ready: false, error: "No model asset is configured." });
+
+  it("a model that fails during the reveal skips the reveal and opens the workspace", async () => {
+    await actions().startFromSample(CAMRY);
+    expect(state().phase).toBe("reveal");
+    actions().onModelStatus(broken(CAMRY));
+    expect(state().phase).toBe("workspace");
+    expect(state().stage.phase).toBe("interactive");
+    expect(state().results[BASE_ID]).toBeDefined(); // the numbers do not need the 3D model
+    expect(state().modelStatus[CAMRY]).toEqual({ ready: false, error: "No model asset is configured." });
+  });
+
+  it("a target model that fails finishes the morph, so the app moves on to the new car", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    expect(state().stage.phase).toBe("transition");
+    actions().onModelStatus(broken(RAV4));
+    expect(state().stage.phase).toBe("interactive");
+    expect(state().activeVehicleId).toBe(RAV4);
+  });
+
+  it("loading and ready reports, and errors about some other car, change nothing", async () => {
+    await actions().startFromSample(CAMRY);
+    actions().onModelStatus({ vehicleId: CAMRY, ready: false });
+    actions().onModelStatus({ vehicleId: CAMRY, ready: true });
+    actions().onModelStatus(broken(RAV4));
+    expect(state().phase).toBe("reveal");
+    expect(state().stage.phase).toBe("reveal");
+  });
+
+  it("an error with nothing running does nothing", async () => {
+    actions().onModelStatus(broken(CAMRY));
+    expect(state().phase).toBe("landing");
+    expect(state().twin).toBeNull();
+  });
+});

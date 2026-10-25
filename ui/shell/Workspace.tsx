@@ -46,7 +46,12 @@ export function Workspace() {
         data-visible={carVisible}
         aria-hidden={!carVisible}
         style={{ bottom: STAGE_BOTTOM }}
-        className={cn("absolute inset-x-0 top-0 transition-opacity duration-500", carVisible ? "opacity-100" : "pointer-events-none opacity-0")}
+        className={cn(
+          "absolute inset-x-0 top-0 transition-opacity duration-500",
+          // The canvas is opaque for now, so fade its lower edge into the page instead of ending in a hard line.
+          "[mask-image:linear-gradient(to_bottom,black_82%,transparent)]",
+          carVisible ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
       >
         <StageBackdrop />
         <div className="absolute inset-0 z-[1]" data-testid="stage">

@@ -31,7 +31,7 @@ import type {
 import type { ReproductionSide } from "@/decision";
 import { interpretOffline } from "@/ui/command/extract";
 import { ai, data, decision, sim } from "@/ui/mocks";
-import type { RevealStage } from "@/ui/mocks/CarStageStub";
+import type { CarStageProps } from "@/ui/3d/types";
 import { eventTitle } from "./eventLabels";
 import { MONTH_MAX, clampMonth } from "./months";
 import {
@@ -49,6 +49,7 @@ export type Phase = "landing" | "reveal" | "workspace";
 export type StagePhase = "reveal" | "interactive" | "transition";
 export type ViewMode = "solid" | "wireframe" | "points";
 export type View = "car" | "future";
+export type RevealStage = Parameters<CarStageProps["onRevealStage"]>[0];
 export type Riders = "solo" | "partner" | "kids" | "mixed";
 
 export interface StageState {
@@ -1067,6 +1068,15 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       set((s) => ({
         modelStatus: { ...s.modelStatus, [status.vehicleId]: { ready: status.ready, error: status.error } },
       }));
+      if (status.ready || !status.error) return;
+      // The stage cannot show this car (no model file, no WebGL). Never leave the app waiting on it:
+      // the reveal is skipped and the morph is finished, and everything else keeps working.
+      const s = get();
+      if (s.phase === "reveal" && s.stage.phase === "reveal" && status.vehicleId === s.activeVehicleId) {
+        enterWorkspace();
+      } else if (s.stage.phase === "transition" && s.stage.transitionTo?.id === status.vehicleId) {
+        actions.onTransitionComplete();
+      }
     },
   };
 

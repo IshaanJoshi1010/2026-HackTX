@@ -1,13 +1,14 @@
 /**
  * The one place Dev 2 chooses mock or real for each module.
  *
- * Flip a flag to false only after that module has landed AND its real export is
- * wired into the matching `real*` slot below. Until then the slot throws, so a
- * premature flip fails loudly instead of quietly using a stub.
+ * Every module is real (task B6 is done). A flag set to true swaps one module back to
+ * its local stand-in, which is how tests keep the 3D stage out of jsdom. The mock
+ * banner appears whenever any flag is true.
  *
  * Signatures match /contracts/INTERFACES.md. The store imports from here only,
  * never from /data, /ai, /sim or /decision directly.
  */
+import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 import { z } from "zod";
 import type {
@@ -63,14 +64,16 @@ import {
   moveEvent as realMoveEvent,
   simulate as realSimulate,
 } from "@/sim";
-import { CarStageStub, preloadCarsStub, type CarStageProps } from "./CarStageStub";
+import type { CarStageProps } from "@/ui/3d/types";
+import { CarStageStub, preloadCarsStub } from "./CarStageStub";
 import * as local from "./local";
 import type { VinCheck } from "./local";
 
 export type ModuleName = "car" | "data" | "ai" | "sim" | "decision";
 
 export const USE_MOCKS: Record<ModuleName, boolean> = {
-  car: true, // Kareem: real CarStage reveal h14 to 18
+  // Kareem's real viewer. jsdom has no WebGL, so tests keep the DOM stand-in; the app never does.
+  car: process.env.NODE_ENV === "test",
   data: false, // Paarth: real since the first integration merge (e935e1f)
   ai: false, // Paarth: real through /api/interpret and /api/explain; offline rules take over when it is unavailable
   sim: false, // Anirudh: real since the first integration merge (e935e1f)
@@ -206,22 +209,8 @@ const mockDecision: DecisionApi = {
 const mockCar: CarApi = { CarStage: CarStageStub, preloadCars: preloadCarsStub };
 
 // ---------------------------------------------------------------------------
-// Real slots. Wire each export here when the module lands (task B6), one at a time.
+// Real slots. Every module is wired. Flip a flag back to true to fall back to its stand-in.
 // ---------------------------------------------------------------------------
-
-function notLanded<T extends object>(module: ModuleName): T {
-  return new Proxy({} as T, {
-    get(_target, prop) {
-      if (prop === "then") return undefined; // not a thenable
-      const fail = () => {
-        throw new Error(
-          `Real ${module}.${String(prop)} has not landed. Keep USE_MOCKS.${module} = true until it does.`,
-        );
-      };
-      return fail;
-    },
-  });
-}
 
 /** The two sample cars, in picker order: primary registry entries for the Camry then the RAV4. */
 function registrySamples(): VehicleConfig[] {
@@ -299,7 +288,20 @@ const realDecision: DecisionApi = {
   withSensitivity: realWithSensitivity,
   nextAction: realNextAction,
 };
-const realCar = notLanded<CarApi>("car");
+// Client only, and loaded on demand so three.js stays out of the first paint.
+const RealCarStage = dynamic<CarStageProps>(() => import("@/ui/3d/CarStage").then((m) => m.CarStage), { ssr: false });
+const realCar: CarApi = {
+  CarStage: RealCarStage,
+  // Preloading is only a head start. A model that fails here is reported by the stage itself
+  // (onModelStatus), so a failed preload must never surface as an unhandled error.
+  preloadCars: async (vehicles) => {
+    try {
+      await (await import("@/ui/3d/CarStage")).preloadCars(vehicles);
+    } catch {
+      // intentionally quiet
+    }
+  },
+};
 
 export const data: DataApi = USE_MOCKS.data ? mockData : realData;
 export const ai: AiApi = USE_MOCKS.ai ? mockAi : realAi;
