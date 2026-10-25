@@ -50,7 +50,10 @@ export function Workspace() {
         className={cn(
           "absolute inset-x-0 top-0 transition-opacity duration-500",
           // The canvas is opaque for now, so fade its lower edge into the page instead of ending in a hard line.
-          "[mask-image:linear-gradient(to_bottom,black_82%,transparent)]",
+          // The second layer keeps the stage's own toolbar (bottom right) out of the fade, so its buttons are never invisible.
+          "[mask-image:linear-gradient(to_bottom,black_82%,transparent),linear-gradient(black,black)]",
+          "[mask-size:100%_100%,520px_120px] [mask-position:0_0,right_0_bottom_0] [mask-repeat:no-repeat]",
+          "[mask-composite:add] [-webkit-mask-composite:source-over]",
           carVisible ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
