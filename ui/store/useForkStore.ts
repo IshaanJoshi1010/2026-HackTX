@@ -378,12 +378,6 @@ const FINANCE_TYPE: Record<string, DriverProfile["financeType"]> = {
 const findScenario = (s: Pick<ForkState, "explore">, id: string): Scenario | undefined =>
   s.explore.scenarios.find((sc) => sc.id === id);
 
-/** The car shown for a scenario: the replacement once it has a confirmed replacement event. */
-function vehicleIdFor(scenario: Scenario | undefined, twin: VehicleTwin): string {
-  const swap = scenario?.events.find((e) => e.type === "vehicle_replacement" && e.status === "confirmed");
-  return swap ? String(swap.payload.vehicleId) : twin.vehicle.id;
-}
-
 /**
  * The car in a future at a given month: the one you own until a confirmed swap, the replacement from the swap month on.
  * Matches the simulation, which switches cars in the swap month itself.
@@ -404,6 +398,19 @@ export function vehicleAtMonth(scenario: Scenario | undefined, twin: VehicleTwin
 function eventsOnTheRoad(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison">): LifeEvent[] {
   const ids = new Set([s.activeScenarioId, s.comparison?.keepId, s.comparison?.replaceId]);
   return s.explore.scenarios.filter((sc) => ids.has(sc.id)).flatMap((sc) => sc.events.filter((e) => e.status === "confirmed"));
+}
+
+/**
+ * The stage change that puts the car at the selected month of the selected future on stage, or null when it is already
+ * there (or on its way). Used wherever the month, the future or the swap month can move without the stage being asked.
+ */
+function stageFollowsMonth(s: ForkState): Partial<ForkState> | null {
+  if (s.phase !== "workspace" || !s.twin || s.stage.phase === "reveal") return null;
+  const target = vehicleAtMonth(findScenario(s, s.activeScenarioId), s.twin, s.activeMonth);
+  const to = vehicleById(s, target);
+  const heading = s.stage.phase === "transition" ? s.stage.transitionTo?.id : s.activeVehicleId;
+  if (!to || target === heading) return null;
+  return { stage: { ...s.stage, phase: "transition", transitionTo: to } };
 }
 
 /** The month of a confirmed event on the road, or null when there is no such event. */
@@ -774,7 +781,13 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
   api.subscribe((state, prev) => {
     if (state.evaluation && state.evaluation !== prev.evaluation) void requestExplanation();
     // A new set of results is a new revision. (Only results: the same results with a new month is not a recalculation.)
-    if (state.results !== prev.results) set((cur) => ({ revision: cur.revision + 1, ...reconcileSelection(prev, cur) }));
+    if (state.results !== prev.results) {
+      set((cur) => {
+        const selection = reconcileSelection(prev, cur);
+        // A moved swap changes which car is in view at the selected month, so the stage follows the new results.
+        return { revision: cur.revision + 1, ...selection, ...(stageFollowsMonth({ ...cur, ...selection }) ?? {}) };
+      });
+    }
   });
 
   let changeSeq = 0;
@@ -803,7 +816,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, playing: false, drawer: null },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -1435,12 +1448,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         // Changing page stops playback and closes any drawer.
         const ui = { ...s.ui, view, detailsOpen: false, playing: false, drawer: null };
         // The car on the car page is the car in the future you are looking at, at the month you are looking at.
-        if (view === "car" && s.phase === "workspace" && s.twin && s.stage.phase !== "reveal") {
-          const target = vehicleAtMonth(findScenario(s, s.activeScenarioId), s.twin, s.activeMonth);
-          const to = vehicleById(s, target);
-          if (to && target !== s.activeVehicleId) return { ui, stage: { ...s.stage, phase: "transition", transitionTo: to } };
-        }
-        return { ui };
+        return { ui, ...(view === "car" ? stageFollowsMonth(s) ?? {} : {}) };
       });
     },
 
@@ -1471,14 +1479,16 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     replayReveal() {
       set((s) => {
         if (!s.twin) return s;
-        // The reveal replays the car of the future you are looking at. A morph still going is dropped, so the car it was
-        // heading for is the one shown, not the one it had not yet left.
+        // The reveal replays the car of the future you are looking at, as it is at the month you are looking at (the owned
+        // car before the swap, the replacement from it on). A morph still going is dropped, so the car it was heading for
+        // is the one shown, not the one it had not yet left. Replaying stops playback and puts any drawer away.
         const scenario = findScenario(s, s.activeScenarioId);
-        const target = scenario ? vehicleIdFor(scenario, s.twin) : s.activeVehicleId;
+        const target = scenario ? vehicleAtMonth(scenario, s.twin, s.activeMonth) : s.activeVehicleId;
         return {
           phase: "reveal",
           activeVehicleId: vehicleById(s, target) ? target : s.activeVehicleId,
           stage: { ...s.stage, phase: "reveal", transitionTo: null, revealStage: null, replaySignal: s.stage.replaySignal + 1 },
+          ui: { ...s.ui, playing: false, drawer: null },
         };
       });
     },

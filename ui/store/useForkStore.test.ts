@@ -1363,3 +1363,50 @@ describe("a selected event and the clock stay together", () => {
   });
 });
 
+describe("replaying the reveal", () => {
+  it("shows the car at the selected month, not the car at the end of the future", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().onTransitionComplete();
+    actions().setActiveMonth(5); // before the swap in month 12
+    actions().replayReveal();
+    expect(state().activeVehicleId).toBe(CAMRY);
+    actions().onRevealStage("done");
+    actions().setActiveMonth(30); // after it
+    actions().replayReveal();
+    expect(state().activeVehicleId).toBe(RAV4);
+  });
+
+  it("stops playback and puts a drawer away, and finishing the reveal does not bring either back", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    actions().play();
+    expect(state().ui.playing).toBe(true);
+    actions().replayReveal();
+    expect(state().ui.playing).toBe(false);
+    actions().onRevealStage("done");
+    expect(state().ui.playing).toBe(false);
+    expect(state().ui.drawer).toBeNull();
+  });
+});
+
+describe("the car on stage follows a moved swap", () => {
+  it("moving the swap past the selected month puts the owned car back on stage, and moving it before puts the new one", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().onTransitionComplete();
+    actions().setActiveMonth(17); // after the swap in month 12: the RAV4 is in view
+    actions().setActiveScenario(state().comparison!.replaceId);
+    actions().onTransitionComplete();
+    expect(state().activeVehicleId).toBe(RAV4);
+    const replace = () => state().explore.scenarios.find((sc) => sc.id === state().comparison!.replaceId)!;
+    const swap = replace().events.find((e) => e.type === "vehicle_replacement")!;
+    actions().moveEvent(replace().id, swap.id, 30); // later than month 17: the Camry is in view at month 17
+    expect(replace().events.find((e) => e.type === "vehicle_replacement")!.month).toBe(30);
+    expect(state().stage.phase).toBe("transition");
+    expect(state().stage.transitionTo?.id).toBe(CAMRY);
+    actions().onTransitionComplete();
+    expect(state().activeVehicleId).toBe(CAMRY);
+  });
+});
+
