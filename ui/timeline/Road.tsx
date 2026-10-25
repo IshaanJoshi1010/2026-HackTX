@@ -9,7 +9,7 @@ import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { eventTitle } from "@/ui/store/eventLabels";
 import { specsFor } from "@/ui/store/selectors";
 import { BASE_ID, useForkStore } from "@/ui/store/useForkStore";
-import { MONTH_MAX, YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, milestonesOf, pointAt, yearLabel } from "./layout";
+import { MONTH_MAX, YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, labelCenter, milestonesOf, pointAt, yearLabel } from "./layout";
 import { MilestoneTick, Marker } from "./EventMarkers";
 import {
   assignLevels,
@@ -126,7 +126,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
       ref={setNode}
       data-testid="road"
       className="relative w-full select-none"
-      style={{ height: compact ? "clamp(270px, 30vh, 320px)" : "clamp(320px, 44vh, 460px)" }}
+      style={{ height: compact ? "clamp(260px, 30vh, 320px)" : "clamp(320px, 44vh, 460px)" }}
     >
       <p className="sr-only">{summary}</p>
 
@@ -248,7 +248,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
               onMove={moveEvent}
               onSelect={setActiveMonth}
             />
-            <DecisionLabel event={e} x={x} y={y + off} above={off < 0} />
+            <DecisionLabel event={e} x={x} y={y + off} above={off < 0} roadW={roadW} />
           </div>
         );
       })}
@@ -333,12 +333,14 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
   );
 }
 
-function DecisionLabel({ event, x, y, above }: { event: LifeEvent; x: number; y: number; above: boolean }) {
+function DecisionLabel({ event, x, y, above, roadW }: { event: LifeEvent; x: number; y: number; above: boolean; roadW: number }) {
+  // The first decision sits on the left end of the road, so keep its label on screen.
+  const widest = Math.max(eventTitle(event).length, `in ${monthLabel(event.month)}`.length);
   return (
     <div
       data-testid="decision-label"
       className="pointer-events-none absolute z-10 rounded bg-canvas px-2 py-0.5 text-center"
-      style={{ left: x, top: y, transform: `translate(-50%, ${above ? "-100%" : "0"})` }}
+      style={{ left: labelCenter(x, "x".repeat(widest), roadW), top: y, transform: `translate(-50%, ${above ? "-100%" : "0"})` }}
     >
       <DecisionText event={event} />
     </div>

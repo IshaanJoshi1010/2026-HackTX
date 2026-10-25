@@ -34,7 +34,8 @@ export function Verdict(p: VerdictProps) {
   const robust = robustnessLine(p.evaluation);
   return (
     <section aria-label="Keep or replace" data-testid="verdict" className="text-center">
-      <p className="text-sm text-ink/50">Keep or replace</p>
+      {/* On a short window the headline says it alone, and the room goes to the next step. */}
+      <p className="text-sm text-ink/50 [@media(max-height:800px)]:hidden">Keep or replace</p>
       <p data-testid="verdict-headline" className="mt-1 text-[clamp(34px,6vh,52px)] leading-tight font-medium tracking-tight text-ink">
         {headline}
       </p>

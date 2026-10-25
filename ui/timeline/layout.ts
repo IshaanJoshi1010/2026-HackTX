@@ -84,6 +84,16 @@ export function fanOffsets(events: Array<Pick<LifeEvent, "id" | "month">>, gap =
   return out;
 }
 
+/**
+ * Where to center a decision's label: on its signpost, but never off the edge of the screen.
+ * The road has some padding either side, so a label may overhang it by `overflow` pixels. The width
+ * is estimated from the text, since the label has not been measured yet.
+ */
+export function labelCenter(x: number, text: string, roadW: number, overflow = 40): number {
+  const half = Math.min(110, text.length * 4.3 + 10);
+  return Math.min(Math.max(x, half - overflow), roadW + overflow - half);
+}
+
 /** Axis ticks: every year, with a short label. */
 export const YEAR_TICKS = [0, 12, 24, 36, 48, 60] as const;
 export const yearLabel = (m: number): string => (m === 0 ? "Now" : `${m / 12} yr`);

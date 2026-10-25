@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LifeEvent, ProjectionPoint, Scenario, SimulationResult } from "@/contracts";
-import { YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, milestonesOf, monthToPct, pointAt, totalThrough, xToMonth, yearLabel } from "./layout";
+import { YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, labelCenter, milestonesOf, monthToPct, pointAt, totalThrough, xToMonth, yearLabel } from "./layout";
 
 const ev = (id: string, month: number, status: LifeEvent["status"] = "confirmed"): LifeEvent => ({
   id,
@@ -152,6 +152,27 @@ describe("totalThrough", () => {
     const before = JSON.stringify(r);
     totalThrough(r, 30, "fuelSpend");
     expect(JSON.stringify(r)).toBe(before);
+  });
+});
+
+describe("labelCenter", () => {
+  const text = "20,000 miles a year"; // 19 characters, about 183px wide
+  it("leaves a label alone when it fits where it is", () => {
+    expect(labelCenter(480, text, 960)).toBe(480);
+  });
+  it("moves the first label in from the left edge, so it overhangs the road by no more than the padding", () => {
+    const c = labelCenter(0, text, 960);
+    const half = (text.length * 4.3 + 10);
+    expect(c).toBeGreaterThan(0);
+    expect(c - half).toBeGreaterThanOrEqual(-40);
+  });
+  it("does the same at the right end", () => {
+    const c = labelCenter(960, text, 960);
+    expect(c).toBeLessThan(960);
+    expect(c + text.length * 4.3 + 10).toBeLessThanOrEqual(960 + 40 + 0.001);
+  });
+  it("never throws a label further than the whole road allows, even on a tiny road", () => {
+    expect(Number.isFinite(labelCenter(0, text, 40))).toBe(true);
   });
 });
 

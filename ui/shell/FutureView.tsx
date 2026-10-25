@@ -42,9 +42,9 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
       <div
         data-testid="future-view"
         style={{ bottom: bottomInset }}
-        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(4rem,9vh,6rem)]"
+        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(3.5rem,8vh,6rem)]"
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1.25rem,3.5vh,2.5rem)]">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1rem,3vh,2.5rem)]">
           <header className="text-center">
             {/* Once you compare, the road names each future itself, so the name is not said twice. */}
             {!evaluation && (
