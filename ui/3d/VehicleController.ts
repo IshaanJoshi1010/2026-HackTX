@@ -10,7 +10,7 @@ import { createParticleMorph, createScanLine, forceFallback } from "./ParticleMo
 import type { CarStageProps } from "./types";
 import { smootherStep } from "./animationMath";
 
-type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number; data?: Float32Array; cloud?: ReturnType<typeof createPointsView>; hex?: string };
+type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number; data?: Float32Array; cloud?: ReturnType<typeof createPointsView>; hex?: string; assetUrl: string; vehicleId: string; quality: Quality };
 export type AnimationOptions = { quality: Quality; reveal?: boolean; transition?: boolean; reducedMotion?: boolean; fallback?: boolean; onStage?: CarStageProps["onRevealStage"] };
 export class VehicleController {
   readonly group = new Group();
@@ -42,11 +42,15 @@ export class VehicleController {
     status({ vehicleId: vehicle.id, ready: false });
     const spec = assetSpec(vehicle);
     try {
+      const quality = options?.quality ?? "high";
+      const current = this.layers.at(-1);
+      const reusable = !options?.transition && current?.vehicleId === vehicle.id && current.assetUrl === spec.url && current.hex === spec.hex && current.quality === quality && (!pointsUrl(vehicle.id, quality) || current.data) ? current : undefined;
       const url = pointsUrl(vehicle.id, options?.quality ?? "high");
       let pointError: string | undefined;
-      const [source, data] = await Promise.all([this.load(spec.url), url ? this.loadPoints(url, options?.quality ?? "high").catch(() => { pointError = "Particles unavailable; solid preview is active."; return undefined; }) : undefined]);
+      const [source, data] = reusable ? [reusable.root, reusable.data] : await Promise.all([this.load(spec.url), url ? this.loadPoints(url, quality).catch(() => { pointError = "Particles unavailable; solid preview is active."; return undefined; }) : undefined]);
       if (generation !== this.generation) return;
-      const root = cloneOwnedObject(source);
+      const root = reusable ? reusable.root : cloneOwnedObject(source);
+      if (!reusable) {
       // XV80 source faces -X. Align it to the frozen +X camera convention.
       if (spec.url.includes("camry-v80")) root.rotation.y += Math.PI;
       root.traverse((object) => {
@@ -75,9 +79,15 @@ export class VehicleController {
         catch (error) { disposeObject(root); throw error; }
         if (generation !== this.generation) { disposeObject(root); return; }
       }
+      } else {
+        // Replay and phase adoption should not clone and re-upload the entire car.
+        // Retain this owned solid instance, replacing only temporary effect resources.
+        if (reusable.cloud) disposeObject(reusable.cloud);
+        this.layers = [];
+      }
       this.layers.forEach((layer) => { layer.startOpacity = layer.opacity; });
       const outgoing = this.layers.at(-1);
-      const layer: Layer = { root, data, hex: spec.hex, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
+      const layer: Layer = { root, data, hex: spec.hex, assetUrl: spec.url, vehicleId: vehicle.id, quality, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
       // Do not flash a fully opaque destination between async load and first frame.
       root.visible = layer.opacity > 0;
       layer.materials.update("solid", layer.opacity);
@@ -119,7 +129,7 @@ export class VehicleController {
           this.reveal = { clock, cloud, wire, materials }; clock.advance(0);
         }
       }
-      if (!this.duration) this.finish();
+      if (!this.duration && !this.reveal) this.finish();
     } catch (error) {
       if (generation !== this.generation) return;
       status({ vehicleId: vehicle.id, ready: false, error: error instanceof Error ? error.message : String(error) });
@@ -134,11 +144,15 @@ export class VehicleController {
       cloud.material.uniforms.uProgress.value = Math.min(1, time / 2);
       cloud.material.uniforms.uTime.value = time;
       cloud.material.uniforms.uPixelRatio.value = pixelRatio;
-      cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.45) * (1 - smootherStep((time - 2.65) / 1.05));
-      wire.visible = time >= 2.5 && time < 4;
-      materials.update("wireframe", 0.35 * smootherStep((time - 2.5) / 0.5) * (1 - smootherStep((time - 3) / 0.65)));
+      // A complementary handoff keeps the silhouette continuous. Finish the
+      // visual materialization early, leaving a settled beat before "done".
+      const solid = smootherStep((time - 3) / 0.5);
+      cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.25) * (1 - solid);
+      cloud.visible = solid < 1;
+      wire.visible = time >= 2.5 && solid < 1;
+      materials.update("wireframe", 0.18 * smootherStep((time - 2.5) / 0.35) * (1 - solid));
       layer.root.visible = time >= 3;
-      layer.materials.update("solid", smootherStep(time - 3));
+      layer.materials.update("solid", solid);
       if (time < 4) return;
       this.clearReveal();
     }

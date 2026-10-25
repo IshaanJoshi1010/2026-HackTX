@@ -10,13 +10,32 @@ export function mortonSort(points: Float32Array): Float32Array {
   if (existing) return existing;
   const spread = (value: number) => { let x = Math.max(0, Math.min(1023, value)); x = (x | x << 16) & 0x030000ff; x = (x | x << 8) & 0x0300f00f; x = (x | x << 4) & 0x030c30c3; x = (x | x << 2) & 0x09249249; return x; };
   // Shared world-space domain for both cars, so the pairing is stable.
-  const order = Array.from({ length: points.length / 3 }, (_, i) => ({ i, code:
+  const count = points.length / 3;
+  const codes = new Uint32Array(count);
+  let order = new Uint32Array(count), scratch = new Uint32Array(count);
+  for (let i = 0; i < count; i++) {
+    order[i] = i;
+    codes[i] =
     spread(Math.floor((points[i * 3] + 2.4) / 4.8 * 1023)) |
     spread(Math.floor(points[i * 3 + 1] / 2.5 * 1023)) << 1 |
-    spread(Math.floor((points[i * 3 + 2] + 1.5) / 3 * 1023)) << 2,
-  })).sort((a, b) => a.code - b.code || a.i - b.i);
+    spread(Math.floor((points[i * 3 + 2] + 1.5) / 3 * 1023)) << 2;
+  }
+  // Stable radix passes avoid allocating a JS object per particle and comparator
+  // sorting on the first morph. Equal codes retain source order deterministically.
+  const buckets = new Uint32Array(256);
+  for (let shift = 0; shift < 32; shift += 8) {
+    buckets.fill(0);
+    for (let i = 0; i < count; i++) buckets[(codes[order[i]] >>> shift) & 255]++;
+    let offset = 0;
+    for (let i = 0; i < 256; i++) { const size = buckets[i]; buckets[i] = offset; offset += size; }
+    for (let i = 0; i < count; i++) scratch[buckets[(codes[order[i]] >>> shift) & 255]++] = order[i];
+    [order, scratch] = [scratch, order];
+  }
   const sorted = new Float32Array(points.length);
-  order.forEach(({ i }, index) => sorted.set(points.subarray(i * 3, i * 3 + 3), index * 3));
+  for (let index = 0; index < count; index++) {
+    const i = order[index] * 3;
+    sorted[index * 3] = points[i]; sorted[index * 3 + 1] = points[i + 1]; sorted[index * 3 + 2] = points[i + 2];
+  }
   ordered.set(points, sorted);
   return sorted;
 }
@@ -24,8 +43,9 @@ export function mortonSort(points: Float32Array): Float32Array {
 export function createParticleMorph(from: Float32Array, to: Float32Array, low: boolean) {
   if (from.length !== to.length) throw new Error("Morph point counts must match.");
   const a = mortonSort(from), b = mortonSort(to);
-  const geometry = new BufferGeometry().setAttribute("position", new Float32BufferAttribute(a, 3))
-    .setAttribute("aFrom", new Float32BufferAttribute(a.slice(), 3)).setAttribute("aTo", new Float32BufferAttribute(b, 3));
+  const fromAttribute = new Float32BufferAttribute(a, 3);
+  const geometry = new BufferGeometry().setAttribute("position", fromAttribute)
+    .setAttribute("aFrom", fromAttribute).setAttribute("aTo", new Float32BufferAttribute(b, 3));
   const material = new ShaderMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending,
     uniforms: { uMorph: { value: 0 }, uOpacity: { value: 0 }, uColor: { value: new Color("#27E1FF") }, uPixelRatio: { value: 1 } },
     vertexShader: `attribute vec3 aFrom; attribute vec3 aTo; uniform float uMorph; uniform float uPixelRatio;

@@ -46,6 +46,6 @@ export function VehicleModel({ props, onReady, onBusy }: { props: CarStageProps;
     controller.current?.update(delta, props.viewMode, state.gl.getPixelRatio());
     const busy = controller.current?.isMorphing ?? false;
     if (busy !== wasBusy.current) { wasBusy.current = busy; onBusy(busy); }
-  });
+  }, -1);
   return <group ref={mount} dispose={null} />;
 }

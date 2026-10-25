@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Points } from "three";
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Points, ShaderMaterial } from "three";
 import type { VehicleConfig } from "@/contracts";
 import { createParticleReveal, RevealClock, revealStages } from "../ParticleReveal";
 import { disposeObject } from "../dispose";
@@ -9,7 +9,43 @@ const car = { id: "camry-2022-se", modelAsset: "/fixture.glb", paint: "#111111" 
 const source = () => { const root = new Group(); root.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial({ name: "Body" }))); return root; };
 const data = new Float32Array(32768 * 3);
 describe("particle reveal", () => {
-  it("keeps seeded orbital starts repeatable and leaves cached surface samples untouched", () => {
+  it("keeps the solid hidden initially and hands particles off continuously before the done callback", async () => {
+    const controller = new VehicleController(async () => source(), async () => data), stages = vi.fn();
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high", reveal: true, onStage: stages });
+    const root = controller.group.children[0], body = (root.children[0] as Mesh).material as MeshStandardMaterial;
+    const cloud = controller.group.children.find(child => child instanceof Points) as Points<never, ShaderMaterial>;
+    expect(root.visible).toBe(false);
+    controller.update(3.25, "solid");
+    expect(body.opacity).toBeCloseTo(0.5);
+    expect(cloud.material.uniforms.uOpacity.value).toBeCloseTo(0.4);
+    controller.update(0.25, "solid");
+    expect(body.opacity).toBe(1);
+    expect(body.alphaHash).toBe(false);
+    expect(cloud.visible).toBe(false);
+    expect(stages.mock.calls.flat()).not.toContain("done");
+    controller.update(0.5, "solid");
+    expect(stages.mock.calls.flat()).toEqual(revealStages);
+    expect(controller.group.children).toHaveLength(1);
+    controller.dispose();
+  });
+  it("reuses the owned solid model across replays and phase adoption without recompiling it", async () => {
+    const load = vi.fn(async () => source()), prepare = vi.fn(async () => {});
+    const controller = new VehicleController(load, async () => data, prepare);
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high" });
+    const root = controller.group.children[0];
+    const dispose = vi.spyOn((root.children[0] as Mesh).geometry, "dispose");
+    const stage = vi.fn();
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high", reveal: true, onStage: stage });
+    controller.update(4, "solid");
+    expect(stage.mock.calls.flat()).toEqual(revealStages);
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high" });
+    expect(controller.group.children[0]).toBe(root);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(2);
+    controller.dispose(); expect(dispose).toHaveBeenCalledOnce();
+  });
+  it("keeps seeded silhouette starts near their targets and leaves cached surface samples untouched", () => {
     const target = new Float32Array([-2.3, 0, -1, 0, 1, 0, 2.3, 1.4, 1]);
     const original = target.slice();
     const a = createParticleReveal(target, false), b = createParticleReveal(target, true);
@@ -19,7 +55,9 @@ describe("particle reveal", () => {
       expect(starts.getY(i)).toBeGreaterThanOrEqual(0.25);
       expect(starts.getY(i)).toBeLessThanOrEqual(2.05);
       expect(delays.getX(i)).toBeGreaterThanOrEqual(0);
-      expect(delays.getX(i)).toBeLessThanOrEqual(0.201);
+      expect(delays.getX(i)).toBeLessThanOrEqual(0.081);
+      expect(Math.abs(starts.getX(i) - target[i * 3])).toBeLessThan(0.6);
+      expect(Math.abs(starts.getZ(i) - target[i * 3 + 2])).toBeLessThan(0.81);
     }
     a.geometry.getAttribute("aTarget").setX(0, 99);
     expect(target).toEqual(original);
