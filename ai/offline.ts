@@ -1,4 +1,5 @@
 import type { Intent, LifeEvent } from "../contracts";
+import { dailyMileagePattern } from "../data/drivingRate";
 import { hasOrphanTiming, hasTimingLanguage, splitClauses } from "./dates";
 import { ambiguousStatement, commuteContext, isQuestion, quantityPattern, readQuantity } from "./evidence";
 import { mapExtraction, pregnancyMention } from "./mapper";
@@ -25,6 +26,13 @@ export function interpretOffline(text: string, todayISO: string): OfflineReading
   if (ambiguousStatement(text)) return empty("Please confirm the intended change; negatives, corrections and hypotheticals are not applied automatically.");
   const items: ExtractionItem[] = [];
   const clauses = splitClauses(text);
+  // Keep an immediately following driving schedule with its rate, preserving the original quote verbatim.
+  for (let i = 0; i + 1 < clauses.length; i++) {
+    if (!new RegExp(dailyMileagePattern, "i").test(clauses[i]) || !/^\d+(?:\.\d+)?\s*days?\s*(?:a|per|\/)\s*week\b/i.test(clauses[i + 1])) continue;
+    const start = text.indexOf(clauses[i]);
+    const next = text.indexOf(clauses[i + 1], start + clauses[i].length);
+    if (start >= 0 && next >= 0) clauses.splice(i, 2, text.slice(start, next + clauses[i + 1].length));
+  }
   for (const quote of clauses) {
     // Preserve the raw time phrase. Unsupported timing is sent to validation, never clamped or erased.
     const timing = quote.match(/\b(?:next|this)\s+(?:month|year|week|spring|summer|fall|autumn|winter|january|february|march|april|may|june|july|august|september|october|november|december)\b|\bin\s+[^,;]*?\b(?:months?|years?|weeks?|days?)\b|\b(?:in\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d{2}\b|\b(?:in\s+)?20\d{2}\b/i)?.[0];
@@ -35,6 +43,8 @@ export function interpretOffline(text: string, todayISO: string): OfflineReading
     // The units (miles, mi) or a driving verb in front of the amount have to be there: "I make 90k a year" is not driving.
     const annual = quote.match(new RegExp(`${q}\\s*(?:annual\\s+)?(?:miles|mi)\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))|${q}\\s*annual\\s+(?:miles|mi)|(?:drive|drives|driving|drove)\\s+(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+|nearly\\s+)?${q}\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))`, "i"));
     if (annual) add("annualMiles", readQuantity(annual[1] ?? annual[2] ?? annual[3]));
+    const daily = quote.match(new RegExp(dailyMileagePattern, "i"));
+    if (daily) add("annualMiles", daily[0], true);
     const commute = quote.match(new RegExp(`${q}\\s*(?:miles|mi)\\s*(?:each|one)\\s*way`, "i"));
     if (commute) add("commuteMilesOneWay", readQuantity(commute[1]));
     const days = quote.match(new RegExp(`${q}\\s*days?\\s*(?:a|per|/)\\s*week`, "i"));

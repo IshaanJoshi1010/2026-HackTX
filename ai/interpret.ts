@@ -69,7 +69,8 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
         if (mapped.unresolved.some(item => item.certainty !== "vague")) {
           if (attempt === 0) {
             const invalidTimingFields = mapped.unresolved.filter(item => item.month && !item.quote.toLowerCase().includes(item.month.toLowerCase())).map(item => item.field);
-            validationFeedback = "Some items failed quote, value or timing validation. Use only prompt evidence, include the full date in quote and month, use absolute children for ordinal counts, and never copy context into items."
+            validationFeedback = "For daily mileage, annualMiles.value must be the exact raw STRING such as 100 miles a day, not a computed annual number. Include its date and stated days/week in the quote; code converts units. Driving in a city alone does not assert relocation; omit location unless a move/location change is stated. "
+              + "Some items failed quote, value or timing validation. Use only prompt evidence, include the full date in quote and month, use absolute children for ordinal counts, and never copy context into items."
               + (invalidTimingFields.length ? ` Invalid date in quote for: ${invalidTimingFields.join(", ")}. Each month must occur in that item's own quote. Omit month for undated clauses; never carry another event's date into annual mileage.` : "");
             continue;
           }
