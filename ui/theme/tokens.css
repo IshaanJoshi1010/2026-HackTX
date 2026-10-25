@@ -97,3 +97,43 @@ section[aria-label="Vehicle 3D preview"] > div[style*="system-ui"] {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/*
+ * Type. Helvetica Neue (a system font on Mac and iOS; Helvetica or Arial elsewhere), in three weights:
+ * Bold for headlines, Medium for buttons and labels, Regular for everything that describes.
+ * Set here, outside any layer, so it holds for every heading, button and label without each one saying so.
+ */
+:root {
+  --weight-headline: 700;
+  --weight-label: 500;
+  --weight-body: 400;
+}
+
+body {
+  font-weight: var(--weight-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: var(--weight-headline);
+}
+
+button,
+label,
+summary,
+legend,
+[role="tab"],
+[role="button"] {
+  font-weight: var(--weight-label);
+}
+
+/* A page heading that is also a button (the recommendation) is still a headline. */
+h1 button,
+h2 button {
+  font-weight: inherit;
+}
+
