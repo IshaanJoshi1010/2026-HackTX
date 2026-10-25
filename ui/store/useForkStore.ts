@@ -98,6 +98,10 @@ export interface UiState {
   futureDetails: boolean;
   /** Future page: draw every future on the road, not just the one you are looking at. Off by default. Not saved. */
   futureCompare: boolean;
+  /** Future page: the plain-language reasons behind the verdict. Off by default. Not saved. */
+  futureWhy: boolean;
+  /** Future page: what would have to change for the answer to flip. On when asked, never saved. */
+  futureBreakEven: boolean;
   busy: "idle" | "interpreting" | "simulating";
 }
 
@@ -128,6 +132,9 @@ export interface ForkActions {
   setDetailsOpen(open: boolean): void;
   setFutureDetails(on: boolean): void;
   setFutureCompare(on: boolean): void;
+  setFutureWhy(on: boolean): void;
+  /** Showing it for the first time runs the break-even on yearly miles. */
+  setFutureBreakEven(on: boolean): void;
   setLowPerformance(on: boolean): void;
   setReducedMotion(on: boolean): void;
   setViewMode(mode: ViewMode): void;
@@ -241,6 +248,8 @@ function initialData(): DataFields {
       detailsOpen: false,
       futureDetails: false,
       futureCompare: false,
+      futureWhy: false,
+      futureBreakEven: false,
       busy: "idle",
     },
   };
@@ -574,7 +583,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureWhy: false, futureBreakEven: false },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -915,6 +924,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           breakEvenCheck: decision.reproduceBreakEven(input, breakEven),
           ...verdictPatch(evaluateComparison(s, breakEven)),
           error: null,
+          ui: { ...s.ui, futureBreakEven: true },
         });
       } catch (e) {
         fail(e);
@@ -1017,6 +1027,15 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
     setFutureCompare(on) {
       set((s) => ({ ui: { ...s.ui, futureCompare: on } }));
+    },
+
+    setFutureWhy(on) {
+      set((s) => ({ ui: { ...s.ui, futureWhy: on } }));
+    },
+
+    setFutureBreakEven(on) {
+      if (on && !get().breakEven) return actions.runBreakEven("annualMiles"); // it turns the view on itself
+      set((s) => ({ ui: { ...s.ui, futureBreakEven: on } }));
     },
 
     setLowPerformance(on) {

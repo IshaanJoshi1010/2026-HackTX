@@ -40,7 +40,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
  * how much your decisions changed your net cost: down costs more, up saves money.
  * Each decision is a signpost you can drag. The other futures only appear if asked for.
  */
-export function Road() {
+export function Road({ compact = false }: { compact?: boolean } = {}) {
   const scenarios = useForkStore((s) => s.explore.scenarios);
   const results = useForkStore((s) => s.results);
   const activeId = useForkStore((s) => s.activeScenarioId);
@@ -126,7 +126,7 @@ export function Road() {
       ref={setNode}
       data-testid="road"
       className="relative w-full select-none"
-      style={{ height: "clamp(320px, 44vh, 460px)" }}
+      style={{ height: compact ? "clamp(270px, 30vh, 320px)" : "clamp(320px, 44vh, 460px)" }}
     >
       <p className="sr-only">{summary}</p>
 

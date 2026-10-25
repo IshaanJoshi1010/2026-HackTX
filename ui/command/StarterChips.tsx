@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { data } from "@/ui/mocks";
 
 export interface StarterChipsProps {
   /** Puts the example in the box. It does not submit it. */
@@ -9,8 +10,8 @@ export interface StarterChipsProps {
   className?: string;
 }
 
-/** The one example, and the sentence the demo uses. */
-export const STARTER_PROMPT = "Moving to Denver next year, 20,000 miles annually, second child in 2029";
+/** The one example, and the sentence the demo uses. It is Dev 3's, so the AI and the offline rules read the same words. */
+export const STARTER_PROMPT = data.demo.brainDump;
 
 /** A single quiet line under the command bar. Clicking it fills the box. */
 export function StarterChips({ onSelect, disabled = false, className }: StarterChipsProps) {

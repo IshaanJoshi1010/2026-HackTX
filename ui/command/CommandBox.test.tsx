@@ -82,7 +82,8 @@ describe("CommandBox", () => {
     render(<CommandBox />);
     const input = screen.getByPlaceholderText(/tell fork what's changing/i);
     fireEvent.click(screen.getByRole("button", { name: /try:/i }));
-    expect(input).toHaveValue("Moving to Denver next year, 20,000 miles annually, second child in 2029");
+    // the team's demo sentence, taken from the data module rather than copied
+    expect(input).toHaveValue("I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.");
     expect(useForkStore.getState().explore.draftChanges).toHaveLength(0);
   });
 
