@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { customerText } from "@/ui/profile/customerText";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 export interface ModelYearPickerProps {
@@ -46,8 +47,8 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
   return (
     <form onSubmit={handleSubmit} className={cn("flex flex-col gap-4 text-left", className)}>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={selectId} className="text-xs font-medium tracking-wide uppercase text-ink/60">
-          Select Vehicle Model
+        <label htmlFor={selectId} className="text-sm font-medium text-ink/70">
+          Choose your car
         </label>
         <select
           id={selectId}
@@ -75,7 +76,7 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
 
       {storeError && (
         <p role="alert" className="text-xs font-medium text-ink/80">
-          {storeError}
+          {customerText(storeError)}
         </p>
       )}
 

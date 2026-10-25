@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DataRow } from "./DataRow";
 import { SourceBadge } from "./SourceBadge";
@@ -8,8 +8,8 @@ describe("SourceBadge", () => {
   it.each([
     ["user", "your input"],
     ["estimated", "estimated"],
-    ["synthetic", "demo data"],
-    ["illustrative", "demo data"],
+    ["synthetic", "illustrative"],
+    ["illustrative", "illustrative"],
     ["listing", "listing"],
     ["sourced", "sourced"],
   ] as const)("shows %s as %s", (source, label) => {
@@ -25,7 +25,10 @@ describe("SourceBadge", () => {
 
   it("explains the exact source in the tooltip", () => {
     render(<SourceBadge source="illustrative" />);
-    expect(screen.getByText("demo data")).toHaveAttribute("title", expect.stringContaining("Placeholder"));
+    expect(screen.getByText("illustrative")).toHaveAttribute("title", "An illustrative figure. Not a verified one.");
+    cleanup();
+    render(<SourceBadge source="synthetic" />);
+    expect(screen.getByText("illustrative")).toHaveAttribute("title", "An example figure. Not from a real account.");
   });
 });
 
@@ -33,7 +36,7 @@ describe("SourceBadge compact", () => {
   it.each([
     ["user", "your input"],
     ["estimated", "estimated"],
-    ["synthetic", "demo data"],
+    ["synthetic", "illustrative"],
     ["sourced", "sourced"],
   ] as const)("still shows %s as a visible label", (source, label) => {
     render(<SourceBadge compact source={source} />);
@@ -50,7 +53,7 @@ describe("Stat", () => {
   it("always renders a badge under the number", () => {
     render(<Stat label="Net cost" value="$1,200" source="synthetic" />);
     expect(screen.getByText("$1,200")).toBeInTheDocument();
-    expect(screen.getByText("demo data")).toBeInTheDocument();
+    expect(screen.getByText("illustrative")).toBeInTheDocument();
   });
 });
 

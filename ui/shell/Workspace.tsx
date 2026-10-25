@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { CommandBox } from "@/ui/command/CommandBox";
 import { car } from "@/ui/mocks";
 import { RevealOverlay } from "@/ui/reveal/RevealOverlay";
+import { RiderDock } from "@/ui/reveal/RiderDock";
+import { SpecReadout } from "@/ui/reveal/SpecReadout";
 import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { CarView } from "./CarView";
@@ -17,6 +19,12 @@ import { ViewSwitch } from "./ViewSwitch";
 
 /** Room under the car for the command bar and the page switch, so the car sits above them. */
 const STAGE_BOTTOM = 176;
+
+/**
+ * Small screens only (a wide screen puts the specs in a column at the left edge, so this is ignored there). While the car
+ * forms they sit above the rider question; after, above the command bar.
+ */
+const REVEAL_SPECS_BOTTOM = 240;
 
 /**
  * Two pages share one stage. The CarStage stays mounted the whole time (the 3D
@@ -73,6 +81,12 @@ export function Workspace() {
           />
         </div>
       </div>
+
+      {/* The specs outlive the reveal, so they live here, not in the overlay. A column at the left on wide screens; on small ones a row above whatever is at the bottom. */}
+      <SpecReadout bottom={revealing ? REVEAL_SPECS_BOTTOM : barHeight + 16} />
+
+      {/* One set of chips for the whole visit: a row while the car forms, then a panel at the side. */}
+      <RiderDock />
 
       {revealing ? (
         <>

@@ -113,17 +113,30 @@ describe("store hydration", () => {
     expect(state().results[BASE_ID].points).toHaveLength(60);
   });
 
-  it("never saves the road options: every session starts minimal", async () => {
+  it("never saves the page state: every session starts on the car with nothing open", async () => {
     actions().hydrate();
     await actions().startFromSample("camry-2022-se");
     actions().onRevealStage("done");
-    actions().setFutureDetails(true);
-    actions().setFutureCompare(true);
+    actions().setView("future");
+    actions().openDrawer("costs");
+    expect(state().ui).toMatchObject({ view: "future", drawer: "costs" });
     await settle();
-    expect(localStorage.getItem(STORAGE_KEY)).not.toMatch(/futureDetails|futureCompare/);
+    expect(localStorage.getItem(STORAGE_KEY)).not.toMatch(/"(view|drawer|playing|detailsOpen)"/);
     resetForkStoreForTests();
     actions().hydrate();
-    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: false });
+    expect(state().ui).toMatchObject({ view: "car", drawer: null, playing: false, detailsOpen: false });
+  });
+
+  it("a save from the old Future page still loads, and none of its flags come back", async () => {
+    const blob = await savedBlob();
+    const oldFlags = { futureExpanded: true, futureDetails: true, futureCompare: true, futureWhy: true, futureTerms: true, futureBreakEven: true };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...blob, prefs: { lowPerformance: true, ...oldFlags } }));
+    resetForkStoreForTests();
+    actions().hydrate();
+    expect(state().phase).toBe("workspace");
+    expect(state().ui.lowPerformance).toBe(true);
+    expect(state().activeMonth).toBe(24);
+    for (const flag of Object.keys(oldFlags)) expect(state().ui).not.toHaveProperty(flag);
   });
 
   it("does not save derived data", async () => {

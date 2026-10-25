@@ -46,22 +46,6 @@
   animation: fork-fade 450ms ease-out both;
 }
 
-/* A branch draws itself from its fork month. The path sets pathLength="1". */
-@keyframes fork-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.fork-draw {
-  stroke-dasharray: 1;
-  animation: fork-draw 900ms cubic-bezier(0.3, 0.6, 0.2, 1) both;
-  animation-delay: var(--d, 0ms);
-}
-
 /* Soft floor under the car. Just light on the ground, like a studio shot. */
 .fork-floor {
   position: absolute;

@@ -28,9 +28,11 @@ import type {
   VehicleConfig,
   VehicleTwin,
 } from "@/contracts";
-import type { ReproductionSide } from "@/decision";
+import type { ReproductionSide, ScenarioScore } from "@/decision";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { CarStageProps } from "@/ui/3d/types";
+import { carryOver } from "./carryOver";
+import { freshProposals, payloadProblem, withUniqueId } from "./eventRules";
 import { eventTitle } from "./eventLabels";
 import { MONTH_MAX, clampMonth } from "./months";
 import {
@@ -120,19 +122,26 @@ export interface UiState {
   aiAvailable: boolean;
   /** Which of the two pages is showing. Not saved: every session starts on the car. */
   view: View;
-  /** The "Your details" sheet (profile, priorities, history, display). Not saved. */
+  /** The "Edit assumptions" sheet (profile, priorities, history, display). Not saved. */
   detailsOpen: boolean;
-  /** Future page: show what each decision changed, and the supporting numbers. Off by default. Not saved. */
-  futureDetails: boolean;
-  /** Future page: draw every future on the road, not just the one you are looking at. Off by default. Not saved. */
-  futureCompare: boolean;
-  /** Future page: the plain-language reasons behind the verdict. Off by default. Not saved. */
-  futureWhy: boolean;
-  /** Future page: review and confirm the purchase and insurance terms. Off by default. Not saved. */
-  futureTerms: boolean;
-  /** Future page: what would have to change for the answer to flip. On when asked, never saved. */
-  futureBreakEven: boolean;
+  /** Future page: the selected future is playing forward along the road. Never on at the start; any manual move stops it. Not saved. */
+  playing: boolean;
+  /** Future page: which drawer is open over the timeline, if any. Not saved. */
+  drawer: DrawerId | null;
   busy: "idle" | "interpreting" | "simulating";
+}
+
+/** The drawers the Future page opens over the timeline. One at a time. */
+export type DrawerId = "explain" | "costs" | "recommendation";
+
+/** What the last change touched, so the page can briefly highlight it. Replaced (a new object) by every change. Not saved. */
+export interface LastChange {
+  kind: "confirm" | "move" | "answer" | "terms" | "compare" | "priorities";
+  /** Events that were added or moved. Empty when an input changed instead (an answer, terms, priorities). */
+  eventIds: string[];
+  /** Monotonic, so two changes of the same kind are still two changes. */
+  id: number;
+  at: number;
 }
 
 export interface ForkActions {
@@ -163,6 +172,20 @@ export interface ForkActions {
   runBreakEven(parameter: "annualMiles" | "fuelPricePerGal"): void;
   moveEvent(scenarioId: string, eventId: string, month: number): void;
   setActiveScenario(id: string): void;
+  /** Select an event on the timeline: the month moves to it and the selection is kept. null clears it. Stops playback. */
+  selectEvent(id: string | null): void;
+  /** Play the selected future forward from the selected month (from the start if it is at the end). Never starts by itself. */
+  play(): void;
+  pause(): void;
+  /** For the player only: move the month without stopping playback. Reaching the end stops it. Anyone else uses setActiveMonth. */
+  advanceMonth(m: number): void;
+  openDrawer(id: DrawerId): void;
+  closeDrawer(): void;
+  /**
+   * Look at a future (the selector beside the timeline). With a comparison open it moves the comparison to that life, so
+   * the verdict, the costs and the path are always about the same future.
+   */
+  selectFuture(id: string): void;
   setActiveMonth(m: number): void;
 
   // UI and stage plumbing (not in the spec's action list, needed by its flows)
@@ -171,12 +194,6 @@ export interface ForkActions {
   clearError(): void;
   setView(view: View): void;
   setDetailsOpen(open: boolean): void;
-  setFutureDetails(on: boolean): void;
-  setFutureCompare(on: boolean): void;
-  setFutureWhy(on: boolean): void;
-  setFutureTerms(on: boolean): void;
-  /** Showing it for the first time runs the break-even on yearly miles. */
-  setFutureBreakEven(on: boolean): void;
   setLowPerformance(on: boolean): void;
   setReducedMotion(on: boolean): void;
   setViewMode(mode: ViewMode): void;
@@ -199,6 +216,8 @@ export interface ForkState {
   evaluation: DecisionEvaluation | null;
   /** Why the next step is what it is, from the engine. Travels with the evaluation, never typed in. */
   nextActionFactors: string[];
+  /** The engine's score for each compared future, broken down by priority. Why a close call is a close call. Derived, never saved. */
+  scores: ScenarioScore[];
   /** Words for the current evaluation. Null until written, and cleared whenever the evaluation changes. */
   explanation: Explanation | null;
   /** Set only while the last sentence was read without the AI. Not saved. */
@@ -207,7 +226,16 @@ export interface ForkState {
   /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
   breakEvenCheck: BreakEvenCheck | null;
   activeScenarioId: string;
+  /** The selected month, 0 (now) to 60. The one clock every part of the Future page reads. */
   activeMonth: number;
+  /** The event selected on the timeline, or null. The month follows it when it is selected. Not saved. */
+  selectedEventId: string | null;
+  /**
+   * Counts every recalculation (a new set of results). Anything that finishes later (words from the AI, a drawer's own
+   * work) checks this was the revision it started from before it writes, so a late answer never replaces a newer one.
+   */
+  revision: number;
+  lastChange: LastChange | null;
   activeVehicleId: string;
   stage: StageState;
   question: Question | null;
@@ -268,12 +296,16 @@ function initialData(): DataFields {
     results: {},
     evaluation: null,
     nextActionFactors: [],
+    scores: [],
     explanation: null,
     lastDump: null,
     breakEven: null,
     breakEvenCheck: null,
     activeScenarioId: BASE_ID,
     activeMonth: 0,
+    selectedEventId: null,
+    revision: 0,
+    lastChange: null,
     activeVehicleId: "",
     stage: INITIAL_STAGE,
     question: null,
@@ -291,11 +323,8 @@ function initialData(): DataFields {
       aiAvailable: true,
       view: "car",
       detailsOpen: false,
-      futureDetails: false,
-      futureCompare: false,
-      futureWhy: false,
-      futureTerms: false,
-      futureBreakEven: false,
+      playing: false,
+      drawer: null,
       busy: "idle",
     },
   };
@@ -349,10 +378,75 @@ const FINANCE_TYPE: Record<string, DriverProfile["financeType"]> = {
 const findScenario = (s: Pick<ForkState, "explore">, id: string): Scenario | undefined =>
   s.explore.scenarios.find((sc) => sc.id === id);
 
-/** The car shown for a scenario: the replacement once it has a confirmed replacement event. */
-function vehicleIdFor(scenario: Scenario | undefined, twin: VehicleTwin): string {
-  const swap = scenario?.events.find((e) => e.type === "vehicle_replacement" && e.status === "confirmed");
-  return swap ? String(swap.payload.vehicleId) : twin.vehicle.id;
+/**
+ * The car in a future at a given month: the one you own until a confirmed swap, the replacement from the swap month on.
+ * Matches the simulation, which switches cars in the swap month itself.
+ */
+export function vehicleAtMonth(scenario: Scenario | undefined, twin: VehicleTwin, month: number): string {
+  const swaps = (scenario?.events ?? [])
+    .filter((e) => e.type === "vehicle_replacement" && e.status === "confirmed" && typeof e.payload.vehicleId === "string")
+    .sort((a, b) => a.month - b.month);
+  let id = twin.vehicle.id;
+  for (const swap of swaps) if (swap.month <= month) id = String(swap.payload.vehicleId);
+  return id;
+}
+
+/**
+ * The confirmed events on the road: the future you are looking at and the two being compared. Futures that were replaced
+ * by a newer comparison stay in the store but are not on the road, so their events are not selectable.
+ */
+function eventsOnTheRoad(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison">): LifeEvent[] {
+  const ids = new Set([s.activeScenarioId, s.comparison?.keepId, s.comparison?.replaceId]);
+  return s.explore.scenarios.filter((sc) => ids.has(sc.id)).flatMap((sc) => sc.events.filter((e) => e.status === "confirmed"));
+}
+
+/**
+ * The stage change that puts the car at the selected month of the selected future on stage, or null when it is already
+ * there (or on its way). Used wherever the month, the future or the swap month can move without the stage being asked.
+ */
+function stageFollowsMonth(s: ForkState): Partial<ForkState> | null {
+  if (s.phase !== "workspace" || !s.twin || s.stage.phase === "reveal") return null;
+  const target = vehicleAtMonth(findScenario(s, s.activeScenarioId), s.twin, s.activeMonth);
+  const to = vehicleById(s, target);
+  const heading = s.stage.phase === "transition" ? s.stage.transitionTo?.id : s.activeVehicleId;
+  if (!to || target === heading) return null;
+  return { stage: { ...s.stage, phase: "transition", transitionTo: to } };
+}
+
+/** The month of a confirmed event on the road, or null when there is no such event. */
+function eventMonthOf(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison">, id: string): number | null {
+  return eventsOnTheRoad(s).find((e) => e.id === id)?.month ?? null;
+}
+
+/** A selected event stays selected only while the clock is on its month: scrubbing off it puts the card back on the moment. */
+function selectionAt(s: Pick<ForkState, "explore" | "activeScenarioId" | "comparison" | "selectedEventId">, month: number): { selectedEventId?: null } {
+  if (s.selectedEventId === null) return {};
+  const at = eventMonthOf(s, s.selectedEventId);
+  return at !== null && clampMonth(at) === month ? {} : { selectedEventId: null };
+}
+
+/**
+ * After a recalculation: a selected event follows its event, and the clock follows both. The swap is rebuilt with each
+ * new comparison (its id comes from the future it belongs to), so a selected swap moves to the new one. An event that is
+ * gone clears the selection. This keeps the rule "selected means the clock is on its month" true through chat changes.
+ */
+function reconcileSelection(prev: Pick<ForkState, "explore">, cur: ForkState): Partial<ForkState> {
+  const id = cur.selectedEventId;
+  if (id === null) return {};
+  let now = id;
+  let at = eventMonthOf(cur, id);
+  if (at === null) {
+    const old = prev.explore.scenarios.flatMap((sc) => sc.events).find((e) => e.id === id);
+    const next =
+      old?.type === "vehicle_replacement" && cur.comparison
+        ? findScenario(cur, cur.comparison.replaceId)?.events.find((e) => e.type === "vehicle_replacement" && e.status === "confirmed")
+        : undefined;
+    if (!next) return { selectedEventId: null };
+    now = next.id;
+    at = next.month;
+  }
+  const month = clampMonth(at);
+  return now === id && month === cur.activeMonth ? {} : { selectedEventId: now, activeMonth: month };
 }
 
 export function vehicleById(
@@ -408,6 +502,7 @@ type ComparisonState = Pick<ForkState, "twin" | "explore" | "replacementVehicle"
 interface Verdict {
   evaluation: DecisionEvaluation;
   nextActionFactors: string[];
+  scores: ScenarioScore[];
 }
 
 /**
@@ -423,7 +518,7 @@ function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | nu
   const twin = simTwin(s);
   const scenarios = [keep, replace];
   const results = [s.results[keep.id], s.results[replace.id]];
-  const evaluated = decision.evaluate({
+  const { evaluation: evaluated, scores } = decision.evaluateDetailed({
     twin,
     scenarios,
     results,
@@ -441,13 +536,15 @@ function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | nu
       nextAction: { label: action.label, detail: action.detail, ...(action.officialLink ? { officialLink: action.officialLink } : {}) },
     },
     nextActionFactors: action.factors,
+    scores,
   };
 }
 
 /** The store fields that come from a verdict, or cleared ones when there is none. */
-const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors" | "explanation"> => ({
+const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors" | "scores" | "explanation"> => ({
   evaluation: v?.evaluation ?? null,
   nextActionFactors: v?.nextActionFactors ?? [],
+  scores: v?.scores ?? [],
   explanation: null, // the words belong to the numbers they came with
 });
 
@@ -479,6 +576,49 @@ const keepDump = (last: LastDump | null, drafts: LifeEvent[]): LastDump | null =
 const upsert = (list: Scenario[], next: Scenario): Scenario[] =>
   list.some((sc) => sc.id === next.id) ? list.map((sc) => (sc.id === next.id ? next : sc)) : [...list, next];
 
+/**
+ * A future is its parent's life up to where it forks, and a replace future is its parent's whole life plus the swap. So
+ * when a change moves, every future that came from this one has to hear about it: it moves in the ones that hold it, and
+ * is added to the ones it now falls before the fork of. Parents first, so each future reads an up to date parent.
+ */
+function reachDescendants(all: Scenario[], source: Scenario, eventId: string, month: number): Scenario[] {
+  const event = source.events.find((e) => e.id === eventId);
+  if (!event) return all;
+  let out = all;
+  const done = new Set([source.id]);
+  let frontier = [source.id];
+  while (frontier.length > 0) {
+    const next: string[] = [];
+    for (const parentId of frontier) {
+      for (const child of out.filter((sc) => sc.parentId === parentId && !done.has(sc.id))) {
+        done.add(child.id);
+        next.push(child.id);
+        const has = child.events.some((e) => e.id === eventId);
+        let events = child.events;
+        if (has) events = child.events.map((e) => (e.id === eventId ? { ...e, month } : e));
+        else if (month < child.forkMonth) events = [...child.events, structuredClone({ ...event, month })];
+        if (events !== child.events) out = upsert(out, { ...child, events });
+      }
+    }
+    frontier = next;
+  }
+  return out;
+}
+
+/** The future with no swap in it that this one is built on: itself, or the nearest one it came from. */
+export function lifeOf(s: Pick<ForkState, "explore">, scenario: Scenario): Scenario {
+  let cur = scenario;
+  for (let guard = 0; guard < 50 && cur.events.some((e) => e.type === "vehicle_replacement"); guard++) {
+    const parent = cur.parentId ? s.explore.scenarios.find((x) => x.id === cur.parentId) : undefined;
+    if (!parent) break;
+    cur = parent;
+  }
+  return cur;
+}
+
+/** True once any future has been run. From then on an answer changes numbers that are already on screen, in any phase. */
+const hasResults = (s: Pick<ForkState, "results">): boolean => Object.keys(s.results).length > 0;
+
 function baselineScenario(twin: VehicleTwin): Scenario {
   return { id: BASE_ID, parentId: null, forkMonth: 0, name: `Keep the ${twin.vehicle.model}`, events: [], assumptions: {} };
 }
@@ -490,9 +630,14 @@ function baselineScenario(twin: VehicleTwin): Scenario {
 function activation(s: ForkState, scenarioId: string): Partial<ForkState> {
   const scenario = findScenario(s, scenarioId);
   if (!scenario || !s.twin) return {};
-  const target = vehicleIdFor(scenario, s.twin);
-  if (target === s.activeVehicleId) return { activeScenarioId: scenarioId };
+  const target = vehicleAtMonth(scenario, s.twin, s.activeMonth);
   const to = vehicleById(s, target);
+  // A morph that is still going when you pick the other future is pointed at the car you picked, so the stage never
+  // finishes on a car that does not belong to the future you are looking at.
+  if (s.stage.phase === "transition" && s.stage.transitionTo && s.stage.transitionTo.id !== target && to) {
+    return { activeScenarioId: scenarioId, stage: { ...s.stage, transitionTo: to } };
+  }
+  if (target === s.activeVehicleId) return { activeScenarioId: scenarioId };
   if (!to) return { activeScenarioId: scenarioId };
   if (s.stage.phase === "reveal") return { activeScenarioId: scenarioId, activeVehicleId: target };
   return { activeScenarioId: scenarioId, stage: { ...s.stage, phase: "transition", transitionTo: to } };
@@ -551,8 +696,17 @@ function applyAnswer(
   if (field === "financeType") {
     const v = FINANCE_TYPE[String(value).toLowerCase()];
     if (!v) return null;
+    const prov = { ...twin.finance.provenance, financeType: "user" as const };
+    // Paid off means nothing is owed and nothing is paid. A lease owes no loan. Keeping the old balance and payment under
+    // a new answer would make the numbers say something the person did not.
+    const money =
+      v === "paid_off"
+        ? { balance: 0, monthlyPayment: 0, remainingTermMonths: 0, leaseEndMonth: undefined, provenance: { ...prov, balance: "user" as const, monthlyPayment: "user" as const } }
+        : v === "lease"
+          ? { balance: 0, provenance: { ...prov, balance: "user" as const } }
+          : { provenance: prov };
     return {
-      twin: { ...twin, finance: { ...twin.finance, financeType: v, provenance: { ...twin.finance.provenance, financeType: "user" } } },
+      twin: { ...twin, finance: { ...twin.finance, financeType: v, ...money } },
       profile: withSource({ ...profile, financeType: v }, field),
     };
   }
@@ -626,6 +780,20 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
   }
   api.subscribe((state, prev) => {
     if (state.evaluation && state.evaluation !== prev.evaluation) void requestExplanation();
+    // A new set of results is a new revision. (Only results: the same results with a new month is not a recalculation.)
+    if (state.results !== prev.results) {
+      set((cur) => {
+        const selection = reconcileSelection(prev, cur);
+        // A moved swap changes which car is in view at the selected month, so the stage follows the new results.
+        return { revision: cur.revision + 1, ...selection, ...(stageFollowsMonth({ ...cur, ...selection }) ?? {}) };
+      });
+    }
+  });
+
+  let changeSeq = 0;
+  /** The change to remember, and so to highlight. Spread into the same set that makes the change. */
+  const changed = (kind: LastChange["kind"], eventIds: string[] = []): { lastChange: LastChange } => ({
+    lastChange: { kind, eventIds, id: (changeSeq += 1), at: Date.now() },
   });
 
   /**
@@ -648,7 +816,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureWhy: false, futureTerms: false, futureBreakEven: false },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, playing: false, drawer: null },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -663,11 +831,15 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     if (!s.twin) return;
     try {
       const scenarios = findScenario(s, BASE_ID) ? s.explore.scenarios : [baselineScenario(s.twin), ...s.explore.scenarios];
-      const missing = scenarios.filter((sc) => !s.results[sc.id]);
+      // Everything is run again, not only what is missing: an answer given while the reveal was replaying (who rides
+      // with you, a finance choice) changed the inputs, and a result kept from before would show the old ones.
+      const explore = { ...s.explore, scenarios };
+      const results = simulateAll({ ...s, explore }, scenarios);
       set({
         phase: "workspace",
-        explore: { ...s.explore, scenarios },
-        results: { ...s.results, ...simulateAll(s, missing) },
+        explore,
+        results,
+        ...verdictPatch(evaluateComparison({ ...s, explore, results })),
         stage: { ...s.stage, phase: "interactive", transitionTo: null, revealStage: "done" },
         ui: { ...s.ui, view: "car" },
       });
@@ -737,8 +909,8 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         children,
         provenance: { ...s.explore.confirmedProfile.provenance, householdSize: source, children: source },
       };
-      const patch = { explore: { ...s.explore, confirmedProfile: profile } };
-      if (s.phase === "workspace") recompute(patch);
+      const patch = { explore: { ...s.explore, confirmedProfile: profile }, ...changed("answer") };
+      if (hasResults(s)) recompute(patch);
       else set(patch);
     },
 
@@ -802,7 +974,14 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       }
 
       // Proposals are drafts. Force "proposed" so nothing from the AI can arrive confirmed.
-      const proposals = result.proposals.map((e): LifeEvent => ({ ...e, status: "proposed" }));
+      const forced = result.proposals.map((e): LifeEvent => ({ ...e, status: "proposed" }));
+      // Numbers that cannot be real are left out, and a change that is already waiting or already part of this future is not added again.
+      const outOfRange = forced.map(payloadProblem).find((p) => p !== null);
+      const inRange = forced.filter((e) => payloadProblem(e) === null);
+      const here = findScenario(get(), scenarioId);
+      const proposals = freshProposals(inRange, get().explore.draftChanges, here?.events ?? []);
+      const alreadyThere = inRange.length > 0 && proposals.length === 0;
+      if (outOfRange) set({ error: outOfRange });
       set((cur) => {
         const withDrafts = {
           ...cur,
@@ -820,6 +999,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       const flag = offline ? { offline: true as const } : {};
 
       if (proposals.length > 0) return { kind: "proposed", ...flag };
+      if (alreadyThere) return { kind: "nothing", message: "That is already on your timeline or waiting for you to confirm.", ...flag };
       if (get().question) return { kind: "asked", ...flag };
 
       // A question, not a change: show the answer. Nothing here edits the profile or a scenario.
@@ -832,6 +1012,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           if (!(await ensureComparison())) break;
           actions.runBreakEven(breakEvenParameterFor(prompt));
           actions.setView("future");
+          actions.openDrawer("recommendation"); // the answer is in the recommendation drawer, so it opens there
           return { kind: "break_even", ...flag };
         case "COMPARE_SCENARIOS":
         case "RECOMMEND_ACTION":
@@ -841,6 +1022,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         case "EXPLAIN_RESULT":
           if (!get().evaluation) break;
           actions.setView("future");
+          actions.openDrawer("recommendation"); // the reasons live in the recommendation drawer
           return { kind: "compared", ...flag };
       }
       return { kind: "nothing", message: result.unsupportedReason, ...flag };
@@ -867,28 +1049,57 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       if (!s.twin) return;
       const chosen = s.explore.draftChanges.filter((e) => ids.includes(e.id) && e.status === "proposed");
       if (chosen.length === 0) return;
+      // A number that cannot be real never reaches a simulation. The change stays waiting so it can be fixed or removed.
+      const problem = chosen.map(payloadProblem).find((p) => p !== null);
+      const usable = chosen.filter((e) => payloadProblem(e) === null);
+      if (problem) set({ error: problem });
+      if (usable.length === 0) return;
       try {
-        const events = chosen.map((e): LifeEvent => ({ ...e, status: "confirmed" }));
-        const parent = findScenario(s, s.activeScenarioId) ?? findScenario(s, BASE_ID);
+        const events = usable.map((e): LifeEvent => ({ ...e, status: "confirmed" }));
+        const compared = s.comparison;
+        // Your life belongs to the car you keep. Looking at the other car does not make a new change part of its future.
+        const parent =
+          (compared && s.activeScenarioId === compared.replaceId ? findScenario(s, compared.keepId) : findScenario(s, s.activeScenarioId)) ??
+          findScenario(s, BASE_ID);
         if (!parent) return;
-        const child = sim.fork(parent, Math.min(...events.map((e) => e.month)), events, scenarioName(events));
-        const scenarios = upsert(s.explore.scenarios, child);
+        // A later dump keeps what the active future already planned after the new events, unless they replace it.
+        const forkMonth = Math.min(...events.map((e) => e.month));
+        const child = withUniqueId(sim.fork(parent, forkMonth, carryOver(parent, forkMonth, events).events, scenarioName(events)), s.explore.scenarios);
+        let scenarios = upsert(s.explore.scenarios, child);
+        const built: Scenario[] = [child];
+        let comparison = compared;
+        // With a comparison open, it moves with you: the same new life, for both cars, and a verdict about that. That is
+        // only when you were looking at the life being compared (or its swap). A change made from some other future,
+        // say one that already ends in the other car, leaves the comparison alone.
+        const onTheComparison = compared !== null && (s.activeScenarioId === compared.keepId || s.activeScenarioId === compared.replaceId);
+        if (compared && onTheComparison && s.replacementVehicle) {
+          const replace = withUniqueId(sim.makeReplaceScenario(child, s.replacementVehicle), scenarios);
+          scenarios = upsert(scenarios, replace);
+          built.push(replace);
+          comparison = { keepId: child.id, replaceId: replace.id };
+        }
         const explore: ExploreState = {
           ...s.explore,
-          draftChanges: s.explore.draftChanges.filter((e) => !ids.includes(e.id)),
+          draftChanges: s.explore.draftChanges.filter((e) => !usable.some((u) => u.id === e.id)),
           scenarios,
         };
-        const withChild = { ...s, explore };
-        const results = { ...s.results, ...simulateAll(withChild, [child]) };
+        const withChild = { ...s, explore, comparison };
+        const results = { ...s.results, ...simulateAll(withChild, built) };
+        // Looking at the switch future when you confirm a change keeps you on the switch future (the new one), and at the
+        // same month: a change made through chat never throws away what you were looking at.
+        const stayOnSwitch = compared !== null && s.activeScenarioId === compared.replaceId && comparison !== null && comparison.replaceId !== comparison.keepId;
+        const lookAt = stayOnSwitch && comparison ? comparison.replaceId : child.id;
         set({
-          ...activation({ ...withChild, results }, child.id),
+          ...activation({ ...withChild, results }, lookAt),
           explore,
           results,
-          ...(s.comparison ? verdictPatch(evaluateComparison({ ...withChild, results })) : {}),
+          comparison,
+          ...(comparison ? verdictPatch(evaluateComparison({ ...withChild, results })) : {}),
           breakEven: null,
           breakEvenCheck: null,
           lastDump: keepDump(s.lastDump, explore.draftChanges),
           question: nextQuestion(withChild),
+          ...changed("confirm", events.map((e) => e.id)),
         });
       } catch (e) {
         fail(e);
@@ -896,6 +1107,8 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     editDraft(id, patch) {
+      const problem = patch.payload ? payloadProblem({ payload: patch.payload }) : null;
+      if (problem) return void set({ error: problem });
       set((s) => ({
         explore: {
           ...s.explore,
@@ -920,9 +1133,14 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         id: event.id ?? `draft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         status: "proposed",
       };
-      set((s) => ({
-        explore: { ...s.explore, draftChanges: [...s.explore.draftChanges, proposal] },
-      }));
+      const problem = payloadProblem(proposal);
+      if (problem) return void set({ error: problem });
+      set((s) => {
+        const active = s.explore.scenarios.find((sc) => sc.id === s.activeScenarioId);
+        // The same change twice (Enter pressed again, the same sentence sent again) is still one change.
+        if (freshProposals([proposal], s.explore.draftChanges, active?.events ?? []).length === 0) return s;
+        return { explore: { ...s.explore, draftChanges: [...s.explore.draftChanges, proposal] } };
+      });
     },
 
     // ---- questions and priorities ----
@@ -940,8 +1158,9 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         explore: { ...s.explore, confirmedProfile: next.profile },
         answeredFields: answered,
         error: null,
+        ...changed("answer"),
       };
-      if (s.phase === "workspace") recompute(patch);
+      if (hasResults(s)) recompute(patch);
       else set(patch);
       set((cur) => ({ question: nextQuestion(cur) }));
     },
@@ -967,8 +1186,9 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       try {
         const replacement = s.replacementVehicle ?? data.listSampleVehicles().find((v) => v.id !== s.twin!.vehicle.id);
         if (!replacement) return fail(new Error("There is no other car to compare with."));
-        const keepId = s.comparison && s.activeScenarioId === s.comparison.replaceId ? s.comparison.keepId : s.activeScenarioId;
-        const keep = findScenario(s, keepId);
+        // You keep a life, not a swap: looking at a future that already ends in the other car, you compare the life it came from.
+        const looking = findScenario(s, s.activeScenarioId);
+        const keep = looking ? lifeOf(s, looking) : undefined;
         if (!keep) return fail(new Error("Nothing to compare yet."));
 
         const replace = sim.makeReplaceScenario(keep, replacement);
@@ -987,8 +1207,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           breakEven: null,
           breakEvenCheck: null,
           question: nextQuestion(next),
-          // You asked to compare, so the other futures appear on the road.
-          ui: { ...get().ui, busy: "idle", futureCompare: true },
+          ui: { ...get().ui, busy: "idle" },
         });
       } catch (e) {
         fail(e);
@@ -1018,7 +1237,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       // Each future is replaced by a new one with the terms added. Nothing is edited in place.
       const scenarios = s.explore.scenarios.map((sc) => ({ ...sc, assumptions: { ...sc.assumptions, ...assumptions } }));
       try {
-        recompute({ explore: { ...s.explore, scenarios }, error: null });
+        recompute({ explore: { ...s.explore, scenarios }, error: null, ...changed("terms") });
       } catch (e) {
         fail(e);
       }
@@ -1061,7 +1280,6 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           breakEvenCheck: decision.reproduceBreakEven(input, breakEven),
           ...verdictPatch(evaluateComparison(s, breakEven)),
           error: null,
-          ui: { ...s.ui, futureBreakEven: true },
         });
       } catch (e) {
         fail(e);
@@ -1071,22 +1289,104 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     // ---- timeline ----
     moveEvent(scenarioId, eventId, month) {
       const s = get();
-      const scenario = findScenario(s, scenarioId);
-      if (!scenario) return;
+      const picked = findScenario(s, scenarioId);
+      if (!picked) return;
       try {
-        const moved = sim.moveEvent(scenario, eventId, clampMonth(month));
-        recompute({ explore: { ...s.explore, scenarios: upsert(s.explore.scenarios, moved) } });
+        // Looking at the other car, a change to your life is still a change to your life: it is made where the life is kept.
+        const cmp = s.comparison;
+        const isSwap = picked.events.find((e) => e.id === eventId)?.type === "vehicle_replacement";
+        const home = cmp && scenarioId === cmp.replaceId && !isSwap ? (findScenario(s, cmp.keepId) ?? picked) : picked;
+        const moved = sim.moveEvent(home, eventId, clampMonth(month));
+        const at = moved.events.find((e) => e.id === eventId)?.month;
+        let scenarios = upsert(s.explore.scenarios, moved);
+        if (at !== undefined && !isSwap) scenarios = reachDescendants(scenarios, moved, eventId, at);
+        recompute({ explore: { ...s.explore, scenarios }, ...changed("move", [eventId]) });
       } catch (e) {
         fail(e);
       }
     },
 
     setActiveScenario(id) {
-      set((s) => activation(s, id));
+      // Looking at another future is a manual move: it stops playback, and the selected month stays where it is. A selected
+      // event that is not on the road of the future you moved to (it belonged to the life you left) is let go.
+      set((s) => {
+        const moved = activation(s, id);
+        const gone = s.selectedEventId !== null && eventMonthOf({ ...s, ...moved }, s.selectedEventId) === null;
+        return { ...moved, ...(gone ? { selectedEventId: null } : {}), ui: { ...s.ui, playing: false } };
+      });
+    },
+
+    selectEvent(id) {
+      set((s) => {
+        if (id === null) return { selectedEventId: null, ui: { ...s.ui, playing: false } };
+        // The event can be in the future you are looking at, or only in the other one (the swap).
+        const found = eventsOnTheRoad(s).find((e) => e.id === id);
+        if (!found) return s;
+        return { selectedEventId: id, activeMonth: clampMonth(found.month), ui: { ...s.ui, playing: false } };
+      });
+    },
+
+    play() {
+      set((s) => {
+        if (s.phase !== "workspace") return s;
+        // At the end it plays again from the start, rather than doing nothing.
+        return { activeMonth: s.activeMonth >= MONTH_MAX ? 0 : s.activeMonth, ui: { ...s.ui, playing: true, drawer: null } };
+      });
+    },
+
+    pause() {
+      set((s) => (s.ui.playing ? { ui: { ...s.ui, playing: false } } : s));
+    },
+
+    advanceMonth(m) {
+      set((s) => {
+        const month = clampMonth(m);
+        return { activeMonth: month, ...selectionAt(s, month), ui: month >= MONTH_MAX && s.ui.playing ? { ...s.ui, playing: false } : s.ui };
+      });
+    },
+
+    openDrawer(id) {
+      set((s) => ({ ui: { ...s.ui, drawer: id, playing: false } }));
+    },
+
+    closeDrawer() {
+      set((s) => (s.ui.drawer === null ? s : { ui: { ...s.ui, drawer: null } }));
+    },
+
+    selectFuture(id) {
+      const s = get();
+      const picked = findScenario(s, id);
+      if (!picked || !s.twin) return;
+      if (!s.comparison || !s.replacementVehicle) return actions.setActiveScenario(id);
+      actions.pause();
+      try {
+        // The comparison follows the life you picked: that life, and the same life with the swap.
+        const life = lifeOf(s, picked);
+        const replace = sim.makeReplaceScenario(life, s.replacementVehicle);
+        const explore: ExploreState = { ...s.explore, scenarios: upsert(upsert(s.explore.scenarios, life), replace) };
+        const comparison: Comparison = { keepId: life.id, replaceId: replace.id };
+        const next = { ...s, explore, comparison };
+        const results = { ...s.results, ...simulateAll(next, [life, replace]) };
+        set({
+          ...activation({ ...next, results }, life.id),
+          explore,
+          results,
+          comparison,
+          ...verdictPatch(evaluateComparison({ ...next, results })),
+          breakEven: null,
+          breakEvenCheck: null,
+        });
+      } catch (e) {
+        fail(e);
+      }
     },
 
     setActiveMonth(m) {
-      set({ activeMonth: clampMonth(m) });
+      // A manual move of the clock stops playback. The player moves it with advanceMonth instead.
+      set((s) => {
+        const month = clampMonth(m);
+        return { activeMonth: month, ...selectionAt(s, month), ui: s.ui.playing ? { ...s.ui, playing: false } : s.ui };
+      });
     },
 
     // ---- stage and ui plumbing ----
@@ -1150,35 +1450,15 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     setView(view) {
       set((s) => {
         if (view === "future" && s.phase !== "workspace") return s; // nothing to look ahead at yet
-        // The future page opens on the five year picture, not on a month with nothing in it.
-        const activeMonth = view === "future" && s.activeMonth === 0 ? MONTH_MAX : s.activeMonth;
-        return { activeMonth, ui: { ...s.ui, view, detailsOpen: false } };
+        // Changing page stops playback and closes any drawer.
+        const ui = { ...s.ui, view, detailsOpen: false, playing: false, drawer: null };
+        // The car on the car page is the car in the future you are looking at, at the month you are looking at.
+        return { ui, ...(view === "car" ? stageFollowsMonth(s) ?? {} : {}) };
       });
     },
 
     setDetailsOpen(open) {
       set((s) => ({ ui: { ...s.ui, detailsOpen: open } }));
-    },
-
-    setFutureDetails(on) {
-      set((s) => ({ ui: { ...s.ui, futureDetails: on } }));
-    },
-
-    setFutureCompare(on) {
-      set((s) => ({ ui: { ...s.ui, futureCompare: on } }));
-    },
-
-    setFutureWhy(on) {
-      set((s) => ({ ui: { ...s.ui, futureWhy: on } }));
-    },
-
-    setFutureTerms(on) {
-      set((s) => ({ ui: { ...s.ui, futureTerms: on } }));
-    },
-
-    setFutureBreakEven(on) {
-      if (on && !get().breakEven) return actions.runBreakEven("annualMiles"); // it turns the view on itself
-      set((s) => ({ ui: { ...s.ui, futureBreakEven: on } }));
     },
 
     setLowPerformance(on) {
@@ -1202,11 +1482,20 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     replayReveal() {
-      set((s) =>
-        s.twin
-          ? { phase: "reveal", stage: { ...s.stage, phase: "reveal", transitionTo: null, revealStage: null, replaySignal: s.stage.replaySignal + 1 } }
-          : s,
-      );
+      set((s) => {
+        if (!s.twin) return s;
+        // The reveal replays the car of the future you are looking at, as it is at the month you are looking at (the owned
+        // car before the swap, the replacement from it on). A morph still going is dropped, so the car it was heading for
+        // is the one shown, not the one it had not yet left. Replaying stops playback and puts any drawer away.
+        const scenario = findScenario(s, s.activeScenarioId);
+        const target = scenario ? vehicleAtMonth(scenario, s.twin, s.activeMonth) : s.activeVehicleId;
+        return {
+          phase: "reveal",
+          activeVehicleId: vehicleById(s, target) ? target : s.activeVehicleId,
+          stage: { ...s.stage, phase: "reveal", transitionTo: null, revealStage: null, replaySignal: s.stage.replaySignal + 1 },
+          ui: { ...s.ui, playing: false, drawer: null },
+        };
+      });
     },
 
     onRevealStage(stage) {

@@ -1,4 +1,5 @@
 import type { Source } from "@/contracts";
+import { customerText } from "@/ui/profile/customerText";
 import { SourceBadge } from "@/ui/profile/SourceBadge";
 import type { Explanation } from "@/ui/store/useForkStore";
 
@@ -24,7 +25,7 @@ export function WhyPanel({ explanation, rationale, source }: WhyPanelProps) {
       {aiSummary ? (
         <>
           <p data-testid="why-summary" className="text-base leading-7 text-ink">
-            {aiSummary.text}
+            {customerText(aiSummary.text)}
           </p>
           <p data-testid="why-origin" className="mt-2 text-xs text-ink/40">
             Written by AI from the engine&apos;s numbers. It was given computed values only.
@@ -41,7 +42,7 @@ export function WhyPanel({ explanation, rationale, source }: WhyPanelProps) {
       </div>
       <ul className="mt-2 space-y-1.5 text-sm leading-6 text-ink/60">
         {rationale.map((line) => (
-          <li key={line}>{line}</li>
+          <li key={line}>{customerText(line)}</li>
         ))}
       </ul>
     </section>

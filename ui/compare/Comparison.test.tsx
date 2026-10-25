@@ -1,11 +1,20 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RecommendationContent } from "@/ui/journey/RecommendationContent";
+import { useJourney } from "@/ui/journey/useJourney";
 import { ai, data } from "@/ui/mocks";
 import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
-import { ComparisonSection } from "./ComparisonSection";
+import { ComparisonChange, TermsSection } from "./ComparisonSection";
+import { robustnessLine, verdictHeadline } from "./Verdict";
 
 const state = () => useForkStore.getState();
 const actions = () => useForkStore.getState().actions;
+
+/** The body of the recommendation drawer, on the real store. */
+function Recommendation() {
+  const journey = useJourney();
+  return journey ? <RecommendationContent journey={journey} /> : null;
+}
 
 /** The demo, end to end with no AI: the sentence, the offline rules, the confirm, the comparison. */
 async function demoToComparison() {
@@ -28,8 +37,8 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("nothing to show before you compare", () => {
-  it("renders nothing", () => {
-    const { container } = render(<ComparisonSection />);
+  it("the break-even part renders nothing", () => {
+    const { container } = render(<ComparisonChange />);
     expect(container).toBeEmptyDOMElement();
   });
 });
@@ -37,11 +46,22 @@ describe("nothing to show before you compare", () => {
 describe("demo story A on screen", () => {
   it("step 4: a close call, said plainly, with the robustness count and a next step", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Close call");
-    expect(screen.getByTestId("verdict")).toHaveTextContent("Neither car clearly leads on your priorities.");
-    expect(screen.getByTestId("verdict-robustness")).toHaveTextContent("Held in 9 of 9 tested cases");
-    expect(screen.getByTestId("next-step")).toBeInTheDocument();
+    const { evaluation, comparison, twin, replacementVehicle } = state();
+    expect(
+      verdictHeadline({
+        evaluation: evaluation!,
+        keepId: comparison!.keepId,
+        replaceId: comparison!.replaceId,
+        keepModel: twin!.vehicle.model,
+        replaceModel: replacementVehicle!.model,
+      }),
+    ).toEqual({ headline: "Close call", line: "Neither car clearly leads on your priorities." });
+    expect(robustnessLine(evaluation!)).toBe("Held in 9 of 9 tested cases");
+    expect(evaluation!.nextAction.label.length).toBeGreaterThan(0);
+
+    render(<Recommendation />);
+    expect(screen.getByTestId("recommendation-line")).toHaveTextContent("Neither car clearly leads on your priorities.");
+    expect(screen.getByTestId("recommendation-robustness")).toHaveTextContent("Held in 9 of 9 tested cases");
     expect(screen.queryByText("Inconclusive")).toBeNull(); // the engine's word, not ours
   });
 
@@ -56,7 +76,7 @@ describe("demo story A on screen", () => {
 
   it("step 5: 'what would change it' shows the threshold, where you are, and both sides of it", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
+    render(<ComparisonChange />);
     expect(screen.queryByTestId("break-even")).toBeNull(); // nothing until it is asked for
 
     await act(async () => {
@@ -80,80 +100,51 @@ describe("demo story A on screen", () => {
 
   it("step 6: the next step names the threshold", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
     await act(async () => {
       state().actions.runBreakEven("annualMiles");
     });
-    expect(screen.getByTestId("next-step-label")).toHaveTextContent("Reevaluate if your driving drops below 14,434 mi/yr");
-    expect(screen.getByTestId("next-step")).toHaveTextContent(/modeled break-even/i);
+    const next = state().evaluation!.nextAction;
+    expect(next.label).toBe("Reevaluate if your driving drops below 14,434 mi/yr");
+    expect(`${next.label} ${next.detail}`).toMatch(/modeled break-even/i);
+    // the page the person reads leads with it
+    render(<Recommendation />);
+    expect(screen.getByTestId("break-even-headline")).toHaveTextContent("14,434 mi/yr");
   });
 
-  it("the toggle runs the break-even the first time, and hides and shows it after that", async () => {
+  it("the recommendation's button runs the break-even for real, and hides nothing it already ran", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    const toggle = screen.getByRole("button", { name: "What would change it" });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-
-    fireEvent.click(toggle);
+    render(<Recommendation />);
+    expect(screen.queryByTestId("break-even")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show what would change it" }));
     expect(state().breakEven).not.toBeNull();
     expect(screen.getByTestId("break-even")).toBeInTheDocument();
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-
-    fireEvent.click(toggle);
-    expect(screen.queryByTestId("break-even")).toBeNull();
-    expect(state().breakEven).not.toBeNull(); // hidden, not thrown away
-    fireEvent.click(toggle);
-    expect(screen.getByTestId("break-even")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show what would change it" })).toBeNull();
   });
 
-  it("what you open scrolls into view, so it never opens out of sight under the road", async () => {
-    const scrolls: string[] = [];
-    Element.prototype.scrollIntoView = function (this: Element) {
-      scrolls.push(this.querySelector("[data-testid]")?.getAttribute("data-testid") ?? "?");
-    };
-    try {
-      await demoToComparison();
-      render(<ComparisonSection />);
-      fireEvent.click(screen.getByRole("button", { name: "What would change it" }));
-      expect(scrolls).toEqual(["break-even"]);
-      fireEvent.click(screen.getByRole("button", { name: "Why" }));
-      expect(scrolls).toEqual(["break-even", "why"]);
-      // closing and reopening scrolls again; a plain re-render does not
-      fireEvent.click(screen.getByRole("button", { name: "Why" }));
-      fireEvent.click(screen.getByRole("button", { name: "Why" }));
-      expect(scrolls).toEqual(["break-even", "why", "why"]);
-    } finally {
-      // @ts-expect-error jsdom has no scrollIntoView; remove what this test added
-      delete Element.prototype.scrollIntoView;
-    }
-  });
-
-  it("every number on the page sits next to a source label, and none is missing one", async () => {
+  it("every number in the recommendation sits next to a source label, and none is missing one", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "What would change it" }));
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
-    const section = screen.getByTestId("comparison");
-    expect(section.querySelectorAll("[data-source]").length).toBeGreaterThanOrEqual(5);
-    expect(section.querySelector('[data-source="none"]')).toBeNull();
+    act(() => actions().runBreakEven("annualMiles"));
+    render(<Recommendation />);
+    const body = screen.getByTestId("recommendation-content");
+    expect(body.querySelectorAll("[data-source]").length).toBeGreaterThanOrEqual(5);
+    expect(body.querySelector('[data-source="none"]')).toBeNull();
   });
 
   it("never shows a probability or a confidence", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "What would change it" }));
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
-    expect(screen.getByTestId("comparison").textContent).not.toMatch(/\d\s?%|probab|confiden|likel/i);
+    act(() => actions().runBreakEven("annualMiles"));
+    render(<Recommendation />);
+    expect(screen.getByTestId("recommendation-content").textContent).not.toMatch(/\d\s?%|probab|confiden|likel/i);
   });
 
   it("changing an input takes the old threshold away instead of showing a stale one", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "What would change it" }));
+    render(<ComparisonChange />);
+    act(() => actions().runBreakEven("annualMiles"));
     expect(screen.getByTestId("break-even")).toBeInTheDocument();
     act(() => actions().answerQuestion("annualMiles", 16000));
     expect(screen.queryByTestId("break-even")).toBeNull();
-    expect(screen.getByRole("button", { name: "What would change it" })).toHaveAttribute("aria-pressed", "false");
+    expect(state().breakEven).toBeNull();
   });
 });
 
@@ -162,8 +153,7 @@ describe("the Why panel", () => {
     await demoToComparison();
     vi.mocked(ai.explain).mockResolvedValue({ text: "Keeping and replacing are close.", usedFallback: false });
     act(() => actions().setAssumption("insurancePerMonth", 140)); // new numbers, so new words are asked for
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    render(<Recommendation />);
     expect(await screen.findByTestId("why-summary")).toHaveTextContent("Keeping and replacing are close.");
     expect(screen.getByTestId("why-origin")).toHaveTextContent("Written by AI");
     expect(screen.getByTestId("why-origin")).toHaveTextContent("computed values only");
@@ -173,8 +163,7 @@ describe("the Why panel", () => {
     await demoToComparison();
     vi.mocked(ai.explain).mockResolvedValue({ text: "Template text that repeats every engine line.", usedFallback: true });
     act(() => actions().setAssumption("insurancePerMonth", 140));
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    render(<Recommendation />);
     await vi.waitFor(() => expect(state().explanation?.usedFallback).toBe(true));
     expect(screen.queryByTestId("why-summary")).toBeNull();
     expect(screen.queryByText(/Template text/)).toBeNull();
@@ -183,8 +172,7 @@ describe("the Why panel", () => {
 
   it("still shows the engine's own lines when no summary could be written", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    render(<Recommendation />);
     expect(screen.queryByTestId("why-summary")).toBeNull();
     expect(screen.getByTestId("why")).toHaveTextContent(/Net economic cost over 60 months/);
     expect(screen.getByTestId("why").querySelectorAll("li").length).toBeGreaterThanOrEqual(5);
@@ -198,8 +186,7 @@ describe("when nothing flips", () => {
       breakEven: { found: false, parameter: "annualMiles", reason: "no_threshold_within_bounds", testedBounds: [5000, 40000] },
       breakEvenCheck: null,
     });
-    useForkStore.setState((s) => ({ ui: { ...s.ui, futureBreakEven: true } }));
-    render(<ComparisonSection />);
+    render(<ComparisonChange />);
     expect(screen.getByTestId("break-even-headline")).toHaveTextContent("Nothing between 5,000 mi/yr and 40,000 mi/yr changes the answer");
     expect(screen.queryByTestId("break-even-track")).toBeNull();
     expect(screen.queryAllByTestId("break-even-row")).toHaveLength(0);
@@ -208,12 +195,10 @@ describe("when nothing flips", () => {
 
 describe("editing the purchase and insurance terms, through the real comparison", () => {
   const netAt60 = (id: string) => useForkStore.getState().results[id].points.find((p) => p.month === 60)!.netEconomicCost;
-  const open = () => fireEvent.click(screen.getByRole("button", { name: "Edit terms" }));
 
   it("shows what the sim is really using now, with its own labels, and a down payment above the price in use is refused", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    open();
+    render(<TermsSection />);
     const form = screen.getByTestId("terms-review");
     expect(form).toHaveTextContent(/Now \$130 a month/); // insurance, from the sim's own report
     expect(form).toHaveTextContent(/Now 60 months/);
@@ -225,12 +210,11 @@ describe("editing the purchase and insurance terms, through the real comparison"
 
   it("nothing changes until the confirm; then every future carries the terms and the numbers move", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
+    render(<TermsSection />);
     const { keepId, replaceId } = useForkStore.getState().comparison!;
     const before = { keep: netAt60(keepId), replace: netAt60(replaceId) };
     const profileBefore = structuredClone(useForkStore.getState().explore.confirmedProfile);
 
-    open();
     fireEvent.change(screen.getByLabelText(/Insurance per month/), { target: { value: "400" } });
     fireEvent.change(screen.getByLabelText(/Replacement purchase price/), { target: { value: "45000" } });
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
@@ -250,10 +234,9 @@ describe("editing the purchase and insurance terms, through the real comparison"
 
   it("back to estimates puts the numbers back where they were", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
+    render(<TermsSection />);
     const { keepId } = useForkStore.getState().comparison!;
     const before = netAt60(keepId);
-    open();
     fireEvent.change(screen.getByLabelText(/Insurance per month/), { target: { value: "400" } });
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
@@ -265,14 +248,21 @@ describe("editing the purchase and insurance terms, through the real comparison"
 
   it("changing the terms clears a stale threshold and re-runs the verdict", async () => {
     await demoToComparison();
-    render(<ComparisonSection />);
-    fireEvent.click(screen.getByRole("button", { name: "What would change it" }));
+    render(
+      <>
+        <ComparisonChange />
+        <TermsSection />
+      </>,
+    );
+    act(() => actions().runBreakEven("annualMiles"));
     expect(screen.getByTestId("break-even")).toBeInTheDocument();
-    open();
+    const verdictBefore = state().evaluation;
     fireEvent.change(screen.getByLabelText(/Insurance per month/), { target: { value: "400" } });
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     expect(screen.queryByTestId("break-even")).toBeNull(); // the old threshold was about the old numbers
-    expect(screen.getByTestId("verdict")).toBeInTheDocument();
+    expect(state().breakEven).toBeNull();
+    expect(state().evaluation).not.toBeNull();
+    expect(state().evaluation).not.toBe(verdictBefore); // it was worked out again on the new terms
   });
 });

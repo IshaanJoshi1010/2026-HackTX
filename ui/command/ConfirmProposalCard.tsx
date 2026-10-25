@@ -3,7 +3,7 @@
 import { GitBranch, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/ui/profile/format";
-import { eventTitle } from "@/ui/store/eventLabels";
+import { eventDetail, eventTitle } from "@/ui/store/eventLabels";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 export interface ConfirmProposalCardProps {
@@ -50,9 +50,10 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
             data-testid={`draft-row-${draft.id}`}
             className="flex items-center justify-between gap-3 rounded-lg border border-line bg-ink/[0.03] px-3 py-2 text-xs"
           >
-            <div className="flex-1 truncate">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="font-medium text-ink">{eventTitle(draft)}</span>
+                {eventDetail(draft) && <span className="text-ink/60">{eventDetail(draft)}</span>}
                 <span className="rounded bg-ink/10 px-1.5 py-0.5 text-[10px] text-ink/60 tabular-nums">
                   {monthLabel(draft.month)}
                 </span>
@@ -66,6 +67,14 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
                 <p className="mt-0.5 text-[11px] italic text-ink/50 truncate">
                   &ldquo;{draft.quote}&rdquo;
                 </p>
+              )}
+              {/* What Fork had to assume, said before you confirm it, so nothing counts on a guess you could not see. */}
+              {draft.assumptions.length > 0 && (
+                <ul data-testid="draft-assumptions" className="mt-1 whitespace-normal text-[11px] leading-4 text-ink/60">
+                  {draft.assumptions.map((a) => (
+                    <li key={a}>{a}</li>
+                  ))}
+                </ul>
               )}
             </div>
 

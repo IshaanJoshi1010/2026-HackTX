@@ -2,15 +2,15 @@ import type { Source } from "@/contracts";
 
 /**
  * Visible labels for the six contract `Source` values.
- * illustrative and synthetic both read "demo data"; the tooltip tells them apart.
+ * illustrative and synthetic both read "illustrative"; the tooltip tells them apart.
  * sourced (EPA, NHTSA) stays separate from listing (a dealer listing snapshot).
  */
-export type SourceVariant = "user" | "estimated" | "demo" | "listing" | "sourced";
+export type SourceVariant = "user" | "estimated" | "illustrative" | "listing" | "sourced";
 
 export const VARIANT_LABEL: Record<SourceVariant, string> = {
   user: "your input",
   estimated: "estimated",
-  demo: "demo data",
+  illustrative: "illustrative",
   listing: "listing",
   sourced: "sourced",
 };
@@ -18,8 +18,8 @@ export const VARIANT_LABEL: Record<SourceVariant, string> = {
 const VARIANT_OF: Record<Source, SourceVariant> = {
   user: "user",
   estimated: "estimated",
-  illustrative: "demo",
-  synthetic: "demo",
+  illustrative: "illustrative",
+  synthetic: "illustrative",
   listing: "listing",
   sourced: "sourced",
 };
@@ -27,10 +27,10 @@ const VARIANT_OF: Record<Source, SourceVariant> = {
 export const SOURCE_DETAIL: Record<Source, string> = {
   user: "You told us this.",
   estimated: "A labeled default. Tap to replace it with your number.",
-  illustrative: "Placeholder value for the demo. Not a verified figure.",
-  synthetic: "Made-up demo persona data. Not a real account.",
+  illustrative: "An illustrative figure. Not a verified one.",
+  synthetic: "An example figure. Not from a real account.",
   listing: "From a public listing snapshot.",
-  sourced: "From a public dataset such as EPA fuel economy.",
+  sourced: "From a public source such as EPA fuel economy.",
 };
 
 export function variantOf(source: Source): SourceVariant {

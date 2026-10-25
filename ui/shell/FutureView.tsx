@@ -1,103 +1,76 @@
 "use client";
 
-import { useMemo } from "react";
-import { data } from "@/ui/mocks";
-import { monthLabel, usd } from "@/ui/profile/format";
-import { metricSource } from "@/ui/profile/metricSources";
-import { Stat } from "@/ui/profile/Stat";
-import { selectActivePoint, selectActiveResult, selectActiveScenario, specsFor } from "@/ui/store/selectors";
+import { ExplainContent } from "@/ui/journey/ExplainContent";
+import { EventCard } from "@/ui/journey/EventCard";
+import { JourneyDrawers } from "@/ui/journey/JourneyDrawers";
+import { JourneyHeader } from "@/ui/journey/JourneyHeader";
+import { JourneyTimeline } from "@/ui/journey/JourneyTimeline";
+import { Scrubber } from "@/ui/journey/Scrubber";
+import { useEventImpact } from "@/ui/journey/useEventImpact";
+import { useJourney, useJourneyActions } from "@/ui/journey/useJourney";
+import { usePlayback } from "@/ui/journey/usePlayback";
 import { useForkStore } from "@/ui/store/useForkStore";
-import { Road } from "@/ui/timeline/Road";
-import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict } from "@/ui/compare/ComparisonSection";
-import { Toggle } from "@/ui/compare/Toggle";
-import { FutureDetails } from "./FutureDetails";
+import { FutureSelector } from "./FutureSelector";
 
 /**
- * The second page: your road. One headline number, the road itself, and three quiet
- * options. Details and the other futures are there when you want them, not before.
+ * The second page: your next five years as one interactive road. Everything on it reads the same clock (the selected
+ * month) and the same scenario state, through one Journey:
+ *   the recommendation and what it costs, the road with both futures, a scrubber with play, and one compact explanation
+ *   of the selected moment. Costs over time, the reasoning and the inputs are each one deliberate click away.
+ * The chat composer sits below this page (Workspace gives it room), so it never covers the road.
  */
 export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
-  const twin = useForkStore((s) => s.twin);
-  const month = useForkStore((s) => s.activeMonth);
-  const profile = useForkStore((s) => s.explore.confirmedProfile);
-  const scenarios = useForkStore((s) => s.explore.scenarios);
-  const evaluation = useForkStore((s) => s.evaluation);
-  const busy = useForkStore((s) => s.ui.busy);
-  const details = useForkStore((s) => s.ui.futureDetails);
-  const compare = useForkStore((s) => s.ui.futureCompare);
-  const scenario = useForkStore(selectActiveScenario);
-  const result = useForkStore(selectActiveResult);
-  const point = useForkStore(selectActivePoint);
-  const { openReplaceComparison, setFutureDetails, setFutureCompare } = useForkStore((s) => s.actions);
-  const samples = useMemo(() => data.listSampleVehicles(), []);
+  const journey = useJourney();
+  const go = useJourneyActions();
+  const playing = useForkStore((s) => s.ui.playing);
+  const reducedMotion = useForkStore((s) => s.ui.reducedMotion);
+  const nextActionLabel = useForkStore((s) => s.evaluation?.nextAction.label ?? "");
+  const play = useForkStore((s) => s.actions.play);
+  const pause = useForkStore((s) => s.actions.pause);
 
-  const other = twin ? samples.find((v) => v.id !== twin.vehicle.id) : undefined;
-  const spec = point ? specsFor(point.vehicleId) : null;
-  const futuresCount = scenarios.length - 1;
+  // The player moves the one clock; it never starts by itself.
+  usePlayback(journey?.stops ?? []);
+  const impact = useEventImpact(journey?.selectedEventId ?? null, { future: journey?.selectedFuture });
+
+  if (!journey) return null;
 
   return (
     <>
-      {/* Content slides away under a soft fade, not under the header and the mock-mode pill. */}
+      {/* Content slides away under a soft fade, not under the header. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-[11] h-20 bg-gradient-to-b from-black via-black/80 to-transparent" />
       <div
         data-testid="future-view"
         style={{ bottom: bottomInset }}
-        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(3.5rem,8vh,6rem)]"
+        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[clamp(1rem,4vw,3rem)] pb-8 pt-[clamp(3.5rem,8vh,5.5rem)]"
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1rem,3vh,2.5rem)]">
-          <header className="text-center">
-            {/* Once you compare, the road names each future itself, so the name is not said twice. */}
-            {!evaluation && (
-              <p data-testid="future-name" className="mb-2 text-base text-ink/60">
-                {scenario?.name}
-              </p>
-            )}
-            {evaluation ? (
-              // Once you compare, the answer is the headline. The road still carries the cost at the playhead.
-              <ComparisonVerdict />
-            ) : point ? (
-              <Stat
-                size="lg"
-                label={`Net cost, ${monthLabel(month)}`}
-                value={usd(point.netEconomicCost)}
-                source={metricSource("netEconomicCost", profile, spec)}
-              />
-            ) : (
-              <p className="text-lg text-ink/50">{month === 0 ? "Today. Net cost counts from here." : "No projection for this month"}</p>
-            )}
-          </header>
+        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5">
+          <JourneyHeader
+            journey={journey}
+            nextActionLabel={nextActionLabel}
+            onOpenRecommendation={() => go.openDrawer("recommendation")}
+            onOpenCosts={() => go.openDrawer("costs")}
+            onCompare={go.compare}
+          />
 
-          <Road compact={evaluation !== null} />
+          {/* Only when you have made more than one life to look at. */}
+          <FutureSelector className="self-end" />
 
-          <ComparisonNextStep />
+          <JourneyTimeline
+            journey={journey}
+            reducedMotion={reducedMotion}
+            onScrub={go.scrub}
+            onSelectEvent={go.selectEvent}
+            onSelectFuture={go.selectFuture}
+            onCompare={go.compare}
+          />
 
-          <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
-            <Toggle pressed={details} onClick={() => setFutureDetails(!details)}>
-              Details
-            </Toggle>
-            {futuresCount > 0 && (
-              <Toggle pressed={compare} onClick={() => setFutureCompare(!compare)}>
-                Other futures ({futuresCount})
-              </Toggle>
-            )}
-            {!evaluation && other && (
-              <button
-                type="button"
-                onClick={() => void openReplaceComparison()}
-                disabled={busy !== "idle" || !result}
-                className="border-b border-transparent pb-0.5 text-sm text-ink/55 transition-colors hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
-              >
-                Compare with a {other.year} {other.model}
-              </button>
-            )}
-            <ComparisonToggles />
-          </div>
+          <Scrubber journey={journey} playing={playing} onScrub={go.scrub} onTogglePlay={() => (playing ? pause() : play())} />
 
-          {details && <FutureDetails />}
-
-          <ComparisonMore />
+          <EventCard journey={journey} impact={impact} onExplain={() => go.openDrawer("explain")} />
         </div>
       </div>
+
+      <JourneyDrawers journey={journey} explain={<ExplainContent journey={journey} impact={impact} />} />
     </>
   );
 }

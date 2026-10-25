@@ -70,3 +70,10 @@ export function decisionEffects({ scenario, result, month, simulate }: EffectInp
   }
   return out;
 }
+
+/** Plain words for a cost difference. Under a dollar counts as no change. */
+export function effectPhrase(delta: number, usd: (n: number) => string): string {
+  const r = Math.round(delta);
+  if (r === 0) return "No change in cost";
+  return r > 0 ? `Adds ${usd(r)}` : `Saves ${usd(-r)}`;
+}
