@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { data } from "@/ui/mocks";
 import { useForkStore, type DumpOutcome } from "@/ui/store/useForkStore";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
 import { ConfirmedCard } from "./ConfirmedCard";
 import { InlineQuestionCard } from "./InlineQuestionCard";
 import { ManualEventForm } from "./ManualEventForm";
-import { StarterChips } from "./StarterChips";
+import { StarterChips, starterPrompt } from "./StarterChips";
 import { VoiceButton } from "./VoiceButton";
 
 const NOTHING_FOUND =
@@ -32,6 +33,9 @@ export function CommandBox({ className }: CommandBoxProps) {
   const drafts = useForkStore((s) => s.explore.draftChanges);
   const question = useForkStore((s) => s.question);
   const futures = useForkStore((s) => s.explore.scenarios.length);
+  const twin = useForkStore((s) => s.twin);
+  const evaluation = useForkStore((s) => s.evaluation);
+  const samples = useMemo(() => data.listSampleVehicles(), []);
   const lastDump = useForkStore((s) => s.lastDump);
   const receipt = useForkStore((s) => s.receipt);
   const { submitDump, retryDump, setView } = useForkStore((s) => s.actions);
@@ -180,7 +184,13 @@ export function CommandBox({ className }: CommandBoxProps) {
           {notice}
         </p>
       ) : (
-        futures <= 1 && !hasDrafts && !text && <StarterChips onSelect={handleSeed} disabled={isInterpreting} />
+        !hasDrafts && twin && (
+          <StarterChips
+            prompt={starterPrompt({ futures, compared: evaluation !== null, current: twin.vehicle, other: samples.find((v) => v.id !== twin.vehicle.id) })}
+            onSelect={handleSeed}
+            disabled={isInterpreting}
+          />
+        )
       )}
     </div>
   );

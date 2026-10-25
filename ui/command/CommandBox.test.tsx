@@ -145,13 +145,13 @@ describe("CommandBox", () => {
     expect(useForkStore.getState().ui.view).toBe("future");
   });
 
-  it("hides the suggestion once there is more than the baseline", () => {
+  it("keeps the suggestion once there is more than the baseline, and moves on to the next question", () => {
     act(() => {
       useForkStore.getState().actions.addDraft(sampleProposal);
       useForkStore.getState().actions.confirmDrafts(["test-prop-1"]);
     });
     render(<CommandBox />);
-    expect(screen.queryByRole("button", { name: /try:/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /try:/i })).toHaveTextContent("Would switching to a RAV4 Hybrid make more sense?");
   });
 });
 

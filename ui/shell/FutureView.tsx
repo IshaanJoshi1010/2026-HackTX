@@ -12,6 +12,10 @@ import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdic
 import { Toggle } from "@/ui/compare/Toggle";
 import { FutureDetails } from "./FutureDetails";
 
+/** What "Net cost" means, in the words the accounting in sim/ECONOMICS.md uses, with no number in it. */
+export const NET_COST_DEFINITION =
+  "Net cost is what the car costs you from today: fuel, upkeep, insurance and financing costs, plus the value it loses, minus anything you get back from selling it.";
+
 /**
  * The second page: your road. One headline number, the road itself, and three quiet
  * options. Details and the other futures are there when you want them, not before.
@@ -56,12 +60,17 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
               // Once you compare, the answer is the headline. The road still carries the cost at the playhead.
               <ComparisonVerdict />
             ) : point ? (
-              <Stat
-                size="lg"
-                label={`Net cost, ${monthLabel(month)}`}
-                value={usd(point.netEconomicCost)}
-                source={metricSource("netEconomicCost", profile, spec)}
-              />
+              <>
+                <Stat
+                  size="lg"
+                  label={`Net cost, ${monthLabel(month)}`}
+                  value={usd(point.netEconomicCost)}
+                  source={metricSource("netEconomicCost", profile, spec)}
+                />
+                <p data-testid="net-cost-definition" className="mx-auto mt-3 max-w-md text-xs leading-5 text-ink/60">
+                  {NET_COST_DEFINITION}
+                </p>
+              </>
             ) : (
               <p className="text-lg text-ink/50">{month === 0 ? "Today. Net cost counts from here." : "No projection for this month"}</p>
             )}

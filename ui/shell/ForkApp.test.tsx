@@ -159,6 +159,26 @@ describe("the future page", () => {
     expect(screen.getByRole("slider", { name: "Month" })).toHaveAttribute("aria-valuetext", "5 yr");
   });
 
+  it("says what Net cost means, right under the number, in words with no number in them", async () => {
+    await enterWorkspace();
+    goFuture();
+    const def = screen.getByTestId("net-cost-definition");
+    expect(def).toHaveTextContent("Net cost is what the car costs you from today");
+    expect(def).toHaveTextContent("fuel, upkeep, insurance and financing costs");
+    expect(def).toHaveTextContent("minus anything you get back from selling it");
+    expect(def.textContent).not.toMatch(/\d|\u2014/);
+    // under the headline stat, not somewhere else
+    expect(stats()[0].compareDocumentPosition(def) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not repeat the definition once the verdict is the headline", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
+    await advance(0);
+    expect(screen.queryByTestId("net-cost-definition")).toBeNull();
+  });
+
   it("is minimal by default: the headline, the road, and quiet options. Nothing else.", async () => {
     await enterWorkspace();
     goFuture();
