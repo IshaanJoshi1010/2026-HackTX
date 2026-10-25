@@ -1,43 +1,31 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { data } from "@/ui/mocks";
-import { monthLabel, usd } from "@/ui/profile/format";
-import { metricSource } from "@/ui/profile/metricSources";
-import { Stat } from "@/ui/profile/Stat";
-import { selectActivePoint, selectActiveResult, selectActiveScenario, specsFor } from "@/ui/store/selectors";
-import { useForkStore } from "@/ui/store/useForkStore";
-import { Road } from "@/ui/timeline/Road";
 import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict } from "@/ui/compare/ComparisonSection";
 import { Toggle } from "@/ui/compare/Toggle";
+import { selectActiveScenario } from "@/ui/store/selectors";
+import { useForkStore } from "@/ui/store/useForkStore";
+import { Road } from "@/ui/timeline/Road";
+import { WindingTimeline } from "@/ui/timeline/WindingTimeline";
 import { FutureDetails } from "./FutureDetails";
 import { IconButton } from "./IconButton";
 
 /**
- * The second page: your road. One headline number, the road itself, and three quiet
- * options. Details and the other futures are there when you want them, not before.
+ * The second page: your next five years as a winding path. One step for each thing you told Fork, then a fork where you
+ * choose; tap a step for what it does. The recommendation sits beside the heading once you compare. The month by month
+ * cost, the other futures and the supporting numbers are one option away, not on the page until asked.
  */
 export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
-  const twin = useForkStore((s) => s.twin);
-  const month = useForkStore((s) => s.activeMonth);
-  const profile = useForkStore((s) => s.explore.confirmedProfile);
   const scenarios = useForkStore((s) => s.explore.scenarios);
   const evaluation = useForkStore((s) => s.evaluation);
-  const busy = useForkStore((s) => s.ui.busy);
   const details = useForkStore((s) => s.ui.futureDetails);
   const compare = useForkStore((s) => s.ui.futureCompare);
   const expanded = useForkStore((s) => s.ui.futureExpanded);
   const detailsOpen = useForkStore((s) => s.ui.detailsOpen);
   const scenario = useForkStore(selectActiveScenario);
-  const result = useForkStore(selectActiveResult);
-  const point = useForkStore(selectActivePoint);
-  const { openReplaceComparison, setFutureDetails, setFutureCompare, setFutureExpanded } = useForkStore((s) => s.actions);
-  const samples = useMemo(() => data.listSampleVehicles(), []);
+  const { setFutureDetails, setFutureCompare, setFutureExpanded } = useForkStore((s) => s.actions);
 
-  const other = twin ? samples.find((v) => v.id !== twin.vehicle.id) : undefined;
-  const spec = point ? specsFor(point.vehicleId) : null;
   const futuresCount = scenarios.length - 1;
 
   // Escape closes the expanded timeline, unless the details sheet is up: that one takes Escape first.
@@ -50,17 +38,6 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded, detailsOpen, setFutureExpanded]);
 
-  const expandButton = (
-    <IconButton
-      label={expanded ? "Collapse timeline" : "Expand timeline"}
-      aria-expanded={expanded}
-      data-testid="expand-timeline"
-      onClick={() => setFutureExpanded(!expanded)}
-    >
-      {expanded ? <Minimize2 /> : <Maximize2 />}
-    </IconButton>
-  );
-
   return (
     <>
       {/* Content slides away under a soft fade, not under the header and the mock-mode pill. */}
@@ -70,78 +47,70 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
         style={{ bottom: bottomInset }}
         className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(3.5rem,8vh,6rem)]"
       >
-        <div className={cn("mx-auto flex w-full flex-col gap-[clamp(1rem,3vh,2.5rem)]", expanded ? "max-w-[1500px]" : "max-w-6xl")}>
-          {/* Expanded: the timeline and nothing else around it. The cost at the playhead is on the road itself. */}
-          {expanded && (
-            <div className="flex items-center justify-between gap-4">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1.25rem,3vh,2.25rem)]">
+          <div className="flex items-center justify-between gap-4">
+            {expanded ? (
               <p data-testid="expanded-title" className="text-base text-ink/60">
                 {evaluation ? "Your options over five years" : scenario?.name}
               </p>
-              <div className="flex items-center gap-6">
-                {futuresCount > 0 && (
-                  <Toggle pressed={compare} onClick={() => setFutureCompare(!compare)}>
-                    Other futures ({futuresCount})
-                  </Toggle>
-                )}
-                {expandButton}
-              </div>
-            </div>
-          )}
-
-          {!expanded && (
-          <header className="text-center">
-            {/* Once you compare, the road names each future itself, so the name is not said twice. */}
-            {!evaluation && (
-              <p data-testid="future-name" className="mb-2 text-base text-ink/60">
-                {scenario?.name}
+            ) : (
+              <p data-testid="future-kicker" className="text-sm text-ink/60">
+                Your next five years
               </p>
             )}
-            {evaluation ? (
-              // Once you compare, the answer is the headline. The road still carries the cost at the playhead.
-              <ComparisonVerdict />
-            ) : point ? (
-              <Stat
-                size="lg"
-                label={`Net cost, ${monthLabel(month)}`}
-                value={usd(point.netEconomicCost)}
-                source={metricSource("netEconomicCost", profile, spec)}
-              />
-            ) : (
-              <p className="text-lg text-ink/50">{month === 0 ? "Today. Net cost counts from here." : "No projection for this month"}</p>
-            )}
-          </header>
+            <IconButton
+              label={expanded ? "Collapse timeline" : "Expand timeline"}
+              aria-expanded={expanded}
+              data-testid="expand-timeline"
+              onClick={() => setFutureExpanded(!expanded)}
+            >
+              {expanded ? <Minimize2 /> : <Maximize2 />}
+            </IconButton>
+          </div>
+
+          {!expanded && (
+            <header className="grid gap-x-10 gap-y-6 md:grid-cols-[1fr_auto] md:items-end">
+              <div>
+                <h1 data-testid="future-heading" className="text-[clamp(34px,6vh,56px)] leading-none font-medium tracking-tight text-ink">
+                  Life takes turns.
+                </h1>
+                <p data-testid="future-subline" className="mt-3 text-base text-ink/60">
+                  Tap a step to see what it does.
+                </p>
+              </div>
+              {evaluation && <ComparisonVerdict compact />}
+            </header>
           )}
 
-          {!expanded && <div className="-mb-4 flex justify-end">{expandButton}</div>}
-          <Road compact={evaluation !== null} expanded={expanded} />
+          <WindingTimeline expanded={expanded} />
 
           {!expanded && <ComparisonNextStep />}
 
           {!expanded && (
-          <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
-            <Toggle pressed={details} onClick={() => setFutureDetails(!details)}>
-              Details
-            </Toggle>
-            {futuresCount > 0 && (
-              <Toggle pressed={compare} onClick={() => setFutureCompare(!compare)}>
-                Other futures ({futuresCount})
+            <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
+              <Toggle pressed={details} onClick={() => setFutureDetails(!details)}>
+                Details
               </Toggle>
-            )}
-            {!evaluation && other && (
-              <button
-                type="button"
-                onClick={() => void openReplaceComparison()}
-                disabled={busy !== "idle" || !result}
-                className="border-b border-transparent pb-0.5 text-sm text-ink/55 transition-colors hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
-              >
-                Compare with a {other.year} {other.model}
-              </button>
-            )}
-            <ComparisonToggles />
-          </div>
+              <ComparisonToggles />
+            </div>
           )}
 
-          {!expanded && details && <FutureDetails />}
+          {!expanded && details && (
+            <div data-testid="details-section" className="flex flex-col gap-[clamp(1.75rem,4vh,3rem)]">
+              <section aria-label="Month by month" data-testid="month-by-month">
+                <div className="mb-2 flex items-center justify-between gap-4">
+                  <h2 className="text-base font-medium text-ink">Cost month by month</h2>
+                  {futuresCount > 0 && (
+                    <Toggle pressed={compare} onClick={() => setFutureCompare(!compare)}>
+                      Other futures ({futuresCount})
+                    </Toggle>
+                  )}
+                </div>
+                <Road compact={evaluation !== null} />
+              </section>
+              <FutureDetails />
+            </div>
+          )}
 
           {!expanded && <ComparisonMore />}
         </div>

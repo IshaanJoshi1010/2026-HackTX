@@ -97,7 +97,7 @@ describe("a customer never reads the words demo or data", () => {
     sweep("the future page, with details");
 
     // compare, ask what would change it, ask why, edit the terms
-    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Explore the 2024 RAV4/ }));
     await advance(0);
     await advance(1900);
     sweep("the comparison, the verdict and the next step");

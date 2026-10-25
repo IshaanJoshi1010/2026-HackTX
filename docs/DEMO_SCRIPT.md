@@ -16,10 +16,10 @@ Story A: after Alex's brain dump, keeping the Camry vs a RAV4 Hybrid is a **clos
 | Time | You do | You say | The screen shows |
 | --- | --- | --- | --- |
 | 0:00 | The first screen is one VIN field. Type or paste `4T1G11AK1NU900001` (or tap **Use sample VIN**) and press Enter. | "This is Alex's Camry. A VIN gives the model, not the paint or the driver, so we label the 3D model representative." | The car assembles, then "2022 Toyota Camry, SE, Representative 3D model". Press Skip if it drags. |
-| 0:15 | Drag to rotate. Tap **Future**. Drag along the road. | "Here is the next five years if nothing changes." | A straight road. One net cost number with a "demo data" label. |
+| 0:15 | Drag to rotate. Tap **Future**. | "Here is the next five years if nothing changes." | "Life takes turns." A winding path with where you start, then a fork: keep the Camry, or a dashed offer to explore the RAV4. The card under it shows the net cost over five years with its source. |
 | 0:30 | Back on **Car**, tap the suggestion under the box, press send. | "I just tell it what is changing." | A card: Move to Denver (1 yr), 20,000 miles a year (Now), Second child (2 yr 8 mo). The inferred ones say so. Nothing has changed yet. |
-| 0:40 | Tap **Branch timeline**. | "Nothing counts until I confirm it." | The Future page. The road bends away from the straight line: about +$5,912 over five years, with signposts for each decision. |
-| 0:50 | Type: `Would switching to a RAV4 Hybrid make more sense?` | "Does a RAV4 Hybrid make more sense?" | **Close call**, "Held in 9 of 9 tested cases", three roads on one chart, and a next step. The car morphs on the Car page. |
+| 0:40 | Tap **Branch timeline**. | "Nothing counts until I confirm it." | The Future page. The path now has a numbered step for each change. Tap them: the miles say what they add to your cost, and the move and the second child say "No change to cost". **Details** opens the month by month cost. |
+| 0:50 | Type: `Would switching to a RAV4 Hybrid make more sense?` | "Does a RAV4 Hybrid make more sense?" | **Close call** beside the heading, "Held in 9 of 9 tested cases", both ways on the fork (neither marked recommended), and a next step. The car morphs on the Car page. |
 | 1:05 | Type: `What would have to change for keeping the Camry to be the better option?` | "What would make keeping it better?" | "Keeping the Camry wins below 14,434 mi/yr", a bar with the threshold and "You" at 20,000, and two reruns on either side. |
 | 1:20 | Point at the next step. | "One concrete step, and it can say keep your car." | "Reevaluate if your driving drops below 14,434 mi/yr". |
 

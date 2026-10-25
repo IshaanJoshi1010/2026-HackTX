@@ -81,7 +81,7 @@ function TermsSection() {
 }
 
 /** The headline of the Future page once you compare: the engine's pick, in plain words. */
-export function ComparisonVerdict() {
+export function ComparisonVerdict({ compact = false }: { compact?: boolean } = {}) {
   const c = useComparison();
   if (!c) return null;
   return (
@@ -92,6 +92,7 @@ export function ComparisonVerdict() {
       keepModel={c.twin.vehicle.model}
       replaceModel={c.replacement.model}
       source={c.source}
+      compact={compact}
     />
   );
 }
