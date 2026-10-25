@@ -1,11 +1,11 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { CarStageProps } from "../types";
 
-const bridge = vi.hoisted(() => ({ props: undefined as CarStageProps | undefined, ready: undefined as (() => void) | undefined }));
+const bridge = vi.hoisted(() => ({ busy: undefined as ((busy: boolean) => void) | undefined, props: undefined as CarStageProps | undefined, ready: undefined as (() => void) | undefined }));
 vi.mock("@react-three/fiber", () => ({ Canvas: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
-vi.mock("../Scene", () => ({ Scene: ({ props, onReady }: { props: CarStageProps; onReady: () => void }) => { bridge.props = props; bridge.ready = onReady; return null; } }));
+vi.mock("../Scene", () => ({ Scene: ({ props, onReady, onBusyChange }: { props: CarStageProps; onReady: () => void; onBusyChange: (busy: boolean) => void }) => { bridge.busy = onBusyChange; bridge.props = props; bridge.ready = onReady; return null; } }));
 vi.mock("../CarStageStub", () => ({ CarStageStub: () => null }));
 import { CarStage } from "../CarStage";
 
@@ -19,36 +19,35 @@ function props(): CarStageProps {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-it("waits for real asset readiness before starting the reveal callback clock", () => {
-  const config = props();
-  render(<CarStage {...config} />);
-  act(() => vi.advanceTimersByTime(5000));
+it("presentation controls honor reduced motion and retain skip/reveal callbacks", () => {
+  const config = props(); const view = render(<CarStage {...config} />);
+  const spin = screen.getByRole("button", { name: "Auto-rotate" });
+  fireEvent.click(spin); expect(spin).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Side" }));
+  expect(spin).toHaveAttribute("aria-pressed", "false");
+  view.rerender(<CarStage {...config} reducedMotion />);
+  expect(spin).toBeDisabled();
   expect(config.onRevealStage).not.toHaveBeenCalled();
-  act(() => { bridge.props!.onModelStatus({ vehicleId: "camry", ready: true }); bridge.ready!(); });
-  expect(config.onRevealStage).toHaveBeenLastCalledWith("converge");
-  act(() => vi.advanceTimersByTime(4000));
-  expect(vi.mocked(config.onRevealStage).mock.calls.map(([stage]) => stage)).toEqual(["converge", "pointcloud", "wireframe", "solid", "done"]);
+  view.rerender(<CarStage {...config} phase="transition" transitionTo={config.vehicle} />);
+  act(() => bridge.busy!(true));
+  expect(screen.getByRole("button", { name: "Front" })).toBeDisabled();
+  act(() => bridge.busy!(false));
+  expect(screen.getByRole("button", { name: "Front" })).toBeEnabled();
 });
 
-it("remembers skip while loading and reports load failure without claiming readiness", () => {
-  const config = props();
-  const { rerender } = render(<CarStage {...config} />);
+it("passes reveal lifecycle to the loaded scene, without a competing DOM timer", () => {
+  const config = props(); render(<CarStage {...config} />);
+  act(() => vi.advanceTimersByTime(5000));
+  expect(config.onRevealStage).not.toHaveBeenCalled();
+  act(() => bridge.props!.onRevealStage("converge"));
+  expect(config.onRevealStage).toHaveBeenCalledWith("converge");
+  expect(vi.getTimerCount()).toBe(0);
+});
+it("passes skip and reports a failed asset without claiming readiness", () => {
+  const config = props(); const { rerender } = render(<CarStage {...config} />);
   rerender(<CarStage {...config} skipSignal={1} />);
+  expect(bridge.props!.skipSignal).toBe(1);
   act(() => bridge.props!.onModelStatus({ vehicleId: "camry", ready: false, error: "Fetch failed" }));
   expect(screen.getByRole("status").textContent).toContain("Fetch failed");
   expect(config.onRevealStage).not.toHaveBeenCalled();
-  act(() => { bridge.props!.onModelStatus({ vehicleId: "camry", ready: true }); bridge.ready!(); });
-  expect(config.onRevealStage).toHaveBeenCalledTimes(5);
-  act(() => vi.advanceTimersByTime(5000));
-  expect(config.onRevealStage).toHaveBeenCalledTimes(5);
-});
-
-it("cleans up reveal callbacks on unmount", () => {
-  const config = props();
-  const { unmount } = render(<CarStage {...config} />);
-  act(() => bridge.ready!());
-  unmount();
-  act(() => vi.advanceTimersByTime(5000));
-  expect(config.onRevealStage).toHaveBeenCalledTimes(1);
-  expect(vi.getTimerCount()).toBe(0);
 });

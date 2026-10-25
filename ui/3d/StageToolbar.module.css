@@ -1,0 +1,8 @@
+.toolbar { position:absolute; bottom:18px; right:18px; display:flex; flex-wrap:wrap; gap:5px; padding:6px; border:1px solid #ffffff20; border-radius:14px; background:#121519db; backdrop-filter:blur(14px); max-width:calc(100% - 36px); }
+.toolbar button { appearance:none; border:1px solid transparent; border-radius:9px; padding:9px 12px; background:transparent; color:#c2c8ce; font:500 12px system-ui; cursor:pointer; transition:background .18s,color .18s; }
+.toolbar button:hover { background:#ffffff12; color:white; }
+.toolbar button:focus-visible { outline:2px solid #68e5ec; outline-offset:2px; }
+.toolbar button[aria-pressed=true] { background:#75e5e91a; color:#9af3f5; border-color:#75e5e936; }
+.toolbar button:disabled { opacity:.4; cursor:default; }
+@media(max-width:520px) { .toolbar { bottom:10px;right:10px;gap:2px; } .toolbar button { padding:8px; font-size:11px; } }
+@media(prefers-reduced-motion:reduce) { .toolbar button { transition:none; } }

@@ -16,6 +16,25 @@ function source() {
 }
 
 describe("viewer resource ownership", () => {
+  it("dissolves opaque paint with depth coverage and preserves transparent glass", () => {
+    const root = source();
+    const glass = new MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false });
+    root.add(new Mesh(new BoxGeometry(), glass));
+    const body = (root.children[0] as Mesh<BoxGeometry, MeshStandardMaterial>).material;
+    const modes = new ViewMaterials(root);
+    modes.update("solid", 0.5);
+    expect(body.alphaHash).toBe(true);
+    expect(body.transparent).toBe(false);
+    expect(body.depthWrite).toBe(true);
+    expect(glass.alphaHash).toBe(false);
+    expect(glass.transparent).toBe(true);
+    expect(glass.opacity).toBeCloseTo(0.175);
+    modes.update("solid", 1);
+    expect(body.alphaHash).toBe(false);
+    expect(body.opacity).toBe(1);
+    expect(glass.opacity).toBe(0.35);
+    disposeObject(root);
+  });
   it("clones shared resources once per instance, preserves cache, and disposes owned resources once", () => {
     const original = source();
     const owned = cloneOwnedObject(original);
@@ -53,6 +72,24 @@ describe("viewer resource ownership", () => {
 });
 
 describe("vehicle switching", () => {
+  it("waits for shader preparation and disposes a prepared clone after unmount", async () => {
+    let release!: () => void;
+    let prepared: Group | undefined;
+    const prepare = vi.fn(async (root) => {
+      prepared = root;
+      if (prepare.mock.calls.length === 1) await new Promise<void>(done => { release = done; });
+    });
+    const controller = new VehicleController(async () => source(), undefined, prepare);
+    const ready = vi.fn();
+    const pending = controller.select(vehicle, 0, vi.fn(), ready, vi.fn());
+    await vi.waitFor(() => expect(prepared).toBeDefined());
+    expect(ready).not.toHaveBeenCalled();
+    const free = vi.spyOn((prepared!.children[0] as Mesh).geometry, "dispose");
+    controller.dispose(); release(); await pending;
+    expect(free).toHaveBeenCalledTimes(1);
+    expect(ready).not.toHaveBeenCalled();
+    expect(controller.group.children).toHaveLength(0);
+  });
   it("keeps the old car while loading and on failure; crossfade disposes the outgoing car", async () => {
     let resolve!: (root: Group) => void;
     const loader = vi.fn().mockResolvedValueOnce(source()).mockImplementationOnce(() => new Promise<Group>((done) => { resolve = done; })).mockRejectedValueOnce(new Error("broken model"));

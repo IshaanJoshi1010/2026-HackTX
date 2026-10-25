@@ -2,6 +2,7 @@ import type { VehicleConfig } from "@/contracts";
 import manifest from "@/public/models/manifest.json";
 import type { Object3D } from "three";
 import { disposeObject } from "./dispose";
+import { loadPointsFile, pointsUrl } from "./usePointsFile";
 
 export function assetSpec(vehicle: VehicleConfig) {
   const entry = manifest.find((item) => item.vehicleId === vehicle.id);
@@ -35,5 +36,7 @@ export function loadAsset(url: string): Promise<Object3D> {
 }
 
 export async function preloadCars(vehicles: VehicleConfig[]): Promise<void> {
-  await Promise.all([...new Set(vehicles.map((vehicle) => assetSpec(vehicle).url))].map(loadAsset));
+  await Promise.all(vehicles.flatMap(vehicle => [loadAsset(assetSpec(vehicle).url), ...(["high", "low"] as const).flatMap(quality => {
+    const url = pointsUrl(vehicle.id, quality); return url ? [loadPointsFile(url, quality)] : [];
+  })]));
 }
