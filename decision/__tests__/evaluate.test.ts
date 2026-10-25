@@ -58,6 +58,35 @@ describe("evaluate", () => {
     expect(evaluation.preferredScenarioId).toBe(keep.id);
   });
 
+  describe("budget changes over time", () => {
+    const paidOff = { ...twin, finance: { ...twin.finance, balance: 0 }, driver: { ...twin.driver, financeType: "paid_off" as const } };
+    const budgetAt = (month: number, monthlyBudget: number, status: "confirmed" | "proposed" = "confirmed") =>
+      ev(`budget-${month}`, "budget_change", month, { monthlyBudget }, status);
+
+    it("a budget_change lowering the budget applies from its month, not before", () => {
+      const { scores, evaluation, keep } = compare(paidOff, withEvents([budgetAt(24, 500)]), equal);
+      expect(scores[0].eligible).toBe(true); // keeping the paid-off Camry fits $500
+      expect(scores[1].violations).toEqual([expect.stringMatching(/^monthly cost \$[\d,]+ over the \$500 budget at month 24$/)]);
+      expect(evaluation.preferredScenarioId).toBe(keep.id);
+    });
+
+    it("a budget_change raising the budget can make a scenario eligible again", () => {
+      const tightThenLoose = compare(paidOff, withEvents([budgetAt(12, 1000)]), equal, 500);
+      expect(tightThenLoose.scores[1].eligible).toBe(true); // over $500, but the RAV4 months fall under the raised $1,000
+      const tightThroughout = compare(paidOff, baseline, equal, 500);
+      expect(tightThroughout.scores[1].eligible).toBe(false);
+    });
+
+    it("a proposed budget_change changes nothing until confirmed", () => {
+      expect(compare(paidOff, withEvents([budgetAt(24, 500, "proposed")]), equal).scores.every(s => s.eligible)).toBe(true);
+    });
+
+    it("maxMonthlyBudget is the starting budget and later events still apply", () => {
+      const { scores } = compare(paidOff, withEvents([budgetAt(30, 2000)]), equal, 400);
+      expect(scores[1].violations[0]).toMatch(/over the \$400 budget at month 13$/); // first full RAV4 month, before the raise
+    });
+  });
+
   it("a household too big for both cars: no scenario can be preferred", () => {
     const big = { ...twin, driver: { ...twin.driver, householdSize: 6, children: 4 } };
     const { evaluation, scores } = compare(big, baseline, equal);
