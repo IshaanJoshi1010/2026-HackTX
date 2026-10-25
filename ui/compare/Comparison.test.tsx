@@ -12,7 +12,7 @@ async function demoToComparison() {
   vi.spyOn(ai, "interpret").mockResolvedValue({ aiAvailable: false });
   await actions().startFromSample("camry-2022-se");
   actions().onRevealStage("done");
-  expect(await actions().submitDump(data.demo.brainDump)).toEqual({ kind: "proposed" });
+  expect(await actions().submitDump(data.demo.brainDump)).toMatchObject({ kind: "proposed" });
   actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
   await actions().submitDump("Would switching to a RAV4 Hybrid make more sense?");
 }
@@ -203,5 +203,76 @@ describe("when nothing flips", () => {
     expect(screen.getByTestId("break-even-headline")).toHaveTextContent("Nothing between 5,000 mi/yr and 40,000 mi/yr changes the answer");
     expect(screen.queryByTestId("break-even-track")).toBeNull();
     expect(screen.queryAllByTestId("break-even-row")).toHaveLength(0);
+  });
+});
+
+describe("editing the purchase and insurance terms, through the real comparison", () => {
+  const netAt60 = (id: string) => useForkStore.getState().results[id].points.find((p) => p.month === 60)!.netEconomicCost;
+  const open = () => fireEvent.click(screen.getByRole("button", { name: "Edit terms" }));
+
+  it("shows what the sim is really using now, with its own labels, and a down payment above the price in use is refused", async () => {
+    await demoToComparison();
+    render(<ComparisonSection />);
+    open();
+    const form = screen.getByTestId("terms-review");
+    expect(form).toHaveTextContent(/Now \$130 a month/); // insurance, from the sim's own report
+    expect(form).toHaveTextContent(/Now 60 months/);
+    expect(form.querySelector('[data-source="none"]')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Down payment/), { target: { value: "9999999" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.getByTestId("terms-problem")).toHaveTextContent(/more than the purchase price in use/);
+  });
+
+  it("nothing changes until the confirm; then every future carries the terms and the numbers move", async () => {
+    await demoToComparison();
+    render(<ComparisonSection />);
+    const { keepId, replaceId } = useForkStore.getState().comparison!;
+    const before = { keep: netAt60(keepId), replace: netAt60(replaceId) };
+    const profileBefore = structuredClone(useForkStore.getState().explore.confirmedProfile);
+
+    open();
+    fireEvent.change(screen.getByLabelText(/Insurance per month/), { target: { value: "400" } });
+    fireEvent.change(screen.getByLabelText(/Replacement purchase price/), { target: { value: "45000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.getByTestId("terms-review-step")).toBeInTheDocument();
+    expect(netAt60(keepId)).toBe(before.keep); // reviewing changes nothing
+    expect(useForkStore.getState().explore.scenarios.every((s) => s.assumptions.insurancePerMonth === undefined)).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    const scenarios = useForkStore.getState().explore.scenarios;
+    expect(scenarios.every((s) => s.assumptions.insurancePerMonth === 400)).toBe(true);
+    expect(netAt60(keepId)).toBeGreaterThan(before.keep);
+    expect(netAt60(replaceId)).toBeGreaterThan(before.replace);
+    expect(useForkStore.getState().explore.confirmedProfile).toEqual(profileBefore); // exploring is not changing
+    expect(screen.getByTestId("terms-in-effect")).toHaveTextContent(/Insurance per month \$400 a month/);
+    expect(screen.getByTestId("terms-in-effect")).toHaveTextContent(/Replacement purchase price \$45,000/);
+  });
+
+  it("back to estimates puts the numbers back where they were", async () => {
+    await demoToComparison();
+    render(<ComparisonSection />);
+    const { keepId } = useForkStore.getState().comparison!;
+    const before = netAt60(keepId);
+    open();
+    fireEvent.change(screen.getByLabelText(/Insurance per month/), { target: { value: "400" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(netAt60(keepId)).not.toBeCloseTo(before, 6);
+    fireEvent.click(screen.getByRole("button", { name: "Back to estimates" }));
+    expect(netAt60(keepId)).toBeCloseTo(before, 6);
+    expect(screen.queryByTestId("terms-in-effect")).toBeNull();
+  });
+
+  it("changing the terms clears a stale threshold and re-runs the verdict", async () => {
+    await demoToComparison();
+    render(<ComparisonSection />);
+    fireEvent.click(screen.getByRole("button", { name: "What would change it" }));
+    expect(screen.getByTestId("break-even")).toBeInTheDocument();
+    open();
+    fireEvent.change(screen.getByLabelText(/Insurance per month/), { target: { value: "400" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(screen.queryByTestId("break-even")).toBeNull(); // the old threshold was about the old numbers
+    expect(screen.getByTestId("verdict")).toBeInTheDocument();
   });
 });

@@ -35,6 +35,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks(); // a spy on the AI must never leak into the next test
 });
 
 describe("CommandBox", () => {
@@ -113,7 +114,10 @@ describe("CommandBox", () => {
       fireEvent.click(screen.getByRole("button", { name: /submit changes/i }));
     });
     expect(useForkStore.getState().explore.draftChanges).toHaveLength(0);
-    expect(screen.getByRole("status")).toHaveTextContent(/couldn't find a life change/i);
+    // With no AI the reader's own note is shown, with a way to retry or to enter it by hand
+    expect(screen.getByTestId("offline-note")).toHaveTextContent(/no supported change/i);
+    expect(screen.getByRole("button", { name: "Try the AI again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enter it yourself" })).toBeInTheDocument();
     expect(input).toHaveValue("I'm moving");
   });
 
@@ -214,5 +218,133 @@ describe("TradeoffCards", () => {
     const profile = useForkStore.getState().explore.confirmedProfile;
     expect(profile.priorities.family).toBeGreaterThan(0.2);
     expect(profile.provenance.priorities).toBe("user");
+  });
+});
+
+describe("CommandBox when the AI is not available", () => {
+  const DEMO = "I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.";
+  const box = () => screen.getByPlaceholderText(/tell fork what's changing/i) as HTMLInputElement;
+  const send = async (text: string) => {
+    fireEvent.change(box(), { target: { value: text } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /submit changes/i }));
+    });
+  };
+  const drafts = () => useForkStore.getState().explore.draftChanges;
+
+  it("reads the sentence with the plain rules and keeps it in the box, with a visible way to retry or enter it by hand", async () => {
+    render(<CommandBox />);
+    await send(DEMO);
+    expect(drafts().map((d) => d.type)).toEqual(["relocation", "mileage_change", "family_change"]); // the pinned demo events
+    expect(box()).toHaveValue(DEMO); // not cleared
+    const notice = screen.getByTestId("offline-notice");
+    expect(notice).toHaveTextContent("The AI isn't available right now, so I read that with plain rules.");
+    expect(screen.getByRole("button", { name: "Try the AI again" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Enter it yourself" })).toBeEnabled();
+  });
+
+  it("when the plain rules find nothing it says why in the reader's own words, and still offers both options", async () => {
+    render(<CommandBox />);
+    await send("I'm not pregnant.");
+    expect(drafts()).toEqual([]);
+    expect(screen.getByTestId("offline-note")).toHaveTextContent(/negatives|confirm/i);
+    expect(box()).toHaveValue("I'm not pregnant.");
+    expect(screen.getByRole("button", { name: "Try the AI again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enter it yourself" })).toBeInTheDocument();
+  });
+
+  it("'Enter it yourself' opens the manual form, and what was typed stays", async () => {
+    render(<CommandBox />);
+    await send("moving to Denver in March");
+    expect(screen.queryByTestId("manual-event-form")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Enter it yourself" }));
+    expect(screen.getByTestId("manual-event-form")).toBeInTheDocument();
+    expect(box()).toHaveValue("moving to Denver in March");
+  });
+
+  it("'Try the AI again' asks once, and when the AI answers it replaces the offline drafts and clears the box", async () => {
+    const { ai } = await import("@/ui/mocks");
+    const spy = vi.spyOn(ai, "interpret").mockResolvedValue({ aiAvailable: false });
+    render(<CommandBox />);
+    await send(DEMO);
+    expect(drafts()).toHaveLength(3);
+
+    spy.mockResolvedValue({ aiAvailable: true, intent: "CREATE_SCENARIO", proposals: [sampleProposal], profilePatches: [] });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Try the AI again" }));
+    });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(drafts().map((d) => d.id)).toEqual(["test-prop-1"]); // replaced, not stacked
+    expect(box()).toHaveValue("");
+    expect(screen.queryByTestId("offline-notice")).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it("a retry that is still unavailable keeps everything and does not retry by itself", async () => {
+    const { ai } = await import("@/ui/mocks");
+    const spy = vi.spyOn(ai, "interpret").mockResolvedValue({ aiAvailable: false });
+    render(<CommandBox />);
+    await send(DEMO);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Try the AI again" }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000); // a minute passes: nothing asks again on its own
+    });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(drafts()).toHaveLength(3);
+    expect(box()).toHaveValue(DEMO);
+    expect(screen.getByTestId("offline-notice")).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  it("confirming what the plain rules staged clears the box and the notice", async () => {
+    render(<CommandBox />);
+    await send(DEMO);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /branch timeline/i }));
+    });
+    expect(drafts()).toEqual([]);
+    expect(box()).toHaveValue("");
+    expect(screen.queryByTestId("offline-notice")).toBeNull();
+  });
+
+  it("discarding what the plain rules staged clears the box and the notice too", async () => {
+    render(<CommandBox />);
+    await send(DEMO);
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(drafts()).toEqual([]);
+    expect(box()).toHaveValue("");
+    expect(screen.queryByTestId("offline-notice")).toBeNull();
+  });
+
+  it("the notice belongs to the sentence it was about: typing something else hides it", async () => {
+    render(<CommandBox />);
+    await send("I'm not pregnant.");
+    expect(screen.getByTestId("offline-notice")).toBeInTheDocument();
+    fireEvent.change(box(), { target: { value: "moving to Denver next year" } });
+    expect(screen.queryByTestId("offline-notice")).toBeNull();
+  });
+
+  it("a question the plain rules fully answered leaves nothing to retry: the box clears for the next one", async () => {
+    render(<CommandBox />);
+    await send("Would switching to a RAV4 Hybrid make more sense?");
+    expect(useForkStore.getState().comparison).not.toBeNull();
+    expect(useForkStore.getState().ui.view).toBe("future");
+    expect(box()).toHaveValue("");
+    expect(screen.queryByTestId("offline-notice")).toBeNull();
+  });
+
+  it("while it is thinking the box is locked, so a second request cannot be started", async () => {
+    const { ai } = await import("@/ui/mocks");
+    vi.spyOn(ai, "interpret").mockImplementation(() => new Promise(() => {}));
+    render(<CommandBox />);
+    fireEvent.change(box(), { target: { value: DEMO } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /submit changes/i }));
+    });
+    expect(box()).toBeDisabled();
+    expect(screen.getByRole("button", { name: /submit changes/i })).toBeDisabled();
+    vi.restoreAllMocks();
   });
 });

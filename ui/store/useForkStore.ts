@@ -29,7 +29,6 @@ import type {
   VehicleTwin,
 } from "@/contracts";
 import type { ReproductionSide } from "@/decision";
-import { interpretOffline } from "@/ui/command/extract";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { CarStageProps } from "@/ui/3d/types";
 import { eventTitle } from "./eventLabels";
@@ -43,6 +42,21 @@ import {
 } from "./persistence";
 
 export const BASE_ID = "base";
+
+/**
+ * The purchase and insurance terms a person can enter (the keys Dev 4's sim reads from a scenario's assumptions).
+ * Percent inputs have already been converted to fractions by code before they get here.
+ */
+export const TERM_KEYS = [
+  "insurancePerMonth",
+  "replacementPrice",
+  "downPayment",
+  "purchaseFees",
+  "salesTaxRate",
+  "newLoanApr",
+  "newLoanTermMonths",
+  "loanApr",
+] as const;
 export { MONTH_MAX, clampMonth };
 
 export type Phase = "landing" | "reveal" | "workspace";
@@ -78,13 +92,27 @@ export interface Explanation {
   usedFallback: boolean;
 }
 
-/** What a typed sentence led to, so the command bar knows whether to clear itself. */
+/**
+ * What a typed sentence led to, so the command bar knows whether to clear itself.
+ * `offline` means the AI was not available and the plain rules read it. The typed text is kept then,
+ * so it can be retried with the AI or entered by hand.
+ */
 export type DumpOutcome =
-  | { kind: "proposed" } // changes are waiting for a confirm
-  | { kind: "asked" } // a question is waiting for an answer
-  | { kind: "compared" } // opened the keep vs replace comparison
-  | { kind: "break_even" } // ran the break-even
-  | { kind: "nothing"; message?: string };
+  | { kind: "proposed"; offline?: boolean } // changes are waiting for a confirm
+  | { kind: "asked"; offline?: boolean } // a question is waiting for an answer
+  | { kind: "compared"; offline?: boolean } // opened the keep vs replace comparison
+  | { kind: "break_even"; offline?: boolean } // ran the break-even
+  | { kind: "nothing"; message?: string; offline?: boolean }
+  | { kind: "stale" }; // the answer came back after the session, car, future or request changed, so it was dropped
+
+/** The last sentence that was read without the AI, kept so the person can retry it or enter it by hand. */
+export interface LastDump {
+  text: string;
+  /** Why nothing was proposed, in the reader's own words. */
+  note?: string;
+  /** The drafts this reading staged. A retry replaces them instead of adding duplicates. */
+  draftIds: string[];
+}
 
 export interface UiState {
   reducedMotion: boolean;
@@ -100,6 +128,8 @@ export interface UiState {
   futureCompare: boolean;
   /** Future page: the plain-language reasons behind the verdict. Off by default. Not saved. */
   futureWhy: boolean;
+  /** Future page: review and confirm the purchase and insurance terms. Off by default. Not saved. */
+  futureTerms: boolean;
   /** Future page: what would have to change for the answer to flip. On when asked, never saved. */
   futureBreakEven: boolean;
   busy: "idle" | "interpreting" | "simulating";
@@ -111,6 +141,10 @@ export interface ForkActions {
   startFromPicker(make: string, model: string, year: number, trim?: string): Promise<void>;
   answerRiders(choice: Riders): void;
   submitDump(text: string): Promise<DumpOutcome>;
+  /** Ask the AI again about the last sentence that was read offline. Only ever on the person's request. */
+  retryDump(): Promise<DumpOutcome>;
+  /** Drop the offline notice without touching any draft. */
+  dismissDumpNotice(): void;
   confirmDrafts(ids: string[]): void;
   editDraft(id: string, patch: Partial<LifeEvent>): void;
   rejectDraft(id: string): void;
@@ -119,6 +153,13 @@ export interface ForkActions {
   pickTradeoff(pick: TradeoffPick): void;
   openReplaceComparison(): Promise<void>;
   setAssumption(key: string, value: number): void;
+  /**
+   * Apply terms the person has reviewed and confirmed (see ai.prepareScenarioTerms). They go to every future so keep
+   * and replace stay comparable. confirmedProfile is never touched, and only the keys in TERM_KEYS are accepted.
+   */
+  applyScenarioTerms(assumptions: Record<string, number>): void;
+  /** Go back to the estimates: removes the entered terms from every future. */
+  resetScenarioTerms(): void;
   runBreakEven(parameter: "annualMiles" | "fuelPricePerGal"): void;
   moveEvent(scenarioId: string, eventId: string, month: number): void;
   setActiveScenario(id: string): void;
@@ -133,6 +174,7 @@ export interface ForkActions {
   setFutureDetails(on: boolean): void;
   setFutureCompare(on: boolean): void;
   setFutureWhy(on: boolean): void;
+  setFutureTerms(on: boolean): void;
   /** Showing it for the first time runs the break-even on yearly miles. */
   setFutureBreakEven(on: boolean): void;
   setLowPerformance(on: boolean): void;
@@ -159,6 +201,8 @@ export interface ForkState {
   nextActionFactors: string[];
   /** Words for the current evaluation. Null until written, and cleared whenever the evaluation changes. */
   explanation: Explanation | null;
+  /** Set only while the last sentence was read without the AI. Not saved. */
+  lastDump: LastDump | null;
   breakEven: BreakEvenResult | null;
   /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
   breakEvenCheck: BreakEvenCheck | null;
@@ -225,6 +269,7 @@ function initialData(): DataFields {
     evaluation: null,
     nextActionFactors: [],
     explanation: null,
+    lastDump: null,
     breakEven: null,
     breakEvenCheck: null,
     activeScenarioId: BASE_ID,
@@ -249,6 +294,7 @@ function initialData(): DataFields {
       futureDetails: false,
       futureCompare: false,
       futureWhy: false,
+      futureTerms: false,
       futureBreakEven: false,
       busy: "idle",
     },
@@ -423,6 +469,13 @@ function nextQuestion(
   return candidate && !s.answeredFields.includes(candidate.field) ? candidate : null;
 }
 
+/**
+ * The offline notice belongs to the drafts it staged. Once every one of them has been confirmed or discarded
+ * there is nothing left to retry, so it goes. A notice with no drafts (only a note) stays until dismissed.
+ */
+const keepDump = (last: LastDump | null, drafts: LifeEvent[]): LastDump | null =>
+  last && last.draftIds.length > 0 && last.draftIds.every((id) => !drafts.some((d) => d.id === id)) ? null : last;
+
 const upsert = (list: Scenario[], next: Scenario): Scenario[] =>
   list.some((sc) => sc.id === next.id) ? list.map((sc) => (sc.id === next.id ? next : sc)) : [...list, next];
 
@@ -546,6 +599,17 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
    * dropped, so the page never shows an explanation for numbers that are no longer on it.
    */
   let explainSeq = 0;
+
+  /**
+   * Stale-answer guards for typed sentences. `dumpEpoch` moves whenever the session is replaced (a new car,
+   * a reset, a restore); `dumpSeq` numbers each submission. An answer is only used if both still match and the
+   * car and the future it was asked about are still the ones on screen.
+   */
+  let dumpSeq = 0;
+  let dumpEpoch = 0;
+  const invalidateDump = () => {
+    dumpEpoch += 1;
+  };
   async function requestExplanation() {
     const s = get();
     const evaluation = s.evaluation;
@@ -570,6 +634,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
    * generic twin with labeled estimates.
    */
   async function begin(vehicle: VehicleConfig, mode: "demo" | "ordinary") {
+    invalidateDump();
     setBusy("simulating");
     try {
       const built = mode === "demo" ? await data.buildDemoTwin(vehicle.id) : await data.buildTwin({ vehicle });
@@ -583,7 +648,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureWhy: false, futureBreakEven: false },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureWhy: false, futureTerms: false, futureBreakEven: false },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -682,38 +747,58 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       const s = get();
       const prompt = text.trim();
       if (!s.twin || !prompt) return { kind: "nothing" };
+
+      // What this question was asked about. Checked again when the answer comes back.
+      const seq = (dumpSeq += 1);
+      const epoch = dumpEpoch;
+      const vehicleId = s.twin.vehicle.id;
+      const scenarioId = s.activeScenarioId;
+      const todayISO = s.todayISO;
+      const stale = () => {
+        const cur = get();
+        return seq !== dumpSeq || epoch !== dumpEpoch || cur.twin?.vehicle.id !== vehicleId || cur.activeScenarioId !== scenarioId;
+      };
+
       set((cur) => ({ error: null, ui: { ...cur.ui, busy: "interpreting" } }));
-      let result: InterpretResult;
-      let offline = false;
-      try {
-        const active = findScenario(s, s.activeScenarioId);
-        const ctx: InterpretContext = {
-          vehicle: { make: s.twin.vehicle.make, model: s.twin.vehicle.model, year: s.twin.vehicle.year, trim: s.twin.vehicle.trim },
-          profile: s.explore.confirmedProfile,
-          existingEvents: (active?.events ?? []).map((e) => ({ type: e.type, month: e.month })),
-          todayISO: s.todayISO,
-        };
-        // A throw counts as "not available", the same as no key or no network.
-        result = await ai.interpret(prompt, ctx).catch((): InterpretResult => ({ aiAvailable: false }));
-        if (!result.aiAvailable) {
-          // Plain rules read it instead, and they only ever extract what was written,
-          // so the whole demo still runs.
-          offline = true;
-          const read = interpretOffline(prompt, s.todayISO);
-          result = {
-            aiAvailable: true,
-            intent: read.intent,
-            proposals: read.events.map((e): LifeEvent => ({ ...e, id: newDraftId(), status: "proposed" })),
-            profilePatches: [],
-            ...(read.note ? { unsupportedReason: read.note } : {}),
-          };
+      const active = findScenario(s, scenarioId);
+      const ctx: InterpretContext = {
+        vehicle: { make: s.twin.vehicle.make, model: s.twin.vehicle.model, year: s.twin.vehicle.year, trim: s.twin.vehicle.trim },
+        profile: s.explore.confirmedProfile,
+        existingEvents: (active?.events ?? []).map((e) => ({ type: e.type, month: e.month })),
+        todayISO,
+      };
+
+      // A throw, a timeout, no key, a quota or cooldown on the server: all of them read as "not available".
+      const answer = await ai.interpret(prompt, ctx).catch((): InterpretResult => ({ aiAvailable: false }));
+
+      if (stale()) {
+        // Never add an answer to a session it was not asked in. Only release the busy flag if nothing newer owns it.
+        if (seq === dumpSeq) set((cur) => ({ ui: { ...cur.ui, busy: "idle" } }));
+        return { kind: "stale" };
+      }
+
+      const offline = !answer.aiAvailable;
+      let result: Extract<InterpretResult, { aiAvailable: true }>;
+      let note: string | undefined;
+      if (answer.aiAvailable) {
+        result = answer;
+      } else {
+        // The shared plain-rules reader. It only extracts what was written; questions, negatives, odometer
+        // readings and dates it cannot place come back as a note, never as a guessed change.
+        let read: ReturnType<typeof ai.interpretOffline>;
+        try {
+          read = ai.interpretOffline(prompt, todayISO);
+        } catch {
+          read = { intent: "CLARIFY", events: [], note: "I couldn't read that. Try the manual form." };
         }
-      } catch (e) {
-        set((cur) => ({
-          error: e instanceof Error ? e.message : String(e),
-          ui: { ...cur.ui, busy: "idle" },
-        }));
-        return { kind: "nothing" };
+        note = read.note;
+        result = {
+          aiAvailable: true,
+          intent: read.intent,
+          proposals: read.events.map((e): LifeEvent => ({ ...e, id: newDraftId(), status: "proposed" })),
+          profilePatches: [],
+          ...(read.note ? { unsupportedReason: read.note } : {}),
+        };
       }
 
       // Proposals are drafts. Force "proposed" so nothing from the AI can arrive confirmed.
@@ -728,12 +813,14 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           draftPatches: [...cur.draftPatches, ...result.profilePatches],
           lastIntent: result.intent,
           question: nextQuestion(withDrafts, result.question),
+          lastDump: offline ? { text: prompt, ...(note ? { note } : {}), draftIds: proposals.map((e) => e.id) } : null,
           ui: { ...cur.ui, aiAvailable: !offline, busy: "idle" },
         };
       });
+      const flag = offline ? { offline: true as const } : {};
 
-      if (proposals.length > 0) return { kind: "proposed" };
-      if (get().question) return { kind: "asked" };
+      if (proposals.length > 0) return { kind: "proposed", ...flag };
+      if (get().question) return { kind: "asked", ...flag };
 
       // A question, not a change: show the answer. Nothing here edits the profile or a scenario.
       const ensureComparison = async () => {
@@ -745,18 +832,33 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           if (!(await ensureComparison())) break;
           actions.runBreakEven(breakEvenParameterFor(prompt));
           actions.setView("future");
-          return { kind: "break_even" };
+          return { kind: "break_even", ...flag };
         case "COMPARE_SCENARIOS":
         case "RECOMMEND_ACTION":
           if (!(await ensureComparison())) break;
           actions.setView("future");
-          return { kind: "compared" };
+          return { kind: "compared", ...flag };
         case "EXPLAIN_RESULT":
           if (!get().evaluation) break;
           actions.setView("future");
-          return { kind: "compared" };
+          return { kind: "compared", ...flag };
       }
-      return { kind: "nothing", message: result.unsupportedReason };
+      return { kind: "nothing", message: result.unsupportedReason, ...flag };
+    },
+
+    async retryDump() {
+      const last = get().lastDump;
+      if (!last) return { kind: "nothing" };
+      // Replace what the last reading staged instead of piling a second copy on top of it.
+      set((cur) => ({
+        lastDump: null,
+        explore: { ...cur.explore, draftChanges: cur.explore.draftChanges.filter((d) => !last.draftIds.includes(d.id)) },
+      }));
+      return actions.submitDump(last.text);
+    },
+
+    dismissDumpNotice() {
+      set({ lastDump: null });
     },
 
     // ---- confirm ----
@@ -785,6 +887,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           ...(s.comparison ? verdictPatch(evaluateComparison({ ...withChild, results })) : {}),
           breakEven: null,
           breakEvenCheck: null,
+          lastDump: keepDump(s.lastDump, explore.draftChanges),
           question: nextQuestion(withChild),
         });
       } catch (e) {
@@ -805,7 +908,10 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     rejectDraft(id) {
-      set((s) => ({ explore: { ...s.explore, draftChanges: s.explore.draftChanges.filter((e) => e.id !== id) } }));
+      set((s) => {
+        const draftChanges = s.explore.draftChanges.filter((e) => e.id !== id);
+        return { explore: { ...s.explore, draftChanges }, lastDump: keepDump(s.lastDump, draftChanges) };
+      });
     },
 
     addDraft(event) {
@@ -901,6 +1007,37 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       }
     },
 
+    applyScenarioTerms(assumptions) {
+      const s = get();
+      const entries = Object.entries(assumptions);
+      if (!s.twin || entries.length === 0) return;
+      const allowed = TERM_KEYS as readonly string[];
+      if (entries.some(([key, value]) => !allowed.includes(key) || !Number.isFinite(value))) {
+        return void set({ error: "Those terms didn't look usable, so nothing was changed." });
+      }
+      // Each future is replaced by a new one with the terms added. Nothing is edited in place.
+      const scenarios = s.explore.scenarios.map((sc) => ({ ...sc, assumptions: { ...sc.assumptions, ...assumptions } }));
+      try {
+        recompute({ explore: { ...s.explore, scenarios }, error: null });
+      } catch (e) {
+        fail(e);
+      }
+    },
+
+    resetScenarioTerms() {
+      const s = get();
+      if (!s.twin) return;
+      const scenarios = s.explore.scenarios.map((sc) => {
+        const assumptions = Object.fromEntries(Object.entries(sc.assumptions).filter(([key]) => !(TERM_KEYS as readonly string[]).includes(key)));
+        return { ...sc, assumptions };
+      });
+      try {
+        recompute({ explore: { ...s.explore, scenarios } });
+      } catch (e) {
+        fail(e);
+      }
+    },
+
     runBreakEven(parameter) {
       const s = get();
       const keep = s.comparison && findScenario(s, s.comparison.keepId);
@@ -955,6 +1092,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     // ---- stage and ui plumbing ----
     hydrate() {
       if (get().hydrated) return;
+      invalidateDump();
       const saved = loadPersisted();
       if (saved) set((s) => ({ ui: { ...s.ui, ...saved.prefs } }));
       if (saved?.session) {
@@ -1001,6 +1139,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     resetAll() {
+      invalidateDump();
       set((s) => ({ ...initialData(), ui: { ...initialData().ui, ...pickPrefs(s.ui), reducedMotion: s.ui.reducedMotion }, hydrated: true }));
     },
 
@@ -1031,6 +1170,10 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
     setFutureWhy(on) {
       set((s) => ({ ui: { ...s.ui, futureWhy: on } }));
+    },
+
+    setFutureTerms(on) {
+      set((s) => ({ ui: { ...s.ui, futureTerms: on } }));
     },
 
     setFutureBreakEven(on) {
