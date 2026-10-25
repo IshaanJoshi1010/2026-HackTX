@@ -1,5 +1,7 @@
 "use client";
 
+import { Car, Fuel, Gauge, MapPin, Package, Users, Wallet, Wrench, type LucideIcon } from "lucide-react";
+import type { EventType } from "@/contracts";
 import { measuredMonth } from "@/ui/compare/costChartMath";
 import { customerText } from "@/ui/profile/customerText";
 import { miles, monthLabel, usd } from "@/ui/profile/format";
@@ -8,10 +10,20 @@ import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { Stat } from "@/ui/profile/Stat";
 import { selectActiveResult, selectActiveScenario, specsFor } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
-import { EVENT_ICON } from "@/ui/timeline/EventMarkers";
+import { effectPhrase } from "@/ui/timeline/effects";
 import { totalThrough, pointAt } from "@/ui/timeline/layout";
-import { effectPhrase } from "@/ui/timeline/roadMath";
 import { useDecisionEffects } from "@/ui/timeline/useDecisionEffects";
+
+const EVENT_ICON: Record<EventType, LucideIcon> = {
+  relocation: MapPin,
+  mileage_change: Gauge,
+  family_change: Users,
+  cargo_change: Package,
+  budget_change: Wallet,
+  fuel_price_change: Fuel,
+  maintenance_decision: Wrench,
+  vehicle_replacement: Car,
+};
 
 /**
  * The breakdown under the cost chart: what each change did to cost, then the numbers behind the future you are

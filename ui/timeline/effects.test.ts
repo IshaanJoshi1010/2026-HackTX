@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LifeEvent, ProjectionPoint, Scenario, SimulationResult, SuitabilityResult } from "@/contracts";
-import { decisionEffects, fitNote } from "./effects";
+import { decisionEffects, effectPhrase, fitNote } from "./effects";
 
 const fit = (passengerFit: SuitabilityResult["passengerFit"], cargoFit: SuitabilityResult["cargoFit"] = "good"): SuitabilityResult => ({
   passengerFit,
@@ -128,5 +128,19 @@ describe("fitNote", () => {
     expect(fitNote(fit("good", "insufficient"), fit("good", "good"))).toBe("Cargo fit goes from good to not enough");
     expect(fitNote(fit("good"), fit("good"))).toBeNull();
     expect(fitNote(fit("needs_verification"), fit("good"))).toBe("Passenger fit goes from good to unverified");
+  });
+});
+
+describe("effectPhrase", () => {
+  const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+  it("says it in plain words", () => {
+    expect(effectPhrase(4310, usd)).toBe("Adds $4,310");
+    expect(effectPhrase(-800, usd)).toBe("Saves $800");
+    expect(effectPhrase(0, usd)).toBe("No change in cost");
+  });
+
+  it("under a dollar counts as no change", () => {
+    expect(effectPhrase(0.4, usd)).toBe("No change in cost");
+    expect(effectPhrase(-0.4, usd)).toBe("No change in cost");
   });
 });

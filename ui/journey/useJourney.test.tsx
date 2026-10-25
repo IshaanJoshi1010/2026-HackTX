@@ -491,7 +491,6 @@ describe("never stale", () => {
     expect(a.result.current).toBe(first);
     // things the journey does not read
     act(() => {
-      actions().setFutureCompare(false);
       actions().setDetailsOpen(true);
       actions().addDraft({ ...MILES, id: "e-waiting", month: 50 });
       actions().openDrawer("costs");
