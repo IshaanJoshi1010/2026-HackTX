@@ -281,6 +281,26 @@ describe("the future page", () => {
   });
 });
 
+describe("when something does not work, it says so", () => {
+  it("shows the store's error above the command bar on either page, and goes away when dismissed", async () => {
+    await enterWorkspace();
+    expect(screen.queryByRole("alert")).toBeNull();
+    act(() => useForkStore.setState({ error: "There is no other car to compare with." }));
+    expect(screen.getByRole("alert")).toHaveTextContent("There is no other car to compare with.");
+    goFuture();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(state().error).toBeNull();
+  });
+
+  it("an unusable answer to a question is not silent", async () => {
+    await enterWorkspace();
+    act(() => state().actions.answerQuestion("annualMiles", -5));
+    expect(screen.getByRole("alert")).toHaveTextContent(/usable value/);
+  });
+});
+
 describe("the answer fits the page", () => {
   it("once you compare, the verdict is the headline, then the road, then the next step", async () => {
     await enterWorkspace();

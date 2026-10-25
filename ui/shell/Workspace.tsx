@@ -8,6 +8,7 @@ import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { CarView } from "./CarView";
 import { DetailsSheet } from "./DetailsSheet";
+import { ErrorNotice } from "./ErrorNotice";
 import { FutureView } from "./FutureView";
 import { Identity } from "./Identity";
 import { StageBackdrop } from "./StageBackdrop";
@@ -81,6 +82,7 @@ export function Workspace() {
         <>
           {view === "car" ? <CarView /> : <FutureView bottomInset={barHeight} />}
           <div ref={barRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-4 px-4 pb-5">
+            <ErrorNotice />
             <CommandBox />
             <ViewSwitch />
           </div>
