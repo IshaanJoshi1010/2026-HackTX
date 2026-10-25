@@ -16,6 +16,7 @@ import type {
   ExploreState,
   FieldKey,
   InterpretContext,
+  InterpretResult,
   Intent,
   LifeEvent,
   ProfilePatch,
@@ -27,8 +28,10 @@ import type {
   VehicleConfig,
   VehicleTwin,
 } from "@/contracts";
+import type { ReproductionSide } from "@/decision";
+import { interpretOffline } from "@/ui/command/extract";
 import { ai, data, decision, sim } from "@/ui/mocks";
-import type { RevealStage } from "@/ui/mocks/CarStageStub";
+import type { CarStageProps } from "@/ui/3d/types";
 import { eventTitle } from "./eventLabels";
 import { MONTH_MAX, clampMonth } from "./months";
 import {
@@ -46,6 +49,7 @@ export type Phase = "landing" | "reveal" | "workspace";
 export type StagePhase = "reveal" | "interactive" | "transition";
 export type ViewMode = "solid" | "wireframe" | "points";
 export type View = "car" | "future";
+export type RevealStage = Parameters<CarStageProps["onRevealStage"]>[0];
 export type Riders = "solo" | "partner" | "kids" | "mixed";
 
 export interface StageState {
@@ -65,6 +69,23 @@ export interface Comparison {
   replaceId: string;
 }
 
+export type BreakEvenCheck = { below: ReproductionSide; above: ReproductionSide };
+
+/** The engine's plain-language account of its own numbers. The AI writes words only; every number comes in. */
+export interface Explanation {
+  text: string;
+  /** True when the deterministic template wrote it, because the AI was off or its answer was rejected. */
+  usedFallback: boolean;
+}
+
+/** What a typed sentence led to, so the command bar knows whether to clear itself. */
+export type DumpOutcome =
+  | { kind: "proposed" } // changes are waiting for a confirm
+  | { kind: "asked" } // a question is waiting for an answer
+  | { kind: "compared" } // opened the keep vs replace comparison
+  | { kind: "break_even" } // ran the break-even
+  | { kind: "nothing"; message?: string };
+
 export interface UiState {
   reducedMotion: boolean;
   lowPerformance: boolean;
@@ -77,6 +98,10 @@ export interface UiState {
   futureDetails: boolean;
   /** Future page: draw every future on the road, not just the one you are looking at. Off by default. Not saved. */
   futureCompare: boolean;
+  /** Future page: the plain-language reasons behind the verdict. Off by default. Not saved. */
+  futureWhy: boolean;
+  /** Future page: what would have to change for the answer to flip. On when asked, never saved. */
+  futureBreakEven: boolean;
   busy: "idle" | "interpreting" | "simulating";
 }
 
@@ -85,7 +110,7 @@ export interface ForkActions {
   startFromSample(vehicleId: string): Promise<void>;
   startFromPicker(make: string, model: string, year: number, trim?: string): Promise<void>;
   answerRiders(choice: Riders): void;
-  submitDump(text: string): Promise<void>;
+  submitDump(text: string): Promise<DumpOutcome>;
   confirmDrafts(ids: string[]): void;
   editDraft(id: string, patch: Partial<LifeEvent>): void;
   rejectDraft(id: string): void;
@@ -107,6 +132,9 @@ export interface ForkActions {
   setDetailsOpen(open: boolean): void;
   setFutureDetails(on: boolean): void;
   setFutureCompare(on: boolean): void;
+  setFutureWhy(on: boolean): void;
+  /** Showing it for the first time runs the break-even on yearly miles. */
+  setFutureBreakEven(on: boolean): void;
   setLowPerformance(on: boolean): void;
   setReducedMotion(on: boolean): void;
   setViewMode(mode: ViewMode): void;
@@ -127,7 +155,13 @@ export interface ForkState {
   explore: ExploreState;
   results: Record<string, SimulationResult>;
   evaluation: DecisionEvaluation | null;
+  /** Why the next step is what it is, from the engine. Travels with the evaluation, never typed in. */
+  nextActionFactors: string[];
+  /** Words for the current evaluation. Null until written, and cleared whenever the evaluation changes. */
+  explanation: Explanation | null;
   breakEven: BreakEvenResult | null;
+  /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
+  breakEvenCheck: BreakEvenCheck | null;
   activeScenarioId: string;
   activeMonth: number;
   activeVehicleId: string;
@@ -140,6 +174,8 @@ export interface ForkState {
   lastIntent: Intent | null;
   tradeoffPicks: TradeoffPick[];
   answeredFields: FieldKey[];
+  /** The date month 0 is measured from. The demo pins it so its months and numbers never drift. */
+  todayISO: string;
   modelStatus: Record<string, { ready: boolean; error?: string }>;
   error: string | null;
 
@@ -177,6 +213,8 @@ const INITIAL_STAGE: StageState = {
 
 type DataFields = Omit<ForkState, "actions" | "hydrated">;
 
+const realToday = (): string => new Date().toISOString().slice(0, 10);
+
 function initialData(): DataFields {
   return {
     phase: "landing",
@@ -185,7 +223,10 @@ function initialData(): DataFields {
     explore: { confirmedProfile: EMPTY_PROFILE, draftChanges: [], scenarios: [] },
     results: {},
     evaluation: null,
+    nextActionFactors: [],
+    explanation: null,
     breakEven: null,
+    breakEvenCheck: null,
     activeScenarioId: BASE_ID,
     activeMonth: 0,
     activeVehicleId: "",
@@ -196,6 +237,7 @@ function initialData(): DataFields {
     lastIntent: null,
     tradeoffPicks: [],
     answeredFields: [],
+    todayISO: realToday(),
     modelStatus: {},
     error: null,
     ui: {
@@ -206,6 +248,8 @@ function initialData(): DataFields {
       detailsOpen: false,
       futureDetails: false,
       futureCompare: false,
+      futureWhy: false,
+      futureBreakEven: false,
       busy: "idle",
     },
   };
@@ -312,22 +356,62 @@ function simulateAll(
   return Object.fromEntries(scenarios.map((sc) => [sc.id, sim.simulate(twin, sc, ctx)]));
 }
 
-function evaluateComparison(
-  s: Pick<ForkState, "twin" | "explore" | "replacementVehicle" | "results" | "comparison">,
-): DecisionEvaluation | null {
-  if (!s.comparison) return null;
+type ComparisonState = Pick<ForkState, "twin" | "explore" | "replacementVehicle" | "results" | "comparison">;
+
+/** What the engine says about keep vs replace, plus why it says it. Null until both futures have a projection. */
+interface Verdict {
+  evaluation: DecisionEvaluation;
+  nextActionFactors: string[];
+}
+
+/**
+ * Dev 4's order: evaluate, then add the robustness count, then work out the next step with
+ * the simulations (and the break-even when there is one). Every number is his.
+ */
+function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | null): Verdict | null {
+  if (!s.comparison || !s.twin) return null;
   const keep = findScenario(s, s.comparison.keepId);
   const replace = findScenario(s, s.comparison.replaceId);
   if (!keep || !replace || !s.results[keep.id] || !s.results[replace.id]) return null;
   const profile = s.explore.confirmedProfile;
-  return decision.evaluate({
-    twin: simTwin(s),
-    scenarios: [keep, replace],
-    results: [s.results[keep.id], s.results[replace.id]],
+  const twin = simTwin(s);
+  const scenarios = [keep, replace];
+  const results = [s.results[keep.id], s.results[replace.id]];
+  const evaluated = decision.evaluate({
+    twin,
+    scenarios,
+    results,
     priorities: profile.priorities,
     maxMonthlyBudget: profile.monthlyBudget,
   });
+  const withRobustness = decision.withSensitivity(
+    evaluated,
+    decision.sensitivity({ twin, scenarios, ctx: buildCtx(s.twin, s.replacementVehicle), priorities: profile.priorities }),
+  );
+  const action = decision.nextAction(withRobustness, twin, breakEven ?? undefined, results);
+  return {
+    evaluation: {
+      ...withRobustness,
+      nextAction: { label: action.label, detail: action.detail, ...(action.officialLink ? { officialLink: action.officialLink } : {}) },
+    },
+    nextActionFactors: action.factors,
+  };
 }
+
+/** The store fields that come from a verdict, or cleared ones when there is none. */
+const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors" | "explanation"> => ({
+  evaluation: v?.evaluation ?? null,
+  nextActionFactors: v?.nextActionFactors ?? [],
+  explanation: null, // the words belong to the numbers they came with
+});
+
+/** Which number a "what would have to change" question is about: fuel price if it says so, otherwise miles. */
+export function breakEvenParameterFor(prompt: string): "annualMiles" | "fuelPricePerGal" {
+  return /\b(?:fuel|gas(?:oline)?|gallon|pump)\b/i.test(prompt) ? "fuelPricePerGal" : "annualMiles";
+}
+
+let draftSeq = 0;
+const newDraftId = () => `draft-${Date.now()}-${(draftSeq += 1)}`;
 
 /** At most one question, never one the user already answered or skipped. */
 function nextQuestion(
@@ -375,6 +459,7 @@ function toSession(s: ForkState): Session | null {
     draftPatches: s.draftPatches,
     tradeoffPicks: s.tradeoffPicks,
     answeredFields: s.answeredFields,
+    todayISO: s.todayISO,
   };
 }
 
@@ -451,26 +536,54 @@ function markEstimated(twin: VehicleTwin, profile: DriverProfile, field: FieldKe
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let detachPersistence: (() => void) | undefined;
 
-export const useForkStore = create<ForkState>()((set, get) => {
+export const useForkStore = create<ForkState>()((set, get, api) => {
   const setBusy = (busy: UiState["busy"]) => set((s) => ({ ui: { ...s.ui, busy } }));
   const fail = (e: unknown) =>
     set((s) => ({ error: e instanceof Error ? e.message : String(e), ui: { ...s.ui, busy: "idle" } }));
 
-  /** Common tail of every start path: build the twin, reset the session, begin the reveal. */
-  async function begin(vehicle: VehicleConfig) {
+  /**
+   * Ask for words about the current evaluation. A late answer about an older comparison is
+   * dropped, so the page never shows an explanation for numbers that are no longer on it.
+   */
+  let explainSeq = 0;
+  async function requestExplanation() {
+    const s = get();
+    const evaluation = s.evaluation;
+    if (!evaluation) return;
+    const results = evaluation.scenarioIds.map((id) => s.results[id]).filter(Boolean);
+    if (results.length !== evaluation.scenarioIds.length) return;
+    const seq = (explainSeq += 1);
+    try {
+      const explanation = await ai.explain(evaluation, results);
+      if (seq === explainSeq && get().evaluation === evaluation) set({ explanation });
+    } catch {
+      // The engine's own lines are already on the page.
+    }
+  }
+  api.subscribe((state, prev) => {
+    if (state.evaluation && state.evaluation !== prev.evaluation) void requestExplanation();
+  });
+
+  /**
+   * Common tail of every start path: build the twin, reset the session, begin the reveal.
+   * Only the explicit demo applies the fictional Alex persona. Ordinary entry builds a
+   * generic twin with labeled estimates.
+   */
+  async function begin(vehicle: VehicleConfig, mode: "demo" | "ordinary") {
     setBusy("simulating");
     try {
-      const built = await data.buildTwin({ vehicle });
+      const built = mode === "demo" ? await data.buildDemoTwin(vehicle.id) : await data.buildTwin({ vehicle });
       if (!built.ok) return fail(new Error(built.error));
       const twin = built.twin;
       set((s) => ({
         ...initialData(),
         phase: "reveal",
+        todayISO: mode === "demo" ? data.demo.todayISO : realToday(),
         twin,
         explore: { confirmedProfile: structuredClone(twin.driver), draftChanges: [], scenarios: [] },
         activeVehicleId: twin.vehicle.id,
         stage: { ...INITIAL_STAGE, resetCameraSignal: s.stage.resetCameraSignal, skipSignal: s.stage.skipSignal, replaySignal: s.stage.replaySignal + 1 },
-        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false },
+        ui: { ...s.ui, busy: "idle", view: "car", detailsOpen: false, futureDetails: false, futureCompare: false, futureWhy: false, futureBreakEven: false },
         modelStatus: s.modelStatus,
         hydrated: true,
       }));
@@ -503,7 +616,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
     const merged = { ...get(), ...patch };
     const results = simulateAll(merged, merged.explore.scenarios);
     const next = { ...merged, results };
-    set({ ...patch, results, evaluation: evaluateComparison(next), breakEven: null });
+    set({ ...patch, results, ...verdictPatch(evaluateComparison(next)), breakEven: null, breakEvenCheck: null });
   }
 
   const actions: ForkActions = {
@@ -516,7 +629,9 @@ export const useForkStore = create<ForkState>()((set, get) => {
       try {
         const id = await data.identifyVehicle(check.vin);
         if (id.status !== "ok") return fail(new Error(id.reason));
-        await begin(id.vehicle);
+        // The sample VINs are fictional demo cars saved in the registry, so they open the demo.
+        // A VIN decoded from NHTSA is a real car and gets an ordinary twin.
+        await begin(id.vehicle, id.decodeState === "registry" ? "demo" : "ordinary");
       } catch (e) {
         fail(e);
       }
@@ -526,7 +641,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
       set({ error: null });
       const vehicle = data.listSampleVehicles().find((v) => v.id === vehicleId);
       if (!vehicle) return void set({ error: `No sample car with id ${vehicleId}.` });
-      await begin(vehicle);
+      await begin(vehicle, "demo");
     },
 
     async startFromPicker(make, model, year, trim) {
@@ -544,7 +659,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
       if (!vehicle) {
         return void set({ error: "We only model the 2022 Camry SE and the 2024 RAV4 Hybrid XLE for now." });
       }
-      await begin(vehicle);
+      await begin(vehicle, "ordinary");
     },
 
     answerRiders(choice) {
@@ -566,42 +681,82 @@ export const useForkStore = create<ForkState>()((set, get) => {
     async submitDump(text) {
       const s = get();
       const prompt = text.trim();
-      if (!s.twin || !prompt) return;
+      if (!s.twin || !prompt) return { kind: "nothing" };
       set((cur) => ({ error: null, ui: { ...cur.ui, busy: "interpreting" } }));
+      let result: InterpretResult;
+      let offline = false;
       try {
         const active = findScenario(s, s.activeScenarioId);
         const ctx: InterpretContext = {
           vehicle: { make: s.twin.vehicle.make, model: s.twin.vehicle.model, year: s.twin.vehicle.year, trim: s.twin.vehicle.trim },
           profile: s.explore.confirmedProfile,
           existingEvents: (active?.events ?? []).map((e) => ({ type: e.type, month: e.month })),
-          todayISO: new Date().toISOString().slice(0, 10),
+          todayISO: s.todayISO,
         };
-        const result = await ai.interpret(prompt, ctx);
+        // A throw counts as "not available", the same as no key or no network.
+        result = await ai.interpret(prompt, ctx).catch((): InterpretResult => ({ aiAvailable: false }));
         if (!result.aiAvailable) {
-          return void set((cur) => ({ ui: { ...cur.ui, aiAvailable: false, busy: "idle" } }));
+          // Plain rules read it instead, and they only ever extract what was written,
+          // so the whole demo still runs.
+          offline = true;
+          const read = interpretOffline(prompt, s.todayISO);
+          result = {
+            aiAvailable: true,
+            intent: read.intent,
+            proposals: read.events.map((e): LifeEvent => ({ ...e, id: newDraftId(), status: "proposed" })),
+            profilePatches: [],
+            ...(read.note ? { unsupportedReason: read.note } : {}),
+          };
         }
-        // Proposals are drafts. Force "proposed" so nothing from the AI can arrive confirmed.
-        const proposals = result.proposals.map((e): LifeEvent => ({ ...e, status: "proposed" }));
-        set((cur) => {
-          const withDrafts = {
-            ...cur,
-            explore: { ...cur.explore, draftChanges: [...cur.explore.draftChanges, ...proposals] },
-          };
-          return {
-            explore: withDrafts.explore,
-            draftPatches: [...cur.draftPatches, ...result.profilePatches],
-            lastIntent: result.intent,
-            question: nextQuestion(withDrafts, result.question),
-            ui: { ...cur.ui, aiAvailable: true, busy: "idle" },
-          };
-        });
       } catch (e) {
-        // A throwing interpret falls back to manual forms.
         set((cur) => ({
           error: e instanceof Error ? e.message : String(e),
-          ui: { ...cur.ui, aiAvailable: false, busy: "idle" },
+          ui: { ...cur.ui, busy: "idle" },
         }));
+        return { kind: "nothing" };
       }
+
+      // Proposals are drafts. Force "proposed" so nothing from the AI can arrive confirmed.
+      const proposals = result.proposals.map((e): LifeEvent => ({ ...e, status: "proposed" }));
+      set((cur) => {
+        const withDrafts = {
+          ...cur,
+          explore: { ...cur.explore, draftChanges: [...cur.explore.draftChanges, ...proposals] },
+        };
+        return {
+          explore: withDrafts.explore,
+          draftPatches: [...cur.draftPatches, ...result.profilePatches],
+          lastIntent: result.intent,
+          question: nextQuestion(withDrafts, result.question),
+          ui: { ...cur.ui, aiAvailable: !offline, busy: "idle" },
+        };
+      });
+
+      if (proposals.length > 0) return { kind: "proposed" };
+      if (get().question) return { kind: "asked" };
+
+      // A question, not a change: show the answer. Nothing here edits the profile or a scenario.
+      const ensureComparison = async () => {
+        if (!get().comparison) await actions.openReplaceComparison();
+        return get().comparison !== null;
+      };
+      switch (result.intent) {
+        case "FIND_BREAK_EVEN":
+          if (!(await ensureComparison())) break;
+          actions.runBreakEven(breakEvenParameterFor(prompt));
+          actions.setView("future");
+          return { kind: "break_even" };
+        case "COMPARE_SCENARIOS":
+        case "RECOMMEND_ACTION":
+          if (!(await ensureComparison())) break;
+          actions.setView("future");
+          return { kind: "compared" };
+        case "EXPLAIN_RESULT":
+          if (!get().evaluation) break;
+          actions.setView("future");
+          return { kind: "compared" };
+      }
+      return { kind: "nothing", message: result.unsupportedReason };
     },
 
     // ---- confirm ----
@@ -627,8 +782,9 @@ export const useForkStore = create<ForkState>()((set, get) => {
           ...activation({ ...withChild, results }, child.id),
           explore,
           results,
-          evaluation: s.comparison ? evaluateComparison({ ...withChild, results }) : s.evaluation,
+          ...(s.comparison ? verdictPatch(evaluateComparison({ ...withChild, results })) : {}),
           breakEven: null,
+          breakEvenCheck: null,
           question: nextQuestion(withChild),
         });
       } catch (e) {
@@ -693,7 +849,8 @@ export const useForkStore = create<ForkState>()((set, get) => {
         provenance: { ...s.explore.confirmedProfile.provenance, priorities: "user" },
       };
       const explore = { ...s.explore, confirmedProfile: profile };
-      set({ tradeoffPicks: picks, explore, evaluation: evaluateComparison({ ...s, explore }) ?? s.evaluation });
+      const verdict = evaluateComparison({ ...s, explore });
+      set({ tradeoffPicks: picks, explore, ...(verdict ? verdictPatch(verdict) : {}), breakEven: null, breakEvenCheck: null });
     },
 
     // ---- replace ----
@@ -720,8 +877,9 @@ export const useForkStore = create<ForkState>()((set, get) => {
           explore,
           results,
           comparison,
-          evaluation: evaluateComparison(next),
+          ...verdictPatch(evaluateComparison(next)),
           breakEven: null,
+          breakEvenCheck: null,
           question: nextQuestion(next),
           // You asked to compare, so the other futures appear on the road.
           ui: { ...get().ui, busy: "idle", futureCompare: true },
@@ -751,15 +909,23 @@ export const useForkStore = create<ForkState>()((set, get) => {
         return void set({ error: "Open the keep vs replace comparison first." });
       }
       try {
-        const breakEven = decision.findBreakEven({
+        const input = {
           twin: simTwin(s),
           keep,
           replace,
           parameter,
           ctx: buildCtx(s.twin, s.replacementVehicle),
           priorities: s.explore.confirmedProfile.priorities,
+        };
+        const breakEven = decision.findBreakEven(input);
+        // With the threshold known, the next step can name it.
+        set({
+          breakEven,
+          breakEvenCheck: decision.reproduceBreakEven(input, breakEven),
+          ...verdictPatch(evaluateComparison(s, breakEven)),
+          error: null,
+          ui: { ...s.ui, futureBreakEven: true },
         });
-        set({ breakEven, error: null });
       } catch (e) {
         fail(e);
       }
@@ -807,6 +973,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
             draftPatches: ses.draftPatches,
             tradeoffPicks: ses.tradeoffPicks,
             answeredFields: ses.answeredFields,
+            todayISO: ses.todayISO ?? realToday(),
             stage: { ...INITIAL_STAGE, phase: "interactive" as const, revealStage: "done" as const },
           };
           const scenarios = base.explore.scenarios.some((sc) => sc.id === BASE_ID)
@@ -818,7 +985,7 @@ export const useForkStore = create<ForkState>()((set, get) => {
             ...base,
             explore,
             results,
-            evaluation: evaluateComparison({ ...base, explore, results }),
+            ...verdictPatch(evaluateComparison({ ...base, explore, results })),
           });
         } catch {
           // Saved session no longer fits the modules. Start clean.
@@ -860,6 +1027,15 @@ export const useForkStore = create<ForkState>()((set, get) => {
 
     setFutureCompare(on) {
       set((s) => ({ ui: { ...s.ui, futureCompare: on } }));
+    },
+
+    setFutureWhy(on) {
+      set((s) => ({ ui: { ...s.ui, futureWhy: on } }));
+    },
+
+    setFutureBreakEven(on) {
+      if (on && !get().breakEven) return actions.runBreakEven("annualMiles"); // it turns the view on itself
+      set((s) => ({ ui: { ...s.ui, futureBreakEven: on } }));
     },
 
     setLowPerformance(on) {
@@ -911,6 +1087,15 @@ export const useForkStore = create<ForkState>()((set, get) => {
       set((s) => ({
         modelStatus: { ...s.modelStatus, [status.vehicleId]: { ready: status.ready, error: status.error } },
       }));
+      if (status.ready || !status.error) return;
+      // The stage cannot show this car (no model file, no WebGL). Never leave the app waiting on it:
+      // the reveal is skipped and the morph is finished, and everything else keeps working.
+      const s = get();
+      if (s.phase === "reveal" && s.stage.phase === "reveal" && status.vehicleId === s.activeVehicleId) {
+        enterWorkspace();
+      } else if (s.stage.phase === "transition" && s.stage.transitionTo?.id === status.vehicleId) {
+        actions.onTransitionComplete();
+      }
     },
   };
 

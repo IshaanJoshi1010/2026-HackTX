@@ -19,3 +19,9 @@ export function monthLabel(month: number): string {
   if (years === 0) return `${rest} mo`;
   return rest === 0 ? `${years} yr` : `${years} yr ${rest} mo`;
 }
+
+/** "paid_off" becomes "Paid off", "low" becomes "Low". Sentence case, never all capitals. */
+export function sentence(value: string): string {
+  const spaced = value.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}

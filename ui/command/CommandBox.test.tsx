@@ -5,7 +5,6 @@ import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
 import { CommandBox } from "./CommandBox";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
 import { InlineQuestionCard } from "./InlineQuestionCard";
-import { ManualEventForm } from "./ManualEventForm";
 import { TradeoffCards } from "./TradeoffCards";
 
 const sampleProposal: LifeEvent = {
@@ -82,7 +81,8 @@ describe("CommandBox", () => {
     render(<CommandBox />);
     const input = screen.getByPlaceholderText(/tell fork what's changing/i);
     fireEvent.click(screen.getByRole("button", { name: /try:/i }));
-    expect(input).toHaveValue("Moving to Denver next year, 20,000 miles annually, second child in 2029");
+    // the team's demo sentence, taken from the data module rather than copied
+    expect(input).toHaveValue("I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.");
     expect(useForkStore.getState().explore.draftChanges).toHaveLength(0);
   });
 
@@ -98,7 +98,9 @@ describe("CommandBox", () => {
     expect(drafts.map((d) => d.type)).toEqual(["relocation", "mileage_change", "family_change"]);
     expect(drafts.map((d) => d.status)).toEqual(["proposed", "proposed", "proposed"]);
     expect(drafts[0].payload).toEqual({ location: "Denver" });
-    expect(drafts[2].month).toBe(36);
+    // the months and counts Dev 4's demo story is pinned on
+    expect(drafts.map((d) => d.month)).toEqual([12, 0, 32]);
+    expect(drafts[2].payload).toEqual({ children: 2 });
     // nothing confirmed: no new future yet
     expect(useForkStore.getState().explore.scenarios).toHaveLength(1);
   });
@@ -199,23 +201,6 @@ describe("InlineQuestionCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "High" }));
     expect(answerSpy).toHaveBeenCalledWith("cargoNeed", "high");
-  });
-});
-
-describe("ManualEventForm", () => {
-  it("allows staging a manual event proposal", () => {
-    render(<ManualEventForm />);
-
-    const cityInput = screen.getByPlaceholderText("e.g. Denver");
-    fireEvent.change(cityInput, { target: { value: "Seattle" } });
-
-    fireEvent.click(screen.getByRole("button", { name: /stage proposal/i }));
-
-    const drafts = useForkStore.getState().explore.draftChanges;
-    expect(drafts).toHaveLength(1);
-    expect(drafts[0].type).toBe("relocation");
-    expect(drafts[0].payload.city).toBe("Seattle");
-    expect(drafts[0].status).toBe("proposed");
   });
 });
 

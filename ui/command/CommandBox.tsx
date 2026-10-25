@@ -5,14 +5,13 @@ import { ArrowUp, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
-import { extractEvents } from "./extract";
 import { InlineQuestionCard } from "./InlineQuestionCard";
 import { ManualEventForm } from "./ManualEventForm";
 import { StarterChips } from "./StarterChips";
 import { VoiceButton } from "./VoiceButton";
 
 const NOTHING_FOUND =
-  "I couldn't find a life change in that. Try naming a place, a yearly mileage, or a family change.";
+  "I couldn't find a life change or a question I can answer in that. Try naming a place, a yearly mileage, or a family change, or ask about a RAV4.";
 
 export interface CommandBoxProps {
   className?: string;
@@ -32,7 +31,7 @@ export function CommandBox({ className }: CommandBoxProps) {
   const drafts = useForkStore((s) => s.explore.draftChanges);
   const question = useForkStore((s) => s.question);
   const futures = useForkStore((s) => s.explore.scenarios.length);
-  const { submitDump, addDraft, setView } = useForkStore((s) => s.actions);
+  const { submitDump, setView } = useForkStore((s) => s.actions);
 
   const isInterpreting = busy === "interpreting";
   const hasDrafts = drafts.length > 0;
@@ -42,17 +41,12 @@ export function CommandBox({ className }: CommandBoxProps) {
     if (!prompt || isInterpreting) return;
     setNotice(null);
 
-    await submitDump(prompt);
-
-    // With no AI, fall back to plain rules. They only ever extract what you wrote.
-    const state = useForkStore.getState();
-    if (!state.ui.aiAvailable && state.explore.draftChanges.length === 0) {
-      const found = extractEvents(prompt, new Date().getFullYear());
-      found.forEach((event) => addDraft(event));
-      if (found.length === 0) {
-        setNotice(NOTHING_FOUND);
-        return; // keep the text so it can be fixed
-      }
+    // With no AI the store reads it with plain rules that only extract what you wrote.
+    // A question answers itself on the Future page; a change waits here for a confirm.
+    const outcome = await submitDump(prompt);
+    if (outcome.kind === "nothing") {
+      setNotice(outcome.message ?? NOTHING_FOUND);
+      return; // keep the text so it can be fixed
     }
     setText("");
   };

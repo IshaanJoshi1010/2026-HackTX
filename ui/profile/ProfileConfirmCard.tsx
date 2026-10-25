@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DataRow } from "@/ui/profile/DataRow";
-import { miles, usd } from "@/ui/profile/format";
+import { miles, sentence, usd } from "@/ui/profile/format";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 export interface ProfileConfirmCardProps {
@@ -71,7 +71,7 @@ export function ProfileConfirmCard({ className, compact = false }: ProfileConfir
         />
         <DataRow
           label="Cargo requirement"
-          value={profile.cargoNeed.toUpperCase()}
+          value={sentence(profile.cargoNeed)}
           source={prov.cargoNeed}
         />
         <DataRow
@@ -81,7 +81,7 @@ export function ProfileConfirmCard({ className, compact = false }: ProfileConfir
         />
         <DataRow
           label="Finance structure"
-          value={profile.financeType.replace("_", " ").toUpperCase()}
+          value={sentence(profile.financeType)}
           source={financeProv}
         />
       </div>

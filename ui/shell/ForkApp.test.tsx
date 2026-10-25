@@ -57,7 +57,9 @@ describe("flow", () => {
     render(<ForkApp />);
     await advance(0);
     expect(screen.getByText("The future branches. Explore yours.", { selector: "p" })).toBeInTheDocument();
-    expect(screen.getByTestId("mock-banner")).toHaveTextContent("car, data, ai, sim, decision");
+    // Data, sim, decision and the AI are real now. Only the 3D stage is still a placeholder.
+    expect(screen.getByTestId("mock-banner")).toHaveTextContent("car is a placeholder");
+    expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim|decision|ai)\b/);
     expect(screen.getByRole("button", { name: /2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
     // nothing to open before there is a car
     expect(screen.queryByRole("button", { name: "Your details" })).toBeNull();
@@ -264,7 +266,8 @@ describe("the future page", () => {
     await advance(1900);
     expect(screen.getByTestId("car-stage-stub")).toHaveAttribute("data-vehicle-id", "rav4-2024-hybrid-xle");
 
-    expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent("Inconclusive");
+    // The verdict is the engine's, so assert that there is one, not which it is (the demo story is pinned in its own test).
+    expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent(/Keep your Camry|Switch to the RAV4|Close call/);
     // you asked to compare, so the other future is on the road without another click
     expect(state().ui.futureCompare).toBe(true);
     const names = screen.getAllByTestId("road-future");
@@ -275,6 +278,59 @@ describe("the future page", () => {
 
     goCar();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("2024 Toyota RAV4");
+  });
+});
+
+describe("when something does not work, it says so", () => {
+  it("shows the store's error above the command bar on either page, and goes away when dismissed", async () => {
+    await enterWorkspace();
+    expect(screen.queryByRole("alert")).toBeNull();
+    act(() => useForkStore.setState({ error: "There is no other car to compare with." }));
+    expect(screen.getByRole("alert")).toHaveTextContent("There is no other car to compare with.");
+    goFuture();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(state().error).toBeNull();
+  });
+
+  it("an unusable answer to a question is not silent", async () => {
+    await enterWorkspace();
+    act(() => state().actions.answerQuestion("annualMiles", -5));
+    expect(screen.getByRole("alert")).toHaveTextContent(/usable value/);
+  });
+});
+
+describe("the answer fits the page", () => {
+  it("once you compare, the verdict is the headline, then the road, then the next step", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(screen.getByText(/Net cost, 5 yr/)).toBeInTheDocument(); // the single headline number, before comparing
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
+    await advance(0);
+
+    const verdict = screen.getByTestId("verdict");
+    const road = screen.getByTestId("road");
+    const next = screen.getByTestId("next-step");
+    const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(before(verdict, road)).toBe(true);
+    expect(before(road, next)).toBe(true);
+    // the number is not repeated: the road's readout carries the cost at the playhead
+    expect(screen.queryByText(/Net cost, 5 yr/)).toBeNull();
+    // the road makes room so all of it fits above the command bar
+    expect(road.style.height).toMatch(/30vh/);
+    // and the road names each future itself, so the page does not say the name twice
+    expect(screen.queryByTestId("future-name")).toBeNull();
+  });
+
+  it("the comparison's two options sit in the same row as Details and Other futures", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
+    await advance(0);
+    const row = screen.getByRole("button", { name: "Details" }).parentElement!;
+    expect(within(row).getByRole("button", { name: "What would change it" })).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "Why" })).toBeInTheDocument();
   });
 });
 

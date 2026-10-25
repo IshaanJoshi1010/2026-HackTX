@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
 import { data } from "@/ui/mocks";
 import { monthLabel, usd } from "@/ui/profile/format";
 import { metricSource } from "@/ui/profile/metricSources";
@@ -9,23 +8,9 @@ import { Stat } from "@/ui/profile/Stat";
 import { selectActivePoint, selectActiveResult, selectActiveScenario, specsFor } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { Road } from "@/ui/timeline/Road";
+import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict } from "@/ui/compare/ComparisonSection";
+import { Toggle } from "@/ui/compare/Toggle";
 import { FutureDetails } from "./FutureDetails";
-
-function Toggle({ pressed, onClick, children }: { pressed: boolean; onClick(): void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        "border-b pb-0.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
-        pressed ? "border-ink text-ink" : "border-transparent text-ink/55 hover:text-ink",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 /**
  * The second page: your road. One headline number, the road itself, and three quiet
@@ -50,11 +35,6 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
   const spec = point ? specsFor(point.vehicleId) : null;
   const futuresCount = scenarios.length - 1;
 
-  const preferred =
-    evaluation?.preferredScenarioId === "inconclusive"
-      ? "Inconclusive"
-      : scenarios.find((sc) => sc.id === evaluation?.preferredScenarioId)?.name;
-
   return (
     <>
       {/* Content slides away under a soft fade, not under the header and the mock-mode pill. */}
@@ -62,14 +42,20 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
       <div
         data-testid="future-view"
         style={{ bottom: bottomInset }}
-        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(4rem,9vh,6rem)]"
+        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(3.5rem,8vh,6rem)]"
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1.25rem,3.5vh,2.5rem)]">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1rem,3vh,2.5rem)]">
           <header className="text-center">
-            <p data-testid="future-name" className="mb-2 text-base text-ink/60">
-              {scenario?.name}
-            </p>
-            {point ? (
+            {/* Once you compare, the road names each future itself, so the name is not said twice. */}
+            {!evaluation && (
+              <p data-testid="future-name" className="mb-2 text-base text-ink/60">
+                {scenario?.name}
+              </p>
+            )}
+            {evaluation ? (
+              // Once you compare, the answer is the headline. The road still carries the cost at the playhead.
+              <ComparisonVerdict />
+            ) : point ? (
               <Stat
                 size="lg"
                 label={`Net cost, ${monthLabel(month)}`}
@@ -77,11 +63,13 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
                 source={metricSource("netEconomicCost", profile, spec)}
               />
             ) : (
-              <p className="text-lg text-ink/50">No projection for this month</p>
+              <p className="text-lg text-ink/50">{month === 0 ? "Today. Net cost counts from here." : "No projection for this month"}</p>
             )}
           </header>
 
-          <Road />
+          <Road compact={evaluation !== null} />
+
+          <ComparisonNextStep />
 
           <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
             <Toggle pressed={details} onClick={() => setFutureDetails(!details)}>
@@ -102,21 +90,12 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
                 Compare with a {other.year} {other.model}
               </button>
             )}
+            <ComparisonToggles />
           </div>
 
           {details && <FutureDetails />}
 
-          {evaluation && (
-            <section aria-label="Keep or replace" className="pt-4 text-center">
-              <p className="text-sm text-ink/50">Keep or replace</p>
-              <p className="mt-1 text-3xl font-medium text-ink">{preferred ?? "Inconclusive"}</p>
-              <ul className="mx-auto mt-3 max-w-xl space-y-1.5 text-sm text-ink/60">
-                {evaluation.rationale.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <ComparisonMore />
         </div>
       </div>
     </>

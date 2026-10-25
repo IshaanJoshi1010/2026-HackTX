@@ -10,6 +10,7 @@ import { selectActivePoint, selectActiveResult, selectActiveScenario, specsFor }
 import { MONTH_MAX, simulationInputs, useForkStore } from "@/ui/store/useForkStore";
 import { EVENT_ICON } from "@/ui/timeline/EventMarkers";
 import { decisionEffects } from "@/ui/timeline/effects";
+import { totalThrough } from "@/ui/timeline/layout";
 import { effectPhrase } from "@/ui/timeline/roadMath";
 
 /**
@@ -75,8 +76,8 @@ export function FutureDetails() {
       {point && (
         <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4">
           <Stat label="Odometer" value={miles(point.mileage)} source={src("mileage")} />
-          <Stat label="Fuel so far" value={usd(point.fuelSpend)} source={src("fuelSpend")} />
-          <Stat label="Upkeep so far" value={usd(point.maintenanceSpend)} source={src("maintenanceSpend")} />
+          <Stat label="Fuel so far" value={usd(totalThrough(result, month, "fuelSpend") ?? 0)} source={src("fuelSpend")} />
+          <Stat label="Upkeep so far" value={usd(totalThrough(result, month, "maintenanceSpend") ?? 0)} source={src("maintenanceSpend")} />
           <Stat label="Resale value" value={usd(point.vehicleValue)} source={src("vehicleValue")} />
         </div>
       )}

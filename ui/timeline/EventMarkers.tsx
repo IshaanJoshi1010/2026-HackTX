@@ -51,6 +51,8 @@ export interface MarkerProps {
   y: number;
   /** A decision inherited from before this future branched. It can be seen but only moved on the future that owns it. */
   locked?: boolean;
+  /** The earliest month it can move to: the month its future starts. A future cannot rewrite what it inherited. */
+  minMonth?: number;
   /** Where the road is on screen, for turning a drag into a month. */
   getAxis(): AxisRect | null;
   onMove(scenarioId: string, eventId: string, month: number): void;
@@ -61,7 +63,7 @@ export interface MarkerProps {
  * One decision, as a signpost on the road. Drag it to a new month, or focus it and
  * use the arrow keys (Shift moves by six months). Click it to put the playhead there.
  */
-export function Marker({ event, scenarioId, x, y, locked = false, getAxis, onMove, onSelect }: MarkerProps) {
+export function Marker({ event, scenarioId, x, y, locked = false, minMonth = 0, getAxis, onMove, onSelect }: MarkerProps) {
   const Icon = EVENT_ICON[event.type];
   const [dragX, setDragX] = useState<number | null>(null);
   const [dragMonth, setDragMonth] = useState<number | null>(null);
@@ -82,7 +84,7 @@ export function Marker({ event, scenarioId, x, y, locked = false, getAxis, onMov
     if (!s || !axis) return;
     if (!s.moved && Math.abs(e.clientX - s.x) < DRAG_THRESHOLD) return;
     s.moved = true;
-    const m = xToMonth(e.clientX, axis);
+    const m = Math.max(minMonth, xToMonth(e.clientX, axis));
     setDragMonth(m);
     setDragX((m / 60) * axis.width);
   };
@@ -104,7 +106,7 @@ export function Marker({ event, scenarioId, x, y, locked = false, getAxis, onMov
     const step = e.shiftKey ? 6 : 1;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
-      const next = clampMonth(event.month + (e.key === "ArrowRight" ? step : -step));
+      const next = Math.max(minMonth, clampMonth(event.month + (e.key === "ArrowRight" ? step : -step)));
       if (next !== event.month) onMove(scenarioId, event.id, next);
     }
   };
@@ -158,6 +160,9 @@ export function Marker({ event, scenarioId, x, y, locked = false, getAxis, onMov
         </p>
         {event.quote && <p className="mt-1 text-canvas/80 italic">&ldquo;{event.quote}&rdquo;</p>}
         <p className="mt-1 text-canvas/50">{locked ? "From an earlier future. Move it there." : CERTAINTY[event.certainty]}</p>
+        {!locked && minMonth > 0 && month <= minMonth && (
+          <p className="text-canvas/50">This future starts here, so it can only move later.</p>
+        )}
       </div>
     </div>
   );

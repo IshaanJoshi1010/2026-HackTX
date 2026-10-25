@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifeEvent } from "@/contracts";
 import { ai, data } from "@/ui/mocks";
-import { BASE_ID, resetForkStoreForTests, simulationInputs, useForkStore } from "./useForkStore";
+import { BASE_ID, breakEvenParameterFor, resetForkStoreForTests, simulationInputs, useForkStore } from "./useForkStore";
 
 const CAMRY = "camry-2022-se";
 const RAV4 = "rav4-2024-hybrid-xle";
@@ -70,9 +70,10 @@ describe("start", () => {
     expect(state().stage.phase).toBe("interactive");
     expect(state().explore.scenarios.map((s) => s.id)).toEqual([BASE_ID]);
     const result = state().results[BASE_ID];
-    expect(result.points).toHaveLength(61);
-    expect(result.points[0].mileage).toBe(state().twin!.mileage);
-    expect(result.points[60].mileage).toBeGreaterThan(result.points[0].mileage);
+    // The real projection is end-of-month, months 1 to 60. Month 0 is "now" and has no point.
+    expect(result.points.map((p) => p.month)).toEqual(Array.from({ length: 60 }, (_, i) => i + 1));
+    expect(result.points[0].mileage).toBeGreaterThan(state().twin!.mileage);
+    expect(result.points[59].mileage).toBeGreaterThan(result.points[0].mileage);
   });
 
   it("ignores late reveal callbacks once the reveal is over", async () => {
@@ -112,11 +113,48 @@ describe("start", () => {
   });
 
   it("surfaces a twin build failure instead of throwing", async () => {
-    vi.spyOn(data, "buildTwin").mockResolvedValue({ ok: false, error: "twin broke" });
+    vi.spyOn(data, "buildDemoTwin").mockResolvedValue({ ok: false, error: "twin broke" });
     await actions().startFromSample(CAMRY);
     expect(state().twin).toBeNull();
     expect(state().error).toBe("twin broke");
     expect(state().ui.busy).toBe("idle");
+
+    vi.spyOn(data, "buildTwin").mockResolvedValue({ ok: false, error: "ordinary twin broke" });
+    await actions().startFromPicker("Toyota", "Camry", 2022, "SE");
+    expect(state().twin).toBeNull();
+    expect(state().error).toBe("ordinary twin broke");
+    expect(state().ui.busy).toBe("idle");
+  });
+
+  it("a sample car opens the Alex demo: synthetic profile, pinned date", async () => {
+    await actions().startFromSample(CAMRY);
+    const { driver } = state().twin!;
+    expect(driver).toMatchObject({ householdSize: 3, children: 1, carSeats: 0, cargoNeed: "low", location: "Austin, TX" });
+    expect(driver.priorities).toEqual({ cost: 0.2, family: 0.2, longevity: 0.2, fuel: 0.2, comfort: 0.2 });
+    expect(driver.provenance.householdSize).toBe("synthetic");
+    expect(state().todayISO).toBe(data.demo.todayISO);
+  });
+
+  it("the registry's sample VIN opens the same demo, as typed", async () => {
+    await actions().startFromVin("4T1G11AK1NU900001");
+    expect(state().twin?.vehicle.id).toBe(CAMRY);
+    expect(state().twin?.driver.provenance.householdSize).toBe("synthetic");
+    expect(state().todayISO).toBe(data.demo.todayISO);
+  });
+
+  it("the model picker is ordinary entry: nothing about the driver is assumed to be Alex", async () => {
+    await actions().startFromPicker("Toyota", "Camry", 2022, "SE");
+    const { driver } = state().twin!;
+    expect(driver.householdSize).toBe(1);
+    expect(driver.location).toBe("Not provided");
+    expect(driver.provenance.householdSize).toBe("estimated");
+    expect(state().todayISO).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("a VIN with a bad check digit is refused before any twin is built", async () => {
+    await actions().startFromVin("4T1G11AK2NU900001");
+    expect(state().twin).toBeNull();
+    expect(state().error).toMatch(/check digit/i);
   });
 });
 
@@ -135,21 +173,35 @@ describe("time", () => {
 });
 
 describe("dump and confirm", () => {
-  it("with the mock AI (unavailable) it switches to manual forms and proposes nothing", async () => {
+  it("with no AI it reads the sentence with plain rules and proposes only what was written", async () => {
     await enterWorkspace();
-    await actions().submitDump("I'm moving to Denver");
+    const before = state().explore.scenarios;
+    const outcome = await actions().submitDump("I'm moving to Denver");
+    expect(outcome).toEqual({ kind: "proposed" });
     expect(state().ui.aiAvailable).toBe(false);
-    expect(state().explore.draftChanges).toEqual([]);
+    const drafts = state().explore.draftChanges;
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ type: "relocation", status: "proposed", payload: { location: "Denver" } });
+    expect(drafts[0].assumptions[0]).toMatch(/didn't say when/);
+    expect(state().explore.scenarios).toBe(before); // a proposal changes nothing
     expect(state().ui.busy).toBe("idle");
   });
 
-  it("a throwing interpret falls back to manual forms and changes nothing", async () => {
+  it("with no AI, text with no change in it proposes nothing and says so", async () => {
+    await enterWorkspace();
+    const outcome = await actions().submitDump("I'm moving");
+    expect(outcome.kind).toBe("nothing");
+    expect(state().explore.draftChanges).toEqual([]);
+  });
+
+  it("a throwing interpret falls back to the plain rules and changes nothing", async () => {
     await enterWorkspace();
     vi.spyOn(ai, "interpret").mockRejectedValue(new Error("gemini down"));
     const before = state().explore.scenarios;
-    await actions().submitDump("anything");
+    const outcome = await actions().submitDump("moving to Denver next year");
+    expect(outcome).toEqual({ kind: "proposed" });
     expect(state().ui.aiAvailable).toBe(false);
-    expect(state().error).toBe("gemini down");
+    expect(state().error).toBeNull();
     expect(state().explore.scenarios).toBe(before);
   });
 
@@ -193,7 +245,7 @@ describe("dump and confirm", () => {
     expect(child.forkMonth).toBe(12);
     expect(child.name).toBe("Move to Denver + 1 more");
     expect(child.events.every((e) => e.status === "confirmed")).toBe(true);
-    expect(state().results[child.id].points).toHaveLength(61);
+    expect(state().results[child.id].points).toHaveLength(60);
     expect(state().activeScenarioId).toBe(child.id);
     expect(state().explore.draftChanges).toEqual([]);
 
@@ -234,11 +286,20 @@ describe("dump and confirm", () => {
 });
 
 describe("questions and profile answers", () => {
-  it("shows at most one question and never repeats an answered field", async () => {
+  it("asks nothing about Alex: every number the comparison needs is already backed", async () => {
     await enterWorkspace();
     interpretReturning([denver]);
     await actions().submitDump("dump");
     actions().confirmDrafts(["e-denver"]);
+    await actions().openReplaceComparison();
+    expect(state().question).toBeNull();
+  });
+
+  it("shows at most one question and never repeats an answered field", async () => {
+    // Ordinary entry estimates cargo need, so the comparison asks about it.
+    await actions().startFromPicker("Toyota", "Camry", 2022, "SE");
+    actions().onRevealStage("done");
+    await actions().openReplaceComparison();
     expect(state().question?.field).toBe("cargoNeed");
 
     actions().answerQuestion("cargoNeed", "unsure");
@@ -256,11 +317,12 @@ describe("questions and profile answers", () => {
 
   it("a real answer is stored as the user's and moves the projection", async () => {
     await enterWorkspace();
-    const fuelBefore = state().results[BASE_ID].points[60].fuelSpend;
+    const fuelAt60 = () => state().results[BASE_ID].points.find((p) => p.month === 60)!.fuelSpend;
+    const fuelBefore = fuelAt60();
     actions().answerQuestion("annualMiles", 24000);
     expect(state().explore.confirmedProfile.annualMiles).toBe(24000);
     expect(state().explore.confirmedProfile.provenance.annualMiles).toBe("user");
-    expect(state().results[BASE_ID].points[60].fuelSpend).toBeCloseTo(fuelBefore * 2, 5);
+    expect(fuelAt60()).toBeCloseTo(fuelBefore * 2, 5);
   });
 
   it("rejects unusable answers without changing anything", async () => {
@@ -320,9 +382,10 @@ describe("replace comparison", () => {
     const { keepId, replaceId } = state().comparison!;
     expect(keepId).toBe(BASE_ID);
     expect(state().explore.scenarios.map((s) => s.id)).toContain(replaceId);
-    expect(state().results[replaceId].points[11].vehicleId).toBe(CAMRY);
-    expect(state().results[replaceId].points[12].vehicleId).toBe(RAV4);
-    expect(state().evaluation?.preferredScenarioId).toBe("inconclusive");
+    const carAt = (m: number) => state().results[replaceId].points.find((p) => p.month === m)!.vehicleId;
+    expect(carAt(11)).toBe(CAMRY);
+    expect(carAt(12)).toBe(RAV4);
+    expect(state().evaluation?.scenarioIds).toEqual([keepId, replaceId]);
     expect(state().activeScenarioId).toBe(replaceId);
 
     // morph in flight: still showing the Camry, heading to the RAV4
@@ -546,5 +609,234 @@ describe("future page options", () => {
 
   it("has no inputs before there is a car", () => {
     expect(simulationInputs(state())).toBeNull();
+  });
+});
+
+describe("demo story A through the store (numbers pinned by sim/DEMO.md)", () => {
+  // The events Paarth's extraction gives the demo sentence, confirmed in the UI.
+  const storyEvent = (id: string, type: LifeEvent["type"], month: number, payload: LifeEvent["payload"]): LifeEvent => ({
+    id,
+    type,
+    month,
+    payload,
+    source: "ai",
+    assumptions: [],
+    certainty: "clear",
+    status: "proposed",
+  });
+  const storyA = [
+    storyEvent("a-move", "relocation", 12, { location: "Denver" }),
+    storyEvent("a-miles", "mileage_change", 0, { annualMiles: 20000 }),
+    storyEvent("a-kid", "family_change", 32, { children: 2 }),
+  ];
+
+  async function toComparison() {
+    await enterWorkspace();
+    interpretReturning(storyA);
+    await actions().submitDump("demo");
+    actions().confirmDrafts(storyA.map((e) => e.id));
+    await actions().openReplaceComparison();
+  }
+
+  it("uses Alex as given: no trade-off picks, equal priorities, low cargo, no car seats", async () => {
+    await toComparison();
+    const profile = state().explore.confirmedProfile;
+    expect(state().tradeoffPicks).toEqual([]);
+    expect(profile.priorities).toEqual({ cost: 0.2, family: 0.2, longevity: 0.2, fuel: 0.2, comfort: 0.2 });
+    expect(profile).toMatchObject({ cargoNeed: "low", carSeats: 0, householdSize: 3, children: 1 });
+  });
+
+  it("step 4: a close call, with keeping the cheaper of the two", async () => {
+    await toComparison();
+    const { evaluation, comparison, results } = state();
+    expect(evaluation?.preferredScenarioId).toBe("inconclusive");
+    expect(evaluation?.rationale[0]).toMatch(/^Inconclusive: /);
+    expect(results[comparison!.keepId].summary.netCost).toBeLessThan(results[comparison!.replaceId].summary.netCost);
+  });
+
+  it("step 5: keeping wins below about 14,434 mi/yr, and the flip reproduces on both sides", async () => {
+    await toComparison();
+    expect(state().breakEven).toBeNull(); // nothing is computed until it is asked for
+    actions().runBreakEven("annualMiles");
+    const { breakEven, breakEvenCheck, comparison } = state();
+    expect(breakEven).toMatchObject({ found: true, parameter: "annualMiles", direction: "below", currentValue: 20000 });
+    if (!breakEven?.found) throw new Error("expected a threshold");
+    expect(breakEven.threshold).toBeCloseTo(14434, 0);
+    expect(breakEvenCheck?.below.preferredScenarioId).toBe(comparison!.keepId);
+    expect(breakEvenCheck?.above.preferredScenarioId).not.toBe(comparison!.keepId);
+    expect(breakEvenCheck!.below.value).toBeLessThan(breakEven.threshold);
+    expect(breakEvenCheck!.above.value).toBeGreaterThan(breakEven.threshold);
+  });
+
+  it("step 6: the next step names the threshold, and the robustness count is a count", async () => {
+    await toComparison();
+    actions().runBreakEven("annualMiles");
+    const { evaluation, nextActionFactors } = state();
+    expect(evaluation?.nextAction.label).toBe("Reevaluate if your driving drops below 14,434 mi/yr");
+    expect(nextActionFactors).toEqual(["break_even", "annualMiles"]);
+    expect(evaluation?.rationale).toContain("Held in 9 of 9 tested cases");
+    expect(JSON.stringify(evaluation)).not.toMatch(/\d\s?%|probab|confiden/i);
+  });
+
+  it("changing an input clears the old threshold instead of showing a stale one", async () => {
+    await toComparison();
+    actions().runBreakEven("annualMiles");
+    expect(state().breakEven?.found).toBe(true);
+    actions().answerQuestion("annualMiles", 16000);
+    expect(state().breakEven).toBeNull();
+    expect(state().breakEvenCheck).toBeNull();
+    expect(state().evaluation?.nextAction.label).not.toMatch(/14,434/);
+  });
+
+  it("the road, the profile and the other futures stay as confirmed (exploring is not changing)", async () => {
+    await enterWorkspace();
+    const profileBefore = structuredClone(state().explore.confirmedProfile);
+    interpretReturning(storyA);
+    await actions().submitDump("demo");
+    actions().confirmDrafts(storyA.map((e) => e.id));
+    await actions().openReplaceComparison();
+    actions().runBreakEven("annualMiles");
+    expect(state().explore.confirmedProfile).toEqual(profileBefore);
+    expect(state().explore.scenarios.find((s) => s.id === BASE_ID)?.events).toEqual([]);
+  });
+});
+
+describe("questions typed in the command bar (no AI: plain rules route them)", () => {
+  it("'would a RAV4 make more sense?' opens keep vs replace on the future page and changes nothing", async () => {
+    await enterWorkspace();
+    const profileBefore = structuredClone(state().explore.confirmedProfile);
+    const outcome = await actions().submitDump("Would switching to a RAV4 Hybrid make more sense?");
+    expect(outcome).toEqual({ kind: "compared" });
+    expect(state().comparison).not.toBeNull();
+    expect(state().evaluation).not.toBeNull();
+    expect(state().ui.view).toBe("future");
+    expect(state().explore.draftChanges).toEqual([]); // a question proposes no change
+    expect(state().explore.confirmedProfile).toEqual(profileBefore);
+  });
+
+  it("'what would have to change…' runs the break-even, opening the comparison first if there is none", async () => {
+    await enterWorkspace();
+    expect(state().comparison).toBeNull();
+    const outcome = await actions().submitDump("What would have to change for keeping the Camry to be the better option?");
+    expect(outcome).toEqual({ kind: "break_even" });
+    expect(state().comparison).not.toBeNull();
+    expect(state().breakEven).toMatchObject({ parameter: "annualMiles" });
+    expect(state().ui.view).toBe("future");
+  });
+
+  it("asking about fuel price tests fuel price, not miles", async () => {
+    expect(breakEvenParameterFor("What fuel price would make keeping my Camry better?")).toBe("fuelPricePerGal");
+    expect(breakEvenParameterFor("what if gas goes up, what would have to change?")).toBe("fuelPricePerGal");
+    expect(breakEvenParameterFor("What would have to change for keeping the Camry?")).toBe("annualMiles");
+    await enterWorkspace();
+    await actions().submitDump("What fuel price would have to change for keeping the Camry to be the better option?");
+    expect(state().breakEven?.parameter).toBe("fuelPricePerGal");
+  });
+
+  it("a question about some other car is not answered with the RAV4", async () => {
+    await enterWorkspace();
+    const outcome = await actions().submitDump("Would a Corolla make more sense?");
+    expect(outcome.kind).toBe("nothing");
+    expect(outcome).toMatchObject({ message: expect.stringMatching(/RAV4/) });
+    expect(state().comparison).toBeNull();
+    expect(state().ui.view).toBe("car");
+  });
+
+  it("asking again does not open a second comparison", async () => {
+    await enterWorkspace();
+    await actions().submitDump("Would a RAV4 make more sense?");
+    const count = state().explore.scenarios.length;
+    await actions().submitDump("Should I replace my Camry?");
+    expect(state().explore.scenarios).toHaveLength(count);
+  });
+});
+
+describe("the explanation", () => {
+  const words = { text: "Keeping and replacing are close. Nothing here is a quote.", usedFallback: true };
+
+  it("is asked for once there is an evaluation, and shown with how it was written", async () => {
+    const explain = vi.spyOn(ai, "explain").mockResolvedValue(words);
+    await enterWorkspace();
+    expect(state().explanation).toBeNull();
+    await actions().openReplaceComparison();
+    await vi.waitFor(() => expect(state().explanation).toEqual(words));
+    // it was given the engine's evaluation and both projections, nothing else
+    const [evaluation, results] = explain.mock.calls[0];
+    expect(evaluation).toBe(state().evaluation);
+    expect(results.map((r) => r.scenarioId)).toEqual(evaluation.scenarioIds);
+  });
+
+  it("is cleared the moment the numbers change, so it never describes old ones", async () => {
+    vi.spyOn(ai, "explain").mockResolvedValue(words);
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    await vi.waitFor(() => expect(state().explanation).not.toBeNull());
+    vi.spyOn(ai, "explain").mockReturnValue(new Promise(() => {})); // never answers
+    actions().setAssumption("insurancePerMonth", 250);
+    expect(state().explanation).toBeNull();
+  });
+
+  it("drops a late answer about an older comparison", async () => {
+    let answerFirst!: (v: typeof words) => void;
+    vi.spyOn(ai, "explain")
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValue({ text: "about the new numbers", usedFallback: true });
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().setAssumption("insurancePerMonth", 250); // new numbers, new request
+    await vi.waitFor(() => expect(state().explanation?.text).toBe("about the new numbers"));
+    answerFirst({ text: "about the old numbers", usedFallback: false });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state().explanation?.text).toBe("about the new numbers");
+  });
+
+  it("failing to get words changes nothing else: no error, the verdict stays", async () => {
+    vi.spyOn(ai, "explain").mockRejectedValue(new Error("offline"));
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state().explanation).toBeNull();
+    expect(state().error).toBeNull();
+    expect(state().evaluation).not.toBeNull();
+  });
+});
+
+describe("a car the stage cannot show never leaves the app waiting", () => {
+  const broken = (vehicleId: string) => ({ vehicleId, ready: false, error: "No model asset is configured." });
+
+  it("a model that fails during the reveal skips the reveal and opens the workspace", async () => {
+    await actions().startFromSample(CAMRY);
+    expect(state().phase).toBe("reveal");
+    actions().onModelStatus(broken(CAMRY));
+    expect(state().phase).toBe("workspace");
+    expect(state().stage.phase).toBe("interactive");
+    expect(state().results[BASE_ID]).toBeDefined(); // the numbers do not need the 3D model
+    expect(state().modelStatus[CAMRY]).toEqual({ ready: false, error: "No model asset is configured." });
+  });
+
+  it("a target model that fails finishes the morph, so the app moves on to the new car", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    expect(state().stage.phase).toBe("transition");
+    actions().onModelStatus(broken(RAV4));
+    expect(state().stage.phase).toBe("interactive");
+    expect(state().activeVehicleId).toBe(RAV4);
+  });
+
+  it("loading and ready reports, and errors about some other car, change nothing", async () => {
+    await actions().startFromSample(CAMRY);
+    actions().onModelStatus({ vehicleId: CAMRY, ready: false });
+    actions().onModelStatus({ vehicleId: CAMRY, ready: true });
+    actions().onModelStatus(broken(RAV4));
+    expect(state().phase).toBe("reveal");
+    expect(state().stage.phase).toBe("reveal");
+  });
+
+  it("an error with nothing running does nothing", async () => {
+    actions().onModelStatus(broken(CAMRY));
+    expect(state().phase).toBe("landing");
+    expect(state().twin).toBeNull();
   });
 });

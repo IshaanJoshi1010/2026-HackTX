@@ -9,7 +9,7 @@ import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { eventTitle } from "@/ui/store/eventLabels";
 import { specsFor } from "@/ui/store/selectors";
 import { BASE_ID, useForkStore } from "@/ui/store/useForkStore";
-import { MONTH_MAX, YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, milestonesOf, pointAt, yearLabel } from "./layout";
+import { MONTH_MAX, YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, labelCenter, milestonesOf, pointAt, yearLabel } from "./layout";
 import { MilestoneTick, Marker } from "./EventMarkers";
 import {
   assignLevels,
@@ -40,7 +40,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
  * how much your decisions changed your net cost: down costs more, up saves money.
  * Each decision is a signpost you can drag. The other futures only appear if asked for.
  */
-export function Road() {
+export function Road({ compact = false }: { compact?: boolean } = {}) {
   const scenarios = useForkStore((s) => s.explore.scenarios);
   const results = useForkStore((s) => s.results);
   const activeId = useForkStore((s) => s.activeScenarioId);
@@ -126,7 +126,7 @@ export function Road() {
       ref={setNode}
       data-testid="road"
       className="relative w-full select-none"
-      style={{ height: "clamp(320px, 44vh, 460px)" }}
+      style={{ height: compact ? "clamp(260px, 30vh, 320px)" : "clamp(320px, 44vh, 460px)" }}
     >
       <p className="sr-only">{summary}</p>
 
@@ -243,11 +243,12 @@ export function Road() {
               x={x}
               y={y}
               locked={inherited.has(e.id)}
+              minMonth={active.parentId ? active.forkMonth : 0}
               getAxis={getAxis}
               onMove={moveEvent}
               onSelect={setActiveMonth}
             />
-            <DecisionLabel event={e} x={x} y={y + off} above={off < 0} />
+            <DecisionLabel event={e} x={x} y={y + off} above={off < 0} roadW={roadW} />
           </div>
         );
       })}
@@ -310,6 +311,9 @@ export function Road() {
       {showAll &&
         ends.map(({ s, delta: end }, i) => {
           const isActive = s.id === active.id;
+          // The number is that future's own, so it carries the label of that future's own car and inputs.
+          const endPoint = pointAt(results[s.id], MONTH_MAX);
+          const endSource = metricSource("netEconomicCost", profile, endPoint ? specsFor(endPoint.vehicleId) : null);
           return (
             <button
               key={s.id}
@@ -324,7 +328,11 @@ export function Road() {
               style={{ left: roadW + 18, top: spread[i], width: GUTTER - 28 }}
             >
               <span className={cn("block truncate text-[15px]", isActive && "font-medium")}>{s.name}</span>
-              <span className="block text-xs tabular-nums text-ink/50">{s.id === BASE_ID ? "if nothing changes" : `${signedUsd(end)} by 5 yr`}</span>
+              {/* The figure and its label share a line, so a label stays two lines tall and the fixed spacing still clears. */}
+              <span className="flex items-center gap-2 text-xs whitespace-nowrap tabular-nums text-ink/50">
+                {s.id === BASE_ID ? "if nothing changes" : `${signedUsd(end)} by 5 yr`}
+                {s.id !== BASE_ID && <SourceBadge compact source={endSource} />}
+              </span>
             </button>
           );
         })}
@@ -332,12 +340,14 @@ export function Road() {
   );
 }
 
-function DecisionLabel({ event, x, y, above }: { event: LifeEvent; x: number; y: number; above: boolean }) {
+function DecisionLabel({ event, x, y, above, roadW }: { event: LifeEvent; x: number; y: number; above: boolean; roadW: number }) {
+  // The first decision sits on the left end of the road, so keep its label on screen.
+  const widest = Math.max(eventTitle(event).length, `in ${monthLabel(event.month)}`.length);
   return (
     <div
       data-testid="decision-label"
       className="pointer-events-none absolute z-10 rounded bg-canvas px-2 py-0.5 text-center"
-      style={{ left: x, top: y, transform: `translate(-50%, ${above ? "-100%" : "0"})` }}
+      style={{ left: labelCenter(x, "x".repeat(widest), roadW), top: y, transform: `translate(-50%, ${above ? "-100%" : "0"})` }}
     >
       <DecisionText event={event} />
     </div>

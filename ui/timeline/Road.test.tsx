@@ -217,18 +217,32 @@ describe("signposts", () => {
 
     fireEvent.keyDown(markers()[0], { key: "ArrowRight" });
     expect(monthOf()).toBe(13);
-    fireEvent.keyDown(markers()[0], { key: "ArrowLeft", shiftKey: true });
-    expect(monthOf()).toBe(7);
-    expect(roadD()).not.toBe(before); // earlier means more months of extra cost
+    fireEvent.keyDown(markers()[0], { key: "ArrowRight", shiftKey: true });
+    expect(monthOf()).toBe(19);
+    expect(roadD()).not.toBe(before); // later means fewer months of extra cost
+    fireEvent.keyDown(markers()[0], { key: "ArrowLeft" });
+    expect(monthOf()).toBe(18);
   });
 
-  it("will not move a decision off the ends of the 60 month road", async () => {
+  it("will not move a decision off the ends of the road: not past month 60, not before its future starts", async () => {
+    await enterWorkspace();
+    branch(MILES); // this future starts at month 12
+    render(<Road />);
+    const id = markers()[0].getAttribute("data-event-id")!;
+    const monthOf = () => state().explore.scenarios.find((s) => s.id === state().activeScenarioId)!.events.find((e) => e.id === id)!.month;
+    for (let i = 0; i < 20; i++) fireEvent.keyDown(markers()[0], { key: "ArrowLeft", shiftKey: true });
+    expect(monthOf()).toBe(12);
+    for (let i = 0; i < 20; i++) fireEvent.keyDown(markers()[0], { key: "ArrowRight", shiftKey: true });
+    expect(monthOf()).toBe(60);
+  });
+
+  it("says why a decision will not go earlier than the month its future starts", async () => {
     await enterWorkspace();
     branch(MILES);
     render(<Road />);
-    const id = markers()[0].getAttribute("data-event-id")!;
-    for (let i = 0; i < 20; i++) fireEvent.keyDown(markers()[0], { key: "ArrowLeft", shiftKey: true });
-    expect(state().explore.scenarios.find((s) => s.id === state().activeScenarioId)!.events.find((e) => e.id === id)!.month).toBe(0);
+    expect(within(markers()[0].parentElement!).getByRole("tooltip")).toHaveTextContent("This future starts here, so it can only move later.");
+    fireEvent.keyDown(markers()[0], { key: "ArrowRight" });
+    expect(within(markers()[0].parentElement!).getByRole("tooltip")).not.toHaveTextContent("This future starts here");
   });
 
   it("dragging a signpost moves it once, on release, and does not also move the playhead", async () => {
@@ -310,6 +324,34 @@ describe("other futures, only when asked", () => {
     expect(names.filter((n) => n.getAttribute("aria-current") === "true")).toHaveLength(1);
     expect(screen.getByText("if nothing changes")).toBeInTheDocument();
     expect(names[1].textContent).toMatch(/by 5 yr/);
+  });
+
+  it("every dollar figure at the end of a road carries a source label; the baseline has no figure to label", async () => {
+    await enterWorkspace();
+    branch(MILES);
+    branch(KID);
+    act(() => actions().setFutureCompare(true));
+    render(<Road />);
+    for (const label of screen.getAllByTestId("road-future")) {
+      const isBaseline = label.textContent!.includes("if nothing changes");
+      expect(label.querySelectorAll("[data-source]").length).toBe(isBaseline ? 0 : 1);
+      expect(label.querySelector('[data-source="none"]')).toBeNull(); // never an unlabeled number
+    }
+  });
+
+  it("the source label shares a line with the dollar figure, so a label stays two lines tall and never crowds the next", async () => {
+    await enterWorkspace();
+    branch(MILES);
+    branch(KID);
+    act(() => actions().setFutureCompare(true));
+    render(<Road />);
+    for (const label of screen.getAllByTestId("road-future")) {
+      if (label.textContent!.includes("if nothing changes")) continue;
+      const badge = label.querySelector("[data-source]")!;
+      const line = badge.parentElement!;
+      expect(line.textContent).toMatch(/by 5 yr/); // the same element holds the figure and its label
+      expect(line.className).toMatch(/whitespace-nowrap/);
+    }
   });
 
   it("their names never overlap, even when the roads end close together", async () => {

@@ -66,12 +66,26 @@ describe("VinEntry", () => {
     render(<VinEntry />);
     const input = screen.getByPlaceholderText("17-character VIN");
 
-    fireEvent.change(input, { target: { value: "4T1B11HK5NU123456" } });
+    // The sample Camry VIN from the registry: valid characters and a valid check digit.
+    fireEvent.change(input, { target: { value: "4T1G11AK1NU900001" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /decode vin/i }));
     });
 
-    expect(startFromVinSpy).toHaveBeenCalledWith("4T1B11HK5NU123456");
+    expect(startFromVinSpy).toHaveBeenCalledWith("4T1G11AK1NU900001");
+  });
+
+  it("rejects a VIN whose check digit does not add up, without making a twin", async () => {
+    render(<VinEntry />);
+    const input = screen.getByPlaceholderText("17-character VIN");
+
+    fireEvent.change(input, { target: { value: "4T1G11AK2NU900001" } }); // one digit off
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /decode vin/i }));
+    });
+
+    expect(screen.getByText(/check digit/i)).toBeInTheDocument();
+    expect(useForkStore.getState().twin).toBeNull();
   });
 });
 

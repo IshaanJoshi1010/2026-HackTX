@@ -1,30 +1,16 @@
 "use client";
 
 /**
- * THROWAWAY local stub for Kareem's CarStageStub (due at h2). Same props as
- * /contracts/INTERFACES.md. Delete this file and import from "@/ui/3d" when
- * his stub lands, then flip USE_MOCKS.car off when the real stage ships.
+ * DOM stand-in for the 3D stage, used by tests (jsdom has no WebGL) and whenever
+ * USE_MOCKS.car is true. Same props as Kareem's CarStage, taken from his types.
+ * It replays the reveal and the morph on timers so the app flows can be tested.
  */
 import { useEffect, useRef, useState } from "react";
 import type { VehicleConfig } from "@/contracts";
 import { cn } from "@/lib/utils";
+import type { CarStageProps } from "@/ui/3d/types";
 
-export type RevealStage = "converge" | "pointcloud" | "wireframe" | "solid" | "done";
-
-export interface CarStageProps {
-  vehicle: VehicleConfig;
-  phase: "reveal" | "interactive" | "transition";
-  transitionTo?: VehicleConfig;
-  viewMode: "solid" | "wireframe" | "points";
-  quality: "high" | "low";
-  reducedMotion: boolean;
-  resetCameraSignal: number;
-  skipSignal: number;
-  replaySignal: number;
-  onRevealStage(stage: RevealStage): void;
-  onTransitionComplete(): void;
-  onModelStatus(s: { vehicleId: string; ready: boolean; error?: string }): void;
-}
+export type RevealStage = Parameters<CarStageProps["onRevealStage"]>[0];
 
 /** Reveal timings from the scene constants, in ms. */
 const REVEAL_STEPS: ReadonlyArray<readonly [RevealStage, number]> = [

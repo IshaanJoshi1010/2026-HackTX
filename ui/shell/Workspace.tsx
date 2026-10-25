@@ -8,6 +8,7 @@ import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { CarView } from "./CarView";
 import { DetailsSheet } from "./DetailsSheet";
+import { ErrorNotice } from "./ErrorNotice";
 import { FutureView } from "./FutureView";
 import { Identity } from "./Identity";
 import { StageBackdrop } from "./StageBackdrop";
@@ -46,7 +47,13 @@ export function Workspace() {
         data-visible={carVisible}
         aria-hidden={!carVisible}
         style={{ bottom: STAGE_BOTTOM }}
-        className={cn("absolute inset-x-0 top-0 transition-opacity duration-500", carVisible ? "opacity-100" : "pointer-events-none opacity-0")}
+        className={cn(
+          "absolute inset-x-0 top-0 transition-opacity duration-500",
+          // The canvas is opaque for now, so soften its lower edge instead of ending in a hard line. The fade is
+          // only 16px, below the stage's own toolbar (18px up from the edge), so those buttons are never faded out.
+          "[mask-image:linear-gradient(to_bottom,black_calc(100%_-_16px),transparent)]",
+          carVisible ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
       >
         <StageBackdrop />
         <div className="absolute inset-0 z-[1]" data-testid="stage">
@@ -76,6 +83,7 @@ export function Workspace() {
         <>
           {view === "car" ? <CarView /> : <FutureView bottomInset={barHeight} />}
           <div ref={barRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-4 px-4 pb-5">
+            <ErrorNotice />
             <CommandBox />
             <ViewSwitch />
           </div>

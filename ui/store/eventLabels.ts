@@ -23,6 +23,10 @@ export function eventTitle(e: Pick<LifeEvent, "type" | "payload">): string {
   const place = p.location ?? p.city;
   if (e.type === "relocation" && typeof place === "string" && place) return `Move to ${place}`;
   if (e.type === "mileage_change" && typeof p.annualMiles === "number") return `${whole.format(p.annualMiles)} miles a year`;
+  if (e.type === "family_change" && typeof p.children === "number" && p.children >= 1) {
+    // an absolute count the person gave: "second child" is children 2
+    return p.children === 1 ? "First child" : p.children === 2 ? "Second child" : p.children === 3 ? "Third child" : `${p.children} children`;
+  }
   if (e.type === "family_change" && typeof p.childrenDelta === "number") {
     return p.childrenDelta > 0 ? (p.childrenDelta === 1 ? "New child" : `${p.childrenDelta} new children`) : EVENT_LABEL.family_change;
   }

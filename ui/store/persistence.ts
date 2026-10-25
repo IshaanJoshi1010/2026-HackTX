@@ -38,6 +38,8 @@ const SessionSchema = z.object({
   draftPatches: z.array(ProfilePatchSchema),
   tradeoffPicks: z.array(TradeoffPickSchema),
   answeredFields: z.array(FieldKeySchema),
+  // Older saves have none; the store falls back to today's date.
+  todayISO: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export type Prefs = z.infer<typeof PrefsSchema>;

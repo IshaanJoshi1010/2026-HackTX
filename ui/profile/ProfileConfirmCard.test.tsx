@@ -46,6 +46,10 @@ describe("ProfileConfirmCard", () => {
     expect(screen.getByText("Location")).toBeInTheDocument();
     expect(screen.getByText(alexProfile.location)).toBeInTheDocument();
 
+    // Values are sentence case, not capitals
+    expect(screen.getByText("Low")).toBeInTheDocument();
+    expect(screen.getByText("Loan")).toBeInTheDocument();
+
     // Verify presence of source badges
     const badges = screen.getAllByTitle(/demo persona data/i);
     expect(badges.length).toBeGreaterThan(0);

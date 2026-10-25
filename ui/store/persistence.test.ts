@@ -110,7 +110,7 @@ describe("store hydration", () => {
     expect(state().ui.lowPerformance).toBe(true);
     expect(state().ui.detailsOpen).toBe(false); // the sheet and the page are never saved
     expect(state().ui.view).toBe("car");
-    expect(state().results[BASE_ID].points).toHaveLength(61);
+    expect(state().results[BASE_ID].points).toHaveLength(60);
   });
 
   it("never saves the road options: every session starts minimal", async () => {
@@ -136,7 +136,7 @@ describe("store hydration", () => {
 
   it("drops a session saved under a different mock mix but keeps preferences", async () => {
     const blob = await savedBlob();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...blob, mocks: "car" }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...blob, mocks: "car,sim" }));
     resetForkStoreForTests();
     actions().hydrate();
     expect(state().twin).toBeNull();

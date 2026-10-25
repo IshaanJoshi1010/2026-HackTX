@@ -54,6 +54,19 @@ export function pointAt(result: SimulationResult | undefined, month: number): Pr
 }
 
 /**
+ * A per-month amount added up from month 1 through `month`. The sim reports fuel and
+ * upkeep for each month, not as running totals. Undefined when there is nothing to add.
+ */
+export function totalThrough(
+  result: SimulationResult | undefined,
+  month: number,
+  key: "fuelSpend" | "maintenanceSpend",
+): number | undefined {
+  const upTo = result?.points.filter((p) => p.month >= 1 && p.month <= month) ?? [];
+  return upTo.length === 0 ? undefined : upTo.reduce((sum, p) => sum + p[key], 0);
+}
+
+/**
  * Decisions in the same month would sit on top of each other. Spread them side by
  * side, centered on the month. Returns a pixel offset by decision id.
  */
@@ -69,6 +82,16 @@ export function fanOffsets(events: Array<Pick<LifeEvent, "id" | "month">>, gap =
     out.set(e.id, (i - (n - 1) / 2) * gap);
   }
   return out;
+}
+
+/**
+ * Where to center a decision's label: on its signpost, but never off the edge of the screen.
+ * The road has some padding either side, so a label may overhang it by `overflow` pixels. The width
+ * is estimated from the text, since the label has not been measured yet.
+ */
+export function labelCenter(x: number, text: string, roadW: number, overflow = 40): number {
+  const half = Math.min(110, text.length * 4.3 + 10);
+  return Math.min(Math.max(x, half - overflow), roadW + overflow - half);
 }
 
 /** Axis ticks: every year, with a short label. */
