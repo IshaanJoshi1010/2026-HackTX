@@ -1,8 +1,9 @@
 import type { EventType, InterpretContext, InterpretResult, LifeEvent, ProfilePatch } from "../contracts";
 import { FieldKeySchema, InterpretContextSchema, InterpretResultSchema } from "../contracts/schemas";
+import { deriveAnnualDriving, dailyMileagePattern } from "../data/drivingRate";
 import { normalizeProfile } from "../data/normalize";
 import { ExtractionSchema, type Extraction, type ExtractionItem } from "./schema";
-import { resolveEventMonth, hasTimingLanguage, splitClauses } from "./dates";
+import { resolveEventMonth, hasTimingLanguage, splitClauses, hasOrphanTiming } from "./dates";
 import { ambiguousStatement, hasNumericEvidence, isQuestion } from "./evidence";
 
 export interface MappedExtraction { result: InterpretResult; unresolved: ExtractionItem[]; clarification?: Extraction["clarifyingQuestion"] }
@@ -17,7 +18,13 @@ function hash(text: string): string {
   for (let i = 0; i < text.length; i++) value = Math.imul(value ^ text.charCodeAt(i), 16777619);
   return (value >>> 0).toString(16);
 }
-function pregnancyMention(quote: string): boolean { return /\bpregnant\b/i.test(quote) && !/\bnot\b|\bisn't\b|\bno longer\b|\bmight\b|\bmaybe\b/i.test(quote); }
+export function pregnancyMention(quote: string): boolean {
+  if (/\bbaby\s+(?:shower|monitor|seat|stroller|clothes)\b|\bchild\s+(?:car\s+)?seat\b/i.test(quote)) return false;
+  return (/\bpregnant\b/i.test(quote) || /\b(?:having|expecting|adding|welcoming)\b[^.,;!?]{0,40}\b(?:baby|child|kid|son|daughter)\b/i.test(quote)
+    || /\bbaby\s+(?:is\s+)?due\b/i.test(quote))
+    && !/\bnot\b|\bisn't\b|\bno longer\b|\bmight\b|\bmaybe\b/i.test(quote);
+}
+const isPregnancy = (item: ExtractionItem) => ["children", "childrenDelta"].includes(item.field) && pregnancyMention(item.quote);
 /** A value-only quote must not silently erase a date in its source clause. Never invent the missing date. */
 function missingQuotedTiming(item: ExtractionItem, prompt: string): boolean {
   if (item.month) return false;
@@ -33,6 +40,10 @@ function mappedValue(item: ExtractionItem): number | string | undefined {
     return typeof item.value === "string" && item.quote.toLowerCase().includes(item.value.toLowerCase()) ? names[item.value.toLowerCase()] : undefined;
   }
   if (item.field === "location") return typeof item.value === "string" && item.quote.toLowerCase().includes(item.value.toLowerCase()) ? item.value : undefined;
+  if (item.field === "annualMiles" && typeof item.value === "string") {
+    const daily = deriveAnnualDriving(item.value, item.quote);
+    if (daily) return daily.annualMiles;
+  }
   // Finance and odometer values are patches rather than simulation payload keys.
   const rawKey = item.field === "mileage" ? "annualMiles" : item.field;
   if (item.field === "financePayment" || item.field === "financeEndMonth") {
@@ -60,28 +71,42 @@ export function mapExtraction(input: unknown, context: InterpretContext, prompt:
   if (isQuestion(prompt) && extraction.items.length) return {
     result: { aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] }, unresolved: extraction.items,
   };
+  const drivingPlaceOnly = new RegExp(dailyMileagePattern, "i").test(prompt)
+    && !/\b(?:mov(?:e|es|ing)|relocat\w*|liv(?:e|ing)|location|based)\b/i.test(prompt);
+  const items = extraction.items.filter(item => !(drivingPlaceOnly && item.field === "location")
+    && !(item.field === "childrenDelta" && extraction.items.some(other => {
+      if (other.field !== "children" || !(other.quote.includes(item.quote) || item.quote.includes(other.quote))) return false;
+      const a = resolveEventMonth(item.month, context.todayISO, isPregnancy(item));
+      const b = resolveEventMonth(other.month, context.todayISO, isPregnancy(other));
+      return a.resolved && b.resolved && a.month === b.month;
+    })));
+  if (items.length && hasOrphanTiming(prompt, items.map(item => item.quote))) return {
+    result: { aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] }, unresolved: items,
+  };
   const unresolved: ExtractionItem[] = [], patches: ProfilePatch[] = [];
   const groups = new Map<string, { event: LifeEvent; items: ExtractionItem[] }>();
   // Compare resolved timing too: next year and in 12 months are the same slot.
   const seen = new Map<string, number | string>(), duplicates = new Set<string>();
-  for (const item of extraction.items) {
+  for (const item of items) {
     if (!prompt.includes(item.quote) || ambiguousStatement(prompt) || missingQuotedTiming(item, prompt) || item.certainty === "vague") continue;
-    const timing = resolveEventMonth(item.month, context.todayISO, item.field === "childrenDelta" && pregnancyMention(item.quote));
+    const timing = resolveEventMonth(item.month, context.todayISO, isPregnancy(item));
     const value = mappedValue(item);
     if (!timing.resolved || timing.month > 60 || value === undefined) continue;
     const key = `${item.field}|${timing.month}`;
     if (seen.has(key) && seen.get(key) !== value) duplicates.add(key);
     seen.set(key, value);
   }
-  for (const item of extraction.items) {
+  for (const item of items) {
     if (!prompt.includes(item.quote) || ambiguousStatement(prompt) || missingQuotedTiming(item, prompt)
       || (item.month && !item.quote.toLowerCase().includes(item.month.toLowerCase())) || item.certainty === "vague") {
       unresolved.push(item); continue;
     }
     const value = mappedValue(item);
-    const timing = resolveEventMonth(item.month, context.todayISO, item.field === "childrenDelta" && pregnancyMention(item.quote));
+    const timing = resolveEventMonth(item.month, context.todayISO, isPregnancy(item));
     if (value === undefined || !timing.resolved || timing.month > 60 || duplicates.has(`${item.field}|${timing.month}`)) { unresolved.push(item); continue; }
-    const certainty = item.certainty === "inferred" || timing.inferred ? "inferred" : "clear";
+    const daily = item.field === "annualMiles" && typeof item.value === "string" ? deriveAnnualDriving(item.value, item.quote) : null;
+    const jobDistance = item.field === "commuteMilesOneWay" && /\b(?:miles?|mi)\s*(?:away|from\s+(?:home|work)|to\s+work)\b/i.test(item.quote);
+    const certainty = item.certainty === "inferred" || timing.inferred || daily || jobDistance ? "inferred" : "clear";
     // Never put a future value straight into the present profile.
     const fieldKey = FieldKeySchema.safeParse(item.field);
     if (timing.month === 0 && fieldKey.success) patches.push({ field: fieldKey.data, value, certainty, quote: item.quote });
@@ -94,7 +119,7 @@ export function mapExtraction(input: unknown, context: InterpretContext, prompt:
     if (!groups.has(key)) groups.set(key, { event: { id: "", type, month: timing.month, payload: {}, source: "ai", assumptions: [], quote: "", certainty, status: "proposed" }, items: [] });
     const group = groups.get(key)!;
     group.event.payload[item.field] = value;
-    group.event.assumptions.push(...item.assumptions, ...timing.assumptions);
+    group.event.assumptions.push(...(daily ? [] : item.assumptions), ...timing.assumptions, ...(daily?.assumptions ?? []), ...(jobDistance ? ["Destination distance is assumed one way; confirm the commute distance."] : []));
     group.items.push(item);
     if (certainty === "inferred") group.event.certainty = "inferred";
   }

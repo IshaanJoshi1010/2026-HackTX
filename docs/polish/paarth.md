@@ -12,3 +12,8 @@ Recording / reset | Start every demo take from fresh Alex state so prior confirm
 
 Landing / two-VIN demo | Support both reserved VINs and skip the initial sample-car picker; only these primary demo VINs load their fictional owners | Camry 4T1G11AK1NU900001 and RAV4 4T3RWRFV0RU900001; use getDemoVehicleId/isDemoVin + buildDemoTwinFromVin, not Camry-only isAlexDemoVin; preserve demoTodayISO
 Recording / six-case routing | Compare against the other car and reset owner/finance/profile state for each take; show fixed synthetic RAV4 loan assumptions | getDemoCases(startingVehicleId) returns three scripts with startingVin/replacementVehicleId; RAV4 loan24k/650monthly/60remaining, Camry15k/450/36; data/DEMO-CASES.md contains all six scripts
+
+AI confirm card / estimates | Show event.assumptions before Branch timeline and permit correction of daily frequency, assumed year and seasonal month | Daily100mi =>36500/year only with365days assumption; baby March =>upcomingMarch; spring=>representativeUSMarch, all inferred
+AI confirm card / partial reading | Render unsupportedReason even when valid proposals are present; keep missing or invalid changes visibly unresolved | Existing contract field carries the partial-result warning; never label a partly understood sentence fully mapped
+AI command status / retry | Distinguish busy, timeout, missing-key, provider and validation failures using x-fork-ai-status and Retry-After | /api/interpret and /api/explain return safe diagnostic headers; frozen response bodies stay compatible
+AI clarification / future facts | Do not apply an answer about future driving directly to today's confirmed profile | Backend now withholds current-profile questions for future values; allow restating the amount into a proposed dated event

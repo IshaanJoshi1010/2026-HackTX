@@ -21,11 +21,13 @@ export function ambiguousStatement(text: string): boolean {
 /** Match the quantity and its meaning together, not any unrelated number in the quote. */
 export function hasNumericEvidence(field: ExtractionItem["field"], value: number, quote: string): boolean {
   const q = `(?<quantity>${quantityPattern})`;
+  if (field === "commuteMilesOneWay" && !/\b(?:each|one)\s+way\b/i.test(quote)
+    && !/\bcommut\w*|\b(?:job|office|workplace)\b|\bdriv\w*[^.;!?]*\bto work\b/i.test(quote)) return false;
   const miles = "(?:miles|mi)";
   const year = "(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))";
   const patterns: Partial<Record<ExtractionItem["field"], string[]>> = {
     annualMiles: [`${q}\\s*(?:annual\\s+)?${miles}\\s*(?:${year})`, `${q}\\s*annual\\s+${miles}`, `(?:annual|yearly)\\s+(?:mileage|miles)\\s*(?:is|of|:|=)?\\s*${q}`, `(?:drive|drives|driving|drove)\\s+(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+|nearly\\s+)?${q}\\s*(?:${year})`],
-    commuteMilesOneWay: [`${q}\\s*${miles}\\s*(?:each|one)\\s*way`],
+    commuteMilesOneWay: [`${q}\\s*${miles}\\s*(?:each|one)\\s*way`, `(?:job|office|workplace)\\b[^.;!?]{0,40}?${q}\\s*${miles}\\s*away`, `${q}\\s*${miles}\\s*(?:away|from\\s+(?:home|work)|to\\s+work)`],
     commuteDaysPerWeek: [`${q}\\s*days?\\s*(?:a|per|/)\\s*week`],
     children: [`${q}\\s+(?:children|child|kids?|bab(?:y|ies))`, `(?:children|kids?)\\s*(?:is|are|:|=|will be)\\s*${q}`],
     householdSize: [`(?:household|family)\\s*(?:size)?\\s*(?:is|of|:|=|will be)?\\s*${q}`, `${q}\\s+(?:people|persons|members)`],

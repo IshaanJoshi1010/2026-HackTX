@@ -2,6 +2,8 @@ import "server-only";
 import type { DecisionEvaluation, SimulationResult } from "../contracts";
 import { DecisionEvaluationSchema, SimulationResultSchema } from "../contracts/schemas";
 import { generateWithGemini, type Generator } from "./gemini";
+import { createGenerationBudget, EXPLAIN_BUDGET_MS } from "./generationBudget";
+import { type AIRequestOptions, unavailableInfo } from "./status";
 import { numberCheck } from "./numberCheck";
 import { explanationInstructions } from "./prompts/system";
 
@@ -21,7 +23,7 @@ const fitMessages: Record<string, string> = {
 export class InvalidExplanationInput extends Error {}
 
 export function createExplainer(generate: Generator = generateWithGemini) {
-  return async (evaluation: DecisionEvaluation, results: SimulationResult[]): Promise<{ text: string; usedFallback: boolean }> => {
+  return async (evaluation: DecisionEvaluation, results: SimulationResult[], options?: AIRequestOptions): Promise<{ text: string; usedFallback: boolean }> => {
     const e = DecisionEvaluationSchema.parse(evaluation);
     const r = results.map(result => SimulationResultSchema.parse(result));
     // A stale UI evaluation must not be explained alongside a different set of scenario results.
@@ -59,8 +61,9 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       ])])],
       "These demo results are not a financial quote.",
     ].join("\n\n"), usedFallback: true });
+    const budget = createGenerationBudget(generate, EXPLAIN_BUDGET_MS, options?.signal);
     try {
-      const text = (await generate({ system: explanationInstructions, input })).trim();
+      const text = (await budget.run({ purpose: "explain", system: explanationInstructions, input })).trim();
       // Engine scores are fractions, not confidence percentages. Numeric membership alone cannot check units.
       // Numeric membership alone misses a winner incorrectly attached to an inconclusive sensitivity count.
       const falseStabilityWinner = e.preferredScenarioId === "inconclusive" && text.split(/[.!?\n]/).some(sentence =>
@@ -69,7 +72,8 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       if (falseStabilityWinner || !text || text.length > 6000 || !numberCheck(text, input).ok || /https?:\/\//i.test(text)
         || /%|\bpercent(?:age)?s?\b/i.test(text)) return fallback();
       return { text, usedFallback: false };
-    } catch { return fallback(); }
+    } catch (error) { options?.onUnavailable?.(unavailableInfo(error)); return fallback(); }
+    finally { budget.dispose(); }
   };
 }
 export const explain = createExplainer();
