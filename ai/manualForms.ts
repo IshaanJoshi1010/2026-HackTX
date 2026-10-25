@@ -1,8 +1,9 @@
+import { MAX_INPUT_NUMBER } from "../data/inputLimits";
 import { z } from "zod";
 import { TradeoffPickSchema } from "../contracts/schemas";
 import { normalizeOnboarding } from "../data/normalize";
 import { applyDefaults } from "../data/defaults";
-const number = z.number().finite().nonnegative();
+const number = z.number().finite().nonnegative().max(MAX_INPUT_NUMBER);
 export const ManualProfileSchema = z.object({
   mileage: number.optional(), tradeoffPicks: z.array(TradeoffPickSchema).max(3).optional(),
   location: z.string().trim().min(1).optional(), annualMiles: number.optional(),

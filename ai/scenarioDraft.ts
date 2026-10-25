@@ -1,6 +1,7 @@
+import { MAX_INPUT_NUMBER } from "../data/inputLimits";
 import { z } from "zod";
 import type { LifeEvent } from "../contracts";
-const amount = z.number().finite().nonnegative();
+const amount = z.number().finite().nonnegative().max(MAX_INPUT_NUMBER);
 /** Optional human-entered values only; percentages are entered as percent, converted by code. */
 export const ScenarioTermsSchema = z.object({
   insurancePerMonth: amount.optional(), replacementPrice: amount.optional(), downPayment: amount.optional(),
@@ -26,6 +27,7 @@ export function prepareScenarioTerms(input: unknown) {
   if (!parsed.success) return { ok: false as const, error: "Check the purchase and insurance values", issues: parsed.error.issues };
   const assumptions: Record<string, number> = {};
   for (const [field, value] of Object.entries(parsed.data)) {
+    if (value === undefined) continue;
     const percent = field.endsWith("Percent");
     const key = field === "salesTaxPercent" ? "salesTaxRate" : percent ? field.replace("Percent", "") : field;
     assumptions[key] = percent ? value / 100 : value;

@@ -1,6 +1,7 @@
 import type { DriverProfile, RawProfileInput, Source, TradeoffPick } from "../contracts";
 import { SourceSchema } from "../contracts/schemas";
 import { applyDefaults, defaultsTable } from "./defaults";
+import { MAX_INPUT_NUMBER, MAX_NUMERIC_TEXT_LENGTH } from "./inputLimits";
 import { mapTradeoffs } from "./tradeoffs";
 
 export interface OnboardingHints { vagueCommute: boolean; budgetMentioned: boolean; notes: string[] }
@@ -10,20 +11,23 @@ const numeric = new Set(["annualMiles", "commuteMilesOneWay", "commuteDaysPerWee
 const fields = new Set([...numeric, "location", "cargoNeed", "financeType", "priorities"]);
 const missing = (v: unknown) => v === undefined || v === null || (typeof v === "string" && /^(?:\s*|no idea|not sure|i(?:'m| am) not sure|unknown|skip)$/i.test(v.trim()));
 function amount(v: unknown, field: string): number {
-  if (typeof v === "number" && Number.isFinite(v) && v >= 0) return v;
+  if (typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_INPUT_NUMBER) return v;
   if (typeof v !== "string") throw new Error("Expected a nonnegative number");
+  if (v.length > MAX_NUMERIC_TEXT_LENGTH) throw new Error(`Numeric text is too long for ${field}`);
   const units = v.toLowerCase();
-  if ((/people/.test(units) && field !== "householdSize") ||
+  if ((/\$/.test(units) && !["monthlyBudget", "financePayment", "fuelPricePerGal"].includes(field)) ||
+      (/people/.test(units) && field !== "householdSize") ||
       (/kids?|children/.test(units) && !["children", "carSeats"].includes(field)) ||
       (/days?/.test(units) && field !== "commuteDaysPerWeek") ||
       (/miles?|\bmi\b/.test(units) && !["annualMiles", "commuteMilesOneWay"].includes(field)) ||
+      (/each\s+way|one\s+way/.test(units) && field !== "commuteMilesOneWay") ||
       (/year|annually|\/yr/.test(units) && field !== "annualMiles") ||
       (/month/.test(units) && !["monthlyBudget", "financePayment", "financeEndMonth"].includes(field)) ||
       (/gal/.test(units) && field !== "fuelPricePerGal")) throw new Error(`Units do not match ${field}`);
   const match = v.trim().toLowerCase().match(/^(?:(?:like|about|around|roughly)\s+)?\$?(\d+(?:,\d{3})*(?:\.\d+)?)(k)?\s*(?:(?:miles?|mi)(?:\s*(?:annually|(?:a|per)\s+year|\/yr|each\s+way))?|(?:a|per)\s+year|annually|people|kids?|children|days?(?:\s*(?:a|per)\s+week)?|(?:\/|per\s+)month|(?:\/|per\s+)gal(?:lon)?)?$/);
   if (!match) throw new Error(`Cannot parse numeric value: ${v}`);
   const result = Number(match[1].replaceAll(",", "")) * (match[2] ? 1000 : 1);
-  if (!Number.isFinite(result)) throw new Error("Number must be finite");
+  if (!Number.isFinite(result) || result > MAX_INPUT_NUMBER) throw new Error("Number is outside the supported input range");
   return result;
 }
 export function normalizeOnboarding(raw: RawProfileInput): NormalizedOnboarding {
@@ -47,6 +51,8 @@ export function normalizeOnboarding(raw: RawProfileInput): NormalizedOnboarding 
       profile[key] = normalized;
       provenance[key] = incomingSources?.[key] === undefined ? "user" : SourceSchema.parse(incomingSources[key]);
     }
+    if (typeof profile.children === "number" && typeof profile.householdSize === "number" && profile.children > profile.householdSize)
+      throw new Error("Children exceed the stated household size; confirm the household values");
     if (!missing(raw.commute)) {
       if (typeof raw.commute !== "string") throw new Error("Commute must describe miles each way and days per week");
       const commute = raw.commute.trim().match(/^(?:about\s+)?(\d+(?:\.\d+)?)\s*(?:miles?|mi)\s*(?:each|one)\s*way(?:\s*[,;]\s*|\s+)(\d+(?:\.\d+)?)\s*days?(?:\s*(?:a|per)\s*week)?$/i);
@@ -75,6 +81,10 @@ export function normalizeOnboarding(raw: RawProfileInput): NormalizedOnboarding 
       provenance.annualMiles = "estimated";
       hints.notes.push("Annual mileage is commute distance × 2 × days/week × 52 plus 4,000 estimated non-commute miles.");
     }
+    for (const key of numeric) {
+      const value = profile[key];
+      if (typeof value === "number" && (!Number.isFinite(value) || value > MAX_INPUT_NUMBER)) throw new Error(`${key} is outside the supported input range`);
+    }
     profile.provenance = provenance;
     // Validate supplied fields using the canonical schema without returning the filled defaults.
     applyDefaults(profile as Partial<DriverProfile>);
@@ -84,6 +94,10 @@ export function normalizeOnboarding(raw: RawProfileInput): NormalizedOnboarding 
       financeInput.endMonth = amount(raw.financeEndMonth, "financeEndMonth");
       if (!Number.isInteger(financeInput.endMonth)) throw new Error("Finance end month must be an integer relative to today");
     }
+    if (profile.financeType === "paid_off" && financeInput.payment !== undefined && financeInput.payment > 0)
+      throw new Error("A paid-off vehicle cannot also have a loan or lease payment; confirm the finance values");
+    if (profile.financeType !== undefined && profile.financeType !== "lease" && financeInput.endMonth !== undefined)
+      throw new Error("A lease end month requires lease financing; confirm the finance type");
     return { ok: true, profile: profile as Partial<DriverProfile>, hints, financeInput };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Invalid profile input" }; }
 }

@@ -10,7 +10,7 @@ export async function readJsonBody(request: Request, limit: number): Promise<unk
   const reader = request.body.getReader();
   const onAbort = () => { void reader.cancel().catch(() => {}); };
   request.signal.addEventListener("abort", onAbort, { once: true });
-  const chunks: Uint8Array[] = [];
+  let bytes = new Uint8Array(Math.min(limit, 4096));
   let size = 0;
   try {
     for (;;) {
@@ -19,13 +19,14 @@ export async function readJsonBody(request: Request, limit: number): Promise<unk
       if (done) break;
       size += value.byteLength;
       if (size > limit) throw new RequestBodyError(413, "Request is too large");
-      chunks.push(value);
+      if (size > bytes.byteLength) {
+        const grown = new Uint8Array(Math.min(limit, Math.max(size, bytes.byteLength * 2)));
+        grown.set(bytes); bytes = grown;
+      }
+      bytes.set(value, size - value.byteLength);
     }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
     let text: string;
-    try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+    try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, size)); }
     catch { throw new RequestBodyError(400, "Invalid UTF-8 request body"); }
     return JSON.parse(text);
   } finally {
