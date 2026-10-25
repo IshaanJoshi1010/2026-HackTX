@@ -66,7 +66,7 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 
 ## Decision rules
 
-1. Hard constraints first: too few seats for the household, more car seats than rear positions, or a recurring monthly cost over a stated budget. A violating scenario can't be preferred.
+1. Hard constraints first: too few seats for the household, more car seats than rear positions, or a recurring monthly cost over that month's stated budget. The budget starts from `maxMonthlyBudget` (or the driver's budget) and follows confirmed `budget_change` events from their month. A violating scenario can't be preferred.
 2. Metrics: net cost and fuel (lower is better), longevity `1 - min(odometer at month 60 / 250,000, 1)`, family (the worse of passenger and cargo fit, scored good 1, tight 0.6, needs verification 0.5, insufficient 0, averaged over 60 months), and comfort (`comfortScore`, or 0.5).
 3. Normalize: min-max across the compared scenarios, with a floor on the spread ($3,000 for net cost and fuel, 0.25 for longevity, 0.5 for family, 0.25 for comfort). When the spread is at least the floor, it's exactly min-max. Below the floor, scores shrink toward 0.5, so a tiny gap can't swing a whole weight. All equal gives 0.5 each.
 4. Score: weighted sum with the user's priorities, returned per factor. If the top two are within 0.05, the verdict is `inconclusive`.

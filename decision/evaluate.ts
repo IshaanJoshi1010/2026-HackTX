@@ -1,4 +1,5 @@
 import type { DecisionEvaluation, DriverProfile, Scenario, SimulationResult, VehicleTwin } from "../contracts";
+import { applyEvents } from "../sim/events";
 import { INCONCLUSIVE_MARGIN, LONGEVITY_MILES, MEANINGFUL_DIFFERENCE } from "./config";
 import { type Metrics, metricsOf } from "./metrics";
 import { nextAction } from "./nextAction";
@@ -19,28 +20,40 @@ export interface EvaluateInput {
 const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const f2 = (n: number) => n.toFixed(2);
 /**
- * Recurring monthly cost (fuel, insurance, loan or lease payment): the month's cash minus maintenance.
- * Months where the car changes are skipped, since they hold one-time sale and purchase cash.
+ * The stated monthly budget for each month of a scenario. Starts from maxMonthlyBudget (or the driver's budget)
+ * and follows confirmed budget_change events from their month, using the same event rules as the simulation.
  */
-function maxRecurringMonthly(r: SimulationResult, startVehicleId: string): { amount: number; month: number } {
-  let best = { amount: 0, month: 0 }, prevCash = 0, prevVehicle = startVehicleId;
-  for (const p of r.points) {
-    const monthly = p.cumulativeCash - prevCash - p.maintenanceSpend;
-    if (p.vehicleId === prevVehicle && monthly > best.amount) best = { amount: monthly, month: p.month };
-    prevCash = p.cumulativeCash; prevVehicle = p.vehicleId;
-  }
-  return best;
+function budgetByMonth(twin: VehicleTwin, scenario: Scenario | undefined, start: number | undefined): Map<number, number | undefined> {
+  const driver = { ...twin.driver };
+  if (start === undefined) delete driver.monthlyBudget; else driver.monthlyBudget = start;
+  const { timeline } = applyEvents({ ...twin, driver }, scenario ?? { id: "none", parentId: null, forkMonth: 0, name: "", events: [], assumptions: {} });
+  return new Map(timeline.map(s => [s.month, s.monthlyBudget]));
 }
 
-/** Hard constraints: not enough seats for the household (or car seats), or recurring cost over a stated budget. */
-function violationsOf(r: SimulationResult, startVehicleId: string, budget: number | undefined): string[] {
+/**
+ * First month whose recurring cost (fuel, insurance, loan or lease payment: the month's cash minus maintenance)
+ * is over that month's budget. Months where the car changes are skipped, since they hold one-time sale and
+ * purchase cash. Null when every month fits or no budget is stated.
+ */
+function firstOverBudget(r: SimulationResult, startVehicleId: string, budgets: Map<number, number | undefined>):
+  { amount: number; budget: number; month: number } | null {
+  let prevCash = 0, prevVehicle = startVehicleId;
+  for (const p of r.points) {
+    const monthly = p.cumulativeCash - prevCash - p.maintenanceSpend;
+    const budget = budgets.get(p.month);
+    if (budget !== undefined && p.vehicleId === prevVehicle && monthly > budget) return { amount: monthly, budget, month: p.month };
+    prevCash = p.cumulativeCash; prevVehicle = p.vehicleId;
+  }
+  return null;
+}
+
+/** Hard constraints: not enough seats for the household (or car seats), or recurring cost over that month's stated budget. */
+function violationsOf(r: SimulationResult, startVehicleId: string, budgets: Map<number, number | undefined>): string[] {
   const v: string[] = [];
   const seats = r.points.find(p => p.suitability.passengerFit === "insufficient");
   if (seats) v.push(`${seats.suitability.constraints.join(", ") || "seats_insufficient"} from month ${seats.month}`);
-  if (budget !== undefined) {
-    const worst = maxRecurringMonthly(r, startVehicleId);
-    if (worst.amount > budget) v.push(`monthly cost ${usd(worst.amount)} over the ${usd(budget)} budget at month ${worst.month}`);
-  }
+  const over = firstOverBudget(r, startVehicleId, budgets);
+  if (over) v.push(`monthly cost ${usd(over.amount)} over the ${usd(over.budget)} budget at month ${over.month}`);
   return v;
 }
 
@@ -63,7 +76,7 @@ function normalize(values: number[], higherIsBetter: boolean, meaningful: number
  */
 export function evaluateDetailed(a: EvaluateInput): { evaluation: DecisionEvaluation; scores: ScenarioScore[] } {
   const names = new Map(a.scenarios.map(s => [s.id, s.name]));
-  const budget = a.maxMonthlyBudget ?? a.twin.driver.monthlyBudget;
+  const startBudget = a.maxMonthlyBudget ?? a.twin.driver.monthlyBudget;
   const metrics = a.results.map(metricsOf);
   const pick = (k: keyof Metrics) => metrics.map(m => m[k]);
   const norm: Record<Factor, number[]> = {
@@ -77,7 +90,8 @@ export function evaluateDetailed(a: EvaluateInput): { evaluation: DecisionEvalua
   const scores: ScenarioScore[] = a.results.map((r, i) => {
     const normalized = Object.fromEntries(FACTORS.map(f => [f, norm[f][i]])) as Record<Factor, number>;
     const contributions = Object.fromEntries(FACTORS.map(f => [f, a.priorities[f] * normalized[f]])) as Record<Factor, number>;
-    const violations = violationsOf(r, a.twin.vehicle.id, budget);
+    const scenario = a.scenarios.find(s => s.id === r.scenarioId);
+    const violations = violationsOf(r, a.twin.vehicle.id, budgetByMonth(a.twin, scenario, startBudget));
     return {
       scenarioId: r.scenarioId, name: names.get(r.scenarioId) ?? r.scenarioId, metrics: metrics[i], normalized, contributions,
       total: FACTORS.reduce((t, f) => t + contributions[f], 0), violations, eligible: violations.length === 0,
