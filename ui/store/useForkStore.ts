@@ -954,6 +954,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           if (!(await ensureComparison())) break;
           actions.runBreakEven(breakEvenParameterFor(prompt));
           actions.setView("future");
+          actions.openDrawer("recommendation"); // the answer is in the recommendation drawer, so it opens there
           return { kind: "break_even", ...flag };
         case "COMPARE_SCENARIOS":
         case "RECOMMEND_ACTION":
@@ -963,6 +964,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         case "EXPLAIN_RESULT":
           if (!get().evaluation) break;
           actions.setView("future");
+          actions.openDrawer("recommendation"); // the reasons live in the recommendation drawer
           return { kind: "compared", ...flag };
       }
       return { kind: "nothing", message: result.unsupportedReason, ...flag };

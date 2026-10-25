@@ -723,6 +723,26 @@ describe("questions typed in the command bar (no AI: plain rules route them)", (
     expect(state().comparison).not.toBeNull();
     expect(state().breakEven).toMatchObject({ parameter: "annualMiles" });
     expect(state().ui.view).toBe("future");
+    expect(state().ui.drawer).toBe("recommendation"); // the answer is shown, not hidden behind a tap
+    expect(state().ui.playing).toBe(false);
+  });
+
+  it("'why' opens the reasons in the recommendation drawer, and a plain comparison question does not open any drawer", async () => {
+    await enterWorkspace();
+    await actions().submitDump("Would switching to a RAV4 Hybrid make more sense?");
+    expect(state().ui.drawer).toBeNull();
+    actions().setView("car");
+    const outcome = await actions().submitDump("Why is that the answer?");
+    expect(outcome).toMatchObject({ kind: "compared" });
+    expect(state().ui.view).toBe("future");
+    expect(state().ui.drawer).toBe("recommendation");
+  });
+
+  it("'why' before there is a result opens nothing", async () => {
+    await enterWorkspace();
+    const outcome = await actions().submitDump("Why is that the answer?");
+    expect(outcome.kind).toBe("nothing");
+    expect(state().ui.drawer).toBeNull();
   });
 
   it("asking about fuel price tests fuel price, not miles", async () => {

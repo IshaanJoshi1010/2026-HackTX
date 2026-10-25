@@ -160,6 +160,21 @@ describe("RecommendationContent, compared", () => {
     expect(diff.querySelectorAll("[data-source]")).toHaveLength(1);
   });
 
+  it("ends with the one concrete next step, in the engine's words, with its detail and its official link", () => {
+    render(<RecommendationContent journey={realCompared()} />);
+    const action = state().evaluation!.nextAction;
+    const section = screen.getByTestId("recommendation-next-step");
+    expect(within(section).getByRole("heading", { name: "What to do next" })).toBeInTheDocument();
+    expect(within(section).getByTestId("next-step-label")).toHaveTextContent(action.label.replace(/\bdemo\b/gi, "").trim().slice(0, 20));
+    expect(within(section).getByTestId("next-step-detail").textContent!.length).toBeGreaterThan(10);
+    const link = within(section).queryByRole("link", { name: "Open the official page" });
+    if (action.officialLink) {
+      expect(link).toHaveAttribute("href", action.officialLink);
+      expect(link).toHaveAttribute("rel", "noreferrer");
+    } else expect(link).toBeNull();
+    expect(section.querySelectorAll("[data-source]")).toHaveLength(1);
+  });
+
   it("lists the five priorities, in order, with who is ahead as the engine scored it", () => {
     render(<RecommendationContent journey={realCompared()} />);
     const { result } = renderHook(() => useTradeoff());

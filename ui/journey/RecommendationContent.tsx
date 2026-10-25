@@ -185,6 +185,26 @@ export function RecommendationContent({ journey }: { journey: Journey }) {
         )}
       </Section>
 
+      <Section title="What to do next" testId="recommendation-next-step">
+        <p data-testid="next-step-label" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-lg font-medium text-ink">
+          {customerText(evaluation.nextAction.label)}
+          <SourceBadge compact source={source} />
+        </p>
+        <p data-testid="next-step-detail" className="text-base leading-7 text-ink/80">
+          {customerText(evaluation.nextAction.detail)}
+        </p>
+        {evaluation.nextAction.officialLink && (
+          <a
+            href={evaluation.nextAction.officialLink}
+            target="_blank"
+            rel="noreferrer"
+            className="w-fit border-b border-ink/40 pb-0.5 text-base text-ink hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+          >
+            Open the official page
+          </a>
+        )}
+      </Section>
+
       {(tradeoff || robust) && (
         <Section title="Why it comes out this way" testId="recommendation-why">
           {tradeoff && (
