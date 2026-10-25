@@ -4,6 +4,8 @@ The frozen `CarStage(props: CarStageProps): JSX.Element` and `preloadCars(vehicl
 
 ## Motion
 
+The cinematic refinement uses a seeded shallow orbital ribbon for reveal, with a small spatial delay across the body instead of a large random sphere. The morph uses a staggered surface wave with restrained outward arcs. Both settle with zero endpoint velocity; particle size eases during motion. A softer ice-blue glow and a lower-opacity wire overlay reduce the abrupt layered look during the solid handoff. Public timings remain 4 seconds for reveal and 1.8 seconds for morph. Skip, reduced motion and fallback are unchanged.
+
 Reveal and morph use quintic easing with zero endpoint velocity/acceleration. Reveal particles follow a curved convergence path; the morph adds a small vertical arc. Both curves settle precisely onto the sampled surfaces, and particle positions remain entirely vertex-shader driven. Softer circular sprites and eased mesh/point opacity improve the handoff to solid geometry. The 4-second reveal and 1.8-second morph callback schedules, skip behavior and crossfade fallback are unchanged.
 
 Morton ordering is cached in a WeakMap keyed by the cached point arrays, avoiding repeated sorting on replay without holding evicted arrays indefinitely. Rendered buffers still own their copies and are disposed normally.

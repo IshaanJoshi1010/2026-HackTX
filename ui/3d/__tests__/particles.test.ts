@@ -1,13 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Points } from "three";
 import type { VehicleConfig } from "@/contracts";
-import { RevealClock, revealStages } from "../ParticleReveal";
+import { createParticleReveal, RevealClock, revealStages } from "../ParticleReveal";
+import { disposeObject } from "../dispose";
 import { VehicleController } from "../VehicleController";
 
 const car = { id: "camry-2022-se", modelAsset: "/fixture.glb", paint: "#111111" } as VehicleConfig;
 const source = () => { const root = new Group(); root.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial({ name: "Body" }))); return root; };
 const data = new Float32Array(32768 * 3);
 describe("particle reveal", () => {
+  it("keeps seeded orbital starts repeatable and leaves cached surface samples untouched", () => {
+    const target = new Float32Array([-2.3, 0, -1, 0, 1, 0, 2.3, 1.4, 1]);
+    const original = target.slice();
+    const a = createParticleReveal(target, false), b = createParticleReveal(target, true);
+    expect(a.geometry.getAttribute("aStart").array).toEqual(b.geometry.getAttribute("aStart").array);
+    const starts = a.geometry.getAttribute("aStart"), delays = a.geometry.getAttribute("aDelay");
+    for (let i = 0; i < starts.count; i++) {
+      expect(starts.getY(i)).toBeGreaterThanOrEqual(0.25);
+      expect(starts.getY(i)).toBeLessThanOrEqual(2.05);
+      expect(delays.getX(i)).toBeGreaterThanOrEqual(0);
+      expect(delays.getX(i)).toBeLessThanOrEqual(0.201);
+    }
+    a.geometry.getAttribute("aTarget").setX(0, 99);
+    expect(target).toEqual(original);
+    disposeObject(a); disposeObject(b);
+  });
   it("reports boundaries at the frozen times and skips remaining stages once", () => {
     const events: [string, number][] = []; let time = 0;
     const clock = new RevealClock(stage => events.push([stage, time]));

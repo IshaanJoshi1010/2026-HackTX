@@ -27,7 +27,7 @@ export class VehicleController {
   private paints: MeshPhysicalMaterial[] = [];
   private fromColor = new Color();
   private toColor = new Color();
-  private readonly cyan = new Color("#27E1FF");
+  private readonly cyan = new Color("#A8D9FF");
   get isMorphing() { return !!this.morph; }
   constructor(private readonly load = loadAsset, private readonly loadPoints = loadPointsFile,
     private readonly prepare?: (root: Object3D) => Promise<void>) {}
@@ -128,9 +128,9 @@ export class VehicleController {
       cloud.material.uniforms.uProgress.value = Math.min(1, time / 2);
       cloud.material.uniforms.uTime.value = time;
       cloud.material.uniforms.uPixelRatio.value = pixelRatio;
-      cloud.material.uniforms.uOpacity.value = time < 3 ? smootherStep(time / 0.22) : 1 - smootherStep(time - 3);
+      cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.45) * (1 - smootherStep((time - 2.65) / 1.05));
       wire.visible = time >= 2.5 && time < 4;
-      materials.update("wireframe", time < 3 ? smootherStep((time - 2.5) * 2) : 1 - smootherStep(time - 3));
+      materials.update("wireframe", 0.35 * smootherStep((time - 2.5) / 0.5) * (1 - smootherStep((time - 3) / 0.65)));
       layer.root.visible = time >= 3;
       layer.materials.update("solid", smootherStep(time - 3));
       if (time < 4) return;
@@ -144,7 +144,7 @@ export class VehicleController {
         const morph = Math.max(0, Math.min(1, (this.elapsed - 0.3) / 1.2));
         const eased = smootherStep(morph);
         this.morph.material.uniforms.uMorph.value = morph;
-        this.morph.material.uniforms.uOpacity.value = Math.min(smootherStep(this.elapsed / 0.3), smootherStep((1.8 - this.elapsed) / 0.3));
+        this.morph.material.uniforms.uOpacity.value = 0.85 * Math.min(smootherStep(this.elapsed / 0.3), smootherStep((1.8 - this.elapsed) / 0.3));
         this.morph.material.uniforms.uPixelRatio.value = pixelRatio;
         this.morph.material.uniforms.uColor.value.copy(this.fromColor).lerp(this.toColor, eased).lerp(this.cyan, 0.7);
         this.paints.forEach(material => material.color.lerpColors(this.fromColor, this.toColor, eased));
