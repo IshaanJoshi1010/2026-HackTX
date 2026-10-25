@@ -1059,8 +1059,12 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         };
         const withChild = { ...s, explore, comparison };
         const results = { ...s.results, ...simulateAll(withChild, built) };
+        // Looking at the switch future when you confirm a change keeps you on the switch future (the new one), and at the
+        // same month: a change made through chat never throws away what you were looking at.
+        const stayOnSwitch = compared !== null && s.activeScenarioId === compared.replaceId && comparison !== null && comparison.replaceId !== comparison.keepId;
+        const lookAt = stayOnSwitch && comparison ? comparison.replaceId : child.id;
         set({
-          ...activation({ ...withChild, results }, child.id),
+          ...activation({ ...withChild, results }, lookAt),
           explore,
           results,
           comparison,

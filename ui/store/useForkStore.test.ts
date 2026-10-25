@@ -1311,3 +1311,28 @@ describe("the Future page's one clock", () => {
   });
 });
 
+describe("a change from chat keeps what you were looking at", () => {
+  it("confirming while looking at the switch future leaves you on the (new) switch future, at the same month", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().setActiveMonth(25);
+    expect(state().activeScenarioId).toBe(state().comparison!.replaceId);
+    actions().addDraft({ type: "mileage_change", month: 6, payload: { annualMiles: 25000 }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    const { keepId, replaceId } = state().comparison!;
+    expect(state().activeScenarioId).toBe(replaceId);
+    expect(state().activeScenarioId).not.toBe(keepId);
+    expect(state().activeMonth).toBe(25);
+    expect(state().evaluation!.scenarioIds).toEqual([keepId, replaceId]);
+  });
+
+  it("confirming while looking at keeping stays on keeping", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().setActiveScenario(state().comparison!.keepId);
+    actions().addDraft({ type: "mileage_change", month: 6, payload: { annualMiles: 25000 }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    expect(state().activeScenarioId).toBe(state().comparison!.keepId);
+  });
+});
+
