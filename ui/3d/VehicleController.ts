@@ -148,9 +148,9 @@ export class VehicleController {
       cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.25) * (1 - solid);
       cloud.visible = solid < 1;
       layer.root.visible = time >= revealTiming.solid;
-      // Hand off to opaque exterior geometry. Fading the shell exposes cabin
-      // meshes; keep the solid depth-writing surface and fade only the particles.
-      layer.materials.update("solid", 1);
+      // Correlated screen coverage keeps interior and exterior holes aligned,
+      // so the solid fills in gradually without exposing the cabin.
+      layer.materials.update("solid", solid, true);
       if (time < revealTiming.done) return;
       this.clearReveal();
     }

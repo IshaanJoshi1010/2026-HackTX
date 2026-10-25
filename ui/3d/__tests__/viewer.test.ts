@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Texture } from "three";
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Texture, type Material, type WebGLRenderer } from "three";
 import type { VehicleConfig } from "@/contracts";
 import { cloneOwnedObject, disposeObject } from "../dispose";
 import { applyPaint } from "../paint";
@@ -16,6 +16,26 @@ function source() {
 }
 
 describe("viewer resource ownership", () => {
+  it("uses equal screen coverage for body and cabin while keeping opaque depth writes", () => {
+    const root = source();
+    const cabin = new MeshStandardMaterial(); root.add(new Mesh(new BoxGeometry(), cabin));
+    const body = (root.children[0] as Mesh<BoxGeometry, MeshStandardMaterial>).material;
+    const modes = new ViewMaterials(root);
+    const shaders = [body, cabin].map(material => {
+      const shader = { uniforms: {}, vertexShader: "", fragmentShader: "#include <clipping_planes_fragment>" } as Parameters<Material["onBeforeCompile"]>[0];
+      material.onBeforeCompile(shader, {} as WebGLRenderer);
+      return shader;
+    });
+    modes.update("solid", 0.5, true);
+    for (const shader of shaders) expect(shader.uniforms.uRevealCoverage.value).toBe(0.5);
+    for (const material of [body, cabin]) {
+      expect(material.opacity).toBe(1); expect(material.transparent).toBe(false);
+      expect(material.depthWrite).toBe(true); expect(material.alphaHash).toBe(false);
+    }
+    modes.update("solid", 1);
+    for (const shader of shaders) expect(shader.uniforms.uRevealCoverage.value).toBe(1);
+    disposeObject(root);
+  });
   it("dissolves opaque paint with depth coverage and preserves transparent glass", () => {
     const root = source();
     const glass = new MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false });
