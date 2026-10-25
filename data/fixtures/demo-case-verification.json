@@ -1,15 +1,43 @@
 {
   "base": "e4e386a",
-  "disclosure": "Synthetic regression evidence only; never used by runtime verdict selection. Computed by real sim and decision modules with fresh Alex twins, fixed demo date and equal priorities.",
+  "previousDemoCommit": "4a78ee8",
+  "disclosure": "Synthetic regression evidence only, never runtime verdict inputs. Two fixed owner/loan presets, equal priorities. Real engine computed all verdicts.",
   "cases": [
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.",
+      "events": [
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5040600427350428,
         0.4959399572649573
@@ -18,6 +46,10 @@
         31286.999999999956,
         35862.222336575316
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -33,12 +65,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I will relocate to Denver in 12 months; my annual mileage is 20k; I am expecting my second child in June 2029.",
+      "events": [
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5040600427350428,
         0.4959399572649573
@@ -47,6 +106,10 @@
         31286.999999999956,
         35862.222336575316
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -62,12 +125,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I drive 20000 miles per year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5040600427350428,
         0.4959399572649573
@@ -76,6 +166,10 @@
         31286.999999999956,
         35862.222336575316
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -91,12 +185,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I'm moving to Denver next year and driving 20k miles annually and expecting my second child in 2029.",
+      "events": [
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5040600427350428,
         0.4959399572649573
@@ -105,6 +226,10 @@
         31286.999999999956,
         35862.222336575316
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -120,12 +245,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
       "text": "I drive 18000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 18000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5115740384615383,
         0.48842596153846185
@@ -134,6 +286,10 @@
         29966.499999999953,
         34468.787875036825
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -149,12 +305,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
       "text": "I drive 19000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 19000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5078170405982908,
         0.4921829594017093
@@ -163,6 +346,10 @@
         30674.249999999953,
         35245.50510580609
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -178,12 +365,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
       "text": "I drive 20000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5040600427350428,
         0.4959399572649573
@@ -192,6 +406,10 @@
         31286.999999999956,
         35862.222336575316
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -207,12 +425,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
       "text": "I drive 21000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 21000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5003030448717951,
         0.499696955128205
@@ -221,6 +466,10 @@
         32174.749999999956,
         37243.93956734447
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -236,12 +485,39 @@
     },
     {
       "id": "close-call",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
       "text": "I drive 22000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 22000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        }
+      ],
       "verdict": "inconclusive",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.49654604700854654,
         0.5034539529914537
@@ -250,6 +526,10 @@
         32787.499999999956,
         37795.65679811373
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": {
         "found": true,
         "parameter": "annualMiles",
@@ -265,12 +545,25 @@
     },
     {
       "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I drive 8,000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          }
+        }
+      ],
       "verdict": "keep",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5491440170940167,
         0.4508559829059833
@@ -279,16 +572,33 @@
         22303.99999999995,
         26781.615567344557
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "My annual mileage is 8k.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          }
+        }
+      ],
       "verdict": "keep",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5491440170940167,
         0.4508559829059833
@@ -297,16 +607,33 @@
         22303.99999999995,
         26781.615567344557
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I am driving about 8000 miles per year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          }
+        }
+      ],
       "verdict": "keep",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5491440170940167,
         0.4508559829059833
@@ -315,16 +642,33 @@
         22303.99999999995,
         26781.615567344557
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "MY YEARLY MILEAGE IS 8000.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          }
+        }
+      ],
       "verdict": "keep",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5491440170940167,
         0.4508559829059833
@@ -333,16 +677,33 @@
         22303.99999999995,
         26781.615567344557
       ],
-      "breakEven": null
-    },
-    {
-      "id": "camry-win",
-      "text": "I drive 6000 miles a year.",
-      "verdict": "keep",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 6000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6000
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.556658012820513,
         0.44334198717948714
@@ -351,16 +712,33 @@
         20983.49999999995,
         24723.181105806034
       ],
-      "breakEven": null
-    },
-    {
-      "id": "camry-win",
-      "text": "I drive 7000 miles a year.",
-      "verdict": "keep",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 7000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 7000
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5529010149572653,
         0.4470989850427347
@@ -369,16 +747,33 @@
         21691.249999999945,
         26104.89833657531
       ],
-      "breakEven": null
-    },
-    {
-      "id": "camry-win",
-      "text": "I drive 8000 miles a year.",
-      "verdict": "keep",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 8000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5491440170940167,
         0.4508559829059833
@@ -387,16 +782,33 @@
         22303.99999999995,
         26781.615567344557
       ],
-      "breakEven": null
-    },
-    {
-      "id": "camry-win",
-      "text": "I drive 9000 miles a year.",
-      "verdict": "keep",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 9000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 9000
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5453870192307692,
         0.45461298076923085
@@ -405,16 +817,33 @@
         23441.74999999995,
         27498.33279811374
       ],
-      "breakEven": null
-    },
-    {
-      "id": "camry-win",
-      "text": "I drive 10000 miles a year.",
-      "verdict": "keep",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 10000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 10000
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.5416300213675216,
         0.4583699786324785
@@ -423,16 +852,40 @@
         24054.49999999995,
         28115.050028882968
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I drive 30,000 miles a year, and I will have high cargo needs next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
       "verdict": "replace",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3664900641025636,
         0.6335099358974365
@@ -441,16 +894,40 @@
         38949.49999999995,
         43369.39464426761
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "My annual mileage is 30k; my cargo needs will be high in 12 months.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
       "verdict": "replace",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3664900641025636,
         0.6335099358974365
@@ -459,16 +936,40 @@
         38949.49999999995,
         43369.39464426761
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "I am driving about 30000 miles per year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
       "verdict": "replace",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3664900641025636,
         0.6335099358974365
@@ -477,16 +978,40 @@
         38949.49999999995,
         43369.39464426761
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
     },
     {
       "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "scripted",
       "text": "MY YEARLY MILEAGE IS 30000. MY CARGO NEEDS WILL BE HIGH NEXT YEAR.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
       "verdict": "replace",
-      "stability": {
-        "heldCount": 9,
-        "totalCount": 9
-      },
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3664900641025636,
         0.6335099358974365
@@ -495,16 +1020,40 @@
         38949.49999999995,
         43369.39464426761
       ],
-      "breakEven": null
-    },
-    {
-      "id": "rav4-win",
-      "text": "I drive 25000 miles a year. I need high cargo capacity next year.",
-      "verdict": "replace",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 25000 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 25000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.38527505341880286,
         0.614724946581197
@@ -513,16 +1062,40 @@
         34815.749999999956,
         39900.8084904215
       ],
-      "breakEven": null
-    },
-    {
-      "id": "rav4-win",
-      "text": "I drive 27500 miles a year. I need high cargo capacity next year.",
-      "verdict": "replace",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 27500 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 27500
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3758825587606832,
         0.6241174412393166
@@ -531,16 +1104,40 @@
         37352.624999999956,
         41510.10156734456
       ],
-      "breakEven": null
-    },
-    {
-      "id": "rav4-win",
-      "text": "I drive 30000 miles a year. I need high cargo capacity next year.",
-      "verdict": "replace",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 30000 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3664900641025636,
         0.6335099358974365
@@ -549,16 +1146,40 @@
         38949.49999999995,
         43369.39464426761
       ],
-      "breakEven": null
-    },
-    {
-      "id": "rav4-win",
-      "text": "I drive 32500 miles a year. I need high cargo capacity next year.",
-      "verdict": "replace",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 32500 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 32500
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.3570975694444446,
         0.6429024305555555
@@ -567,16 +1188,40 @@
         40881.374999999956,
         44978.68772119068
       ],
-      "breakEven": null
-    },
-    {
-      "id": "rav4-win",
-      "text": "I drive 35000 miles a year. I need high cargo capacity next year.",
-      "verdict": "replace",
       "stability": {
         "heldCount": 9,
         "totalCount": 9
       },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "startingVin": "4T1G11AK1NU900001",
+      "startingVehicleId": "camry-2022-se",
+      "replacementVehicleId": "rav4-2024-hybrid-xle",
+      "kind": "nearby",
+      "text": "I drive 35000 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 35000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
       "scores": [
         0.34770507478632545,
         0.6522949252136747
@@ -585,7 +1230,1154 @@
         42478.24999999994,
         46742.98079811374
       ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
       "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "I drive 30,000 miles a year, and I will have high cargo needs next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5807099358974364,
+        0.41929006410256353
+      ],
+      "costs": [
+        51929.9215384616,
+        46786.39783870931
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "My annual mileage is 30k; my cargo needs will be high in 12 months.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5807099358974364,
+        0.41929006410256353
+      ],
+      "costs": [
+        51929.9215384616,
+        46786.39783870931
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "I am driving about 30000 miles per year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5807099358974364,
+        0.41929006410256353
+      ],
+      "costs": [
+        51929.9215384616,
+        46786.39783870931
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "MY YEARLY MILEAGE IS 30000. MY CARGO NEEDS WILL BE HIGH NEXT YEAR.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5807099358974364,
+        0.41929006410256353
+      ],
+      "costs": [
+        51929.9215384616,
+        46786.39783870931
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 25000 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 25000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5765916132478636,
+        0.42340838675213666
+      ],
+      "costs": [
+        48434.494615384676,
+        42504.16311114519
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 27500 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 27500
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5786507745726502,
+        0.42134922542735
+      ],
+      "costs": [
+        50359.708076923154,
+        44122.78047492725
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 30000 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5807099358974364,
+        0.41929006410256353
+      ],
+      "costs": [
+        51929.9215384616,
+        46786.39783870931
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 32500 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 32500
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5827690972222219,
+        0.4172309027777781
+      ],
+      "costs": [
+        54505.13500000005,
+        48405.01520249137
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-stay",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 35000 miles a year. I need high cargo capacity next year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 35000
+          }
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          }
+        }
+      ],
+      "verdict": "keep",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5848282585470083,
+        0.4151717414529915
+      ],
+      "costs": [
+        56075.34846153849,
+        50088.6325662734
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "I drive 6,000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4609419871794872,
+        0.5390580128205128
+      ],
+      "costs": [
+        34318.872307692334,
+        28226.67114640157
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "My annual mileage is 6k.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4609419871794872,
+        0.5390580128205128
+      ],
+      "costs": [
+        34318.872307692334,
+        28226.67114640157
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "I am driving about 6000 miles per year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4609419871794872,
+        0.5390580128205128
+      ],
+      "costs": [
+        34318.872307692334,
+        28226.67114640157
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "MY YEARLY MILEAGE IS 6000.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4609419871794872,
+        0.5390580128205128
+      ],
+      "costs": [
+        34318.872307692334,
+        28226.67114640157
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 5000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 5000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4601183226495731,
+        0.539881677350427
+      ],
+      "costs": [
+        33617.786923076885,
+        27510.224200888762
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 5500 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 5500
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.46053015491452964,
+        0.5394698450854704
+      ],
+      "costs": [
+        34050.82961538468,
+        27945.947673645158
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 6000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4609419871794872,
+        0.5390580128205128
+      ],
+      "costs": [
+        34318.872307692334,
+        28226.67114640157
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 6500 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 6500
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.46135381944444487,
+        0.5386461805555552
+      ],
+      "costs": [
+        34651.914999999964,
+        28567.394619157985
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-switch",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 7000 miles a year.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 7000
+          }
+        }
+      ],
+      "verdict": "replace",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.4617656517094013,
+        0.5382343482905987
+      ],
+      "costs": [
+        34919.95769230776,
+        29203.11809191439
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": null
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "I drive 30,000 miles a year, and I pay $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5036132478632483,
+        0.4963867521367519
+      ],
+      "costs": [
+        55776.07538461542,
+        51319.65104383751
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "My annual mileage is 30k; fuel costs $4 a gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5036132478632483,
+        0.4963867521367519
+      ],
+      "costs": [
+        55776.07538461542,
+        51319.65104383751
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "I am driving about 30000 miles per year. Gas is $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5036132478632483,
+        0.4963867521367519
+      ],
+      "costs": [
+        55776.07538461542,
+        51319.65104383751
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "scripted",
+      "text": "MY YEARLY MILEAGE IS 30000. I PAY $4 PER GALLON.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5036132478632483,
+        0.4963867521367519
+      ],
+      "costs": [
+        55776.07538461542,
+        51319.65104383751
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 28000 miles a year. I pay $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 28000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5004390313390301,
+        0.49956096866096966
+      ],
+      "costs": [
+        54217.494358974414,
+        48634.54027246997
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 29000 miles a year. I pay $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 29000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5020261396011397,
+        0.49797386039886027
+      ],
+      "costs": [
+        54946.784871794895,
+        49572.09565815368
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 30000 miles a year. I pay $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5036132478632483,
+        0.4963867521367519
+      ],
+      "costs": [
+        55776.07538461542,
+        51319.65104383751
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 31000 miles a year. I pay $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 31000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5052003561253557,
+        0.4947996438746445
+      ],
+      "costs": [
+        56505.36589743592,
+        52092.20642952123
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "rav4-close-call",
+      "startingVin": "4T3RWRFV0RU900001",
+      "startingVehicleId": "rav4-2024-hybrid-xle",
+      "replacementVehicleId": "camry-2022-se",
+      "kind": "nearby",
+      "text": "I drive 32000 miles a year. I pay $4 per gallon.",
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 32000
+          }
+        },
+        {
+          "type": "fuel_price_change",
+          "month": 0,
+          "payload": {
+            "fuelPricePerGal": 4
+          }
+        }
+      ],
+      "verdict": "inconclusive",
+      "eligible": [
+        true,
+        true
+      ],
+      "scores": [
+        0.5067874643874644,
+        0.4932125356125353
+      ],
+      "costs": [
+        58274.65641025643,
+        52804.76181520496
+      ],
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "breakEven": {
+        "found": false,
+        "parameter": "annualMiles",
+        "reason": "no_threshold_within_bounds",
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
     }
   ]
 }

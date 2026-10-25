@@ -110,3 +110,15 @@ describe("close-call explanation cannot relabel robustness as a car win", () => 
     expect(explained.text).toContain("No option clearly leads");
   });
 });
+
+describe("two VINs select three independent cases each", () => {
+  it.each(["camry-2022-se", "rav4-2024-hybrid-xle"] as const)("has keep/switch/close and independent copies for %s", vehicleId => {
+    const cases = getDemoCases(vehicleId);
+    expect(cases).toHaveLength(3);
+    expect(new Set(cases.map(demo => demo.expectedVerdict))).toEqual(new Set(["keep", "replace", "inconclusive"]));
+    expect(cases.every(demo => demo.startingVehicleId === vehicleId && demo.replacementVehicleId !== vehicleId)).toBe(true);
+    expect(new Set(cases.map(demo => demo.startingVin)).size).toBe(1);
+    cases[0].expectedVerdict = "keep";
+    expect(getDemoCases()).toHaveLength(6);
+  });
+});
