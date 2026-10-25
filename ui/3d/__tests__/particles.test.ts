@@ -9,14 +9,18 @@ const car = { id: "camry-2022-se", modelAsset: "/fixture.glb", paint: "#111111" 
 const source = () => { const root = new Group(); root.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial({ name: "Body" }))); return root; };
 const data = new Float32Array(32768 * 3);
 describe("particle reveal", () => {
-  it("keeps the solid hidden initially and hands particles off continuously before the done callback", async () => {
+  it("reveals an opaque exterior directly without allocating a wireframe or fading the cabin into view", async () => {
     const controller = new VehicleController(async () => source(), async () => data), stages = vi.fn();
     await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high", reveal: true, onStage: stages });
     const root = controller.group.children[0], body = (root.children[0] as Mesh).material as MeshStandardMaterial;
     const cloud = controller.group.children.find(child => child instanceof Points) as Points<never, ShaderMaterial>;
     expect(root.visible).toBe(false);
+    expect(controller.group.children).toHaveLength(2);
     controller.update(1.6, "solid");
-    expect(body.opacity).toBeCloseTo(0.5);
+    expect(body.opacity).toBe(1);
+    expect(body.transparent).toBe(false);
+    expect(body.alphaHash).toBe(false);
+    expect(body.wireframe).toBe(false);
     expect(cloud.material.uniforms.uOpacity.value).toBeCloseTo(0.4);
     controller.update(0.3, "solid");
     expect(body.opacity).toBeGreaterThan(0.98);
@@ -67,9 +71,9 @@ describe("particle reveal", () => {
     const events: [string, number][] = []; let time = 0;
     const clock = new RevealClock(stage => events.push([stage, time]));
     clock.advance(0);
-    for (const boundary of [revealTiming.pointcloud, revealTiming.wireframe, revealTiming.solid, revealTiming.done]) { time = boundary; clock.advance(boundary - clock.elapsed); }
-    expect(events).toEqual([["converge", 0], ["pointcloud", 1.056], ["wireframe", 1.1], ["solid", 1.2], ["done", 2]]);
-    clock.skip(); expect(events).toHaveLength(5);
+    for (const boundary of [revealTiming.pointcloud, revealTiming.solid, revealTiming.done]) { time = boundary; clock.advance(boundary - clock.elapsed); }
+    expect(events).toEqual([["converge", 0], ["pointcloud", 1.056], ["solid", 1.2], ["done", 2]]);
+    clock.skip(); expect(events).toHaveLength(4);
   });
   it("preloads both resources and remembers skip during load", async () => {
     let resolve!: (points: Float32Array) => void;
@@ -85,7 +89,7 @@ describe("particle reveal", () => {
     await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high", reveal: true, reducedMotion: true, onStage: stage });
     expect(stage.mock.calls.flat()).toEqual(revealStages); expect(controller.group.children).toHaveLength(1); controller.dispose();
   });
-  it("ten replays dispose particle and wire resources, without per-frame attribute changes", async () => {
+  it("ten replays dispose particle resources, without per-frame attribute changes", async () => {
     const controller = new VehicleController(async () => source(), async () => data);
     for (let i = 0; i < 10; i++) {
       const stage = vi.fn();

@@ -21,7 +21,7 @@ export class VehicleController {
   private skipped = false;
   private fading = false;
   private complete: (() => void) | undefined;
-  private reveal?: { clock: RevealClock; cloud: ReturnType<typeof createParticleReveal>; wire: Object3D; materials: ViewMaterials };
+  private reveal?: { clock: RevealClock; cloud: ReturnType<typeof createParticleReveal> };
   private morph?: ReturnType<typeof createParticleMorph>;
   private scan?: Mesh;
   private paints: MeshPhysicalMaterial[] = [];
@@ -124,9 +124,8 @@ export class VehicleController {
         if (options.reducedMotion || this.skipped || !data) clock.skip();
         else {
           const cloud = createParticleReveal(data, options.quality === "low");
-          const wire = cloneOwnedObject(root), materials = new ViewMaterials(wire);
-          this.group.add(cloud, wire); wire.visible = false; root.visible = false;
-          this.reveal = { clock, cloud, wire, materials }; clock.advance(0);
+          this.group.add(cloud); root.visible = false;
+          this.reveal = { clock, cloud }; clock.advance(0);
         }
       }
       if (!this.duration && !this.reveal) this.finish();
@@ -138,7 +137,7 @@ export class VehicleController {
 
   update(delta: number, mode: CarStageProps["viewMode"], pixelRatio = 1) {
     if (this.reveal) {
-      const { clock, cloud, wire, materials } = this.reveal;
+      const { clock, cloud } = this.reveal;
       clock.advance(delta);
       const time = clock.elapsed, layer = this.layers.at(-1)!;
       cloud.material.uniforms.uProgress.value = Math.min(1, time / revealTiming.convergence);
@@ -148,10 +147,10 @@ export class VehicleController {
       const solid = smootherStep((time - revealTiming.solid) / (revealTiming.done - revealTiming.solid));
       cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.25) * (1 - solid);
       cloud.visible = solid < 1;
-      wire.visible = time >= revealTiming.wireframe && solid < 1;
-      materials.update("wireframe", 0.12 * smootherStep((time - revealTiming.wireframe) / 0.2) * (1 - solid));
       layer.root.visible = time >= revealTiming.solid;
-      layer.materials.update("solid", solid);
+      // Hand off to opaque exterior geometry. Fading the shell exposes cabin
+      // meshes; keep the solid depth-writing surface and fade only the particles.
+      layer.materials.update("solid", 1);
       if (time < revealTiming.done) return;
       this.clearReveal();
     }
@@ -189,7 +188,7 @@ export class VehicleController {
   skip() { this.skipped = true; if (this.reveal) { this.reveal.clock.skip(); this.clearReveal(); } if (this.fading) this.finish(); }
   private clearReveal() {
     if (!this.reveal) return;
-    disposeObject(this.reveal.cloud); disposeObject(this.reveal.wire); this.reveal = undefined;
+    disposeObject(this.reveal.cloud); this.reveal = undefined;
     this.layers.forEach(layer => { layer.root.visible = true; layer.materials.update("solid", 1); });
   }
   private disposeLayer(layer: Layer) { disposeObject(layer.root); if (layer.cloud) disposeObject(layer.cloud); }

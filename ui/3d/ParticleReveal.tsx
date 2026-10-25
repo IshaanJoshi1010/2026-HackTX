@@ -1,16 +1,16 @@
 import { AdditiveBlending, BufferGeometry, Float32BufferAttribute, Points, ShaderMaterial } from "three";
 import type { CarStageProps } from "./types";
 
-export const revealStages = ["converge", "pointcloud", "wireframe", "solid", "done"] as const;
-export const revealTiming = { convergence: 1.2, pointcloud: 1.056, wireframe: 1.1, solid: 1.2, done: 2 } as const;
-const boundaries = [0, revealTiming.pointcloud, revealTiming.wireframe, revealTiming.solid, revealTiming.done];
+export const revealStages = ["converge", "pointcloud", "solid", "done"] as const;
+export const revealTiming = { convergence: 1.2, pointcloud: 1.056, solid: 1.2, done: 2 } as const;
+const boundaries = [0, revealTiming.pointcloud, revealTiming.solid, revealTiming.done];
 export class RevealClock {
   elapsed = 0;
   private next = 0;
   constructor(private readonly callback: CarStageProps["onRevealStage"]) {}
   advance(delta: number) {
     this.elapsed = Math.min(revealTiming.done, this.elapsed + Math.max(0, delta));
-    while (this.next < 5 && this.elapsed >= boundaries[this.next]) this.callback(revealStages[this.next++]);
+    while (this.next < revealStages.length && this.elapsed >= boundaries[this.next]) this.callback(revealStages[this.next++]);
   }
   skip() { this.advance(revealTiming.done); }
 }
