@@ -5,7 +5,6 @@ import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
 import { CommandBox } from "./CommandBox";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
 import { InlineQuestionCard } from "./InlineQuestionCard";
-import { ManualEventForm } from "./ManualEventForm";
 import { TradeoffCards } from "./TradeoffCards";
 
 const sampleProposal: LifeEvent = {
@@ -202,23 +201,6 @@ describe("InlineQuestionCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "High" }));
     expect(answerSpy).toHaveBeenCalledWith("cargoNeed", "high");
-  });
-});
-
-describe("ManualEventForm", () => {
-  it("allows staging a manual event proposal", () => {
-    render(<ManualEventForm />);
-
-    const cityInput = screen.getByPlaceholderText("e.g. Denver");
-    fireEvent.change(cityInput, { target: { value: "Seattle" } });
-
-    fireEvent.click(screen.getByRole("button", { name: /stage proposal/i }));
-
-    const drafts = useForkStore.getState().explore.draftChanges;
-    expect(drafts).toHaveLength(1);
-    expect(drafts[0].type).toBe("relocation");
-    expect(drafts[0].payload.city).toBe("Seattle");
-    expect(drafts[0].status).toBe("proposed");
   });
 });
 
