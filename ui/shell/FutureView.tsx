@@ -1,49 +1,38 @@
 "use client";
 
-import { useEffect } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
-import { DecisionSummary } from "@/ui/compare/DecisionSummary";
-import { selectActiveScenario } from "@/ui/store/selectors";
+import { ExplainContent } from "@/ui/journey/ExplainContent";
+import { EventCard } from "@/ui/journey/EventCard";
+import { JourneyDrawers } from "@/ui/journey/JourneyDrawers";
+import { JourneyHeader } from "@/ui/journey/JourneyHeader";
+import { JourneyTimeline } from "@/ui/journey/JourneyTimeline";
+import { Scrubber } from "@/ui/journey/Scrubber";
+import { useEventImpact } from "@/ui/journey/useEventImpact";
+import { useJourney, useJourneyActions } from "@/ui/journey/useJourney";
+import { usePlayback } from "@/ui/journey/usePlayback";
 import { useForkStore } from "@/ui/store/useForkStore";
-import { WindingTimeline } from "@/ui/timeline/WindingTimeline";
-import { DeepDive } from "./DeepDive";
 import { FutureSelector } from "./FutureSelector";
-import { IconButton } from "./IconButton";
 
 /**
- * The second page. Each section has one job, in order of importance:
- *  1. the decision and what it costs, together at the top (DecisionSummary: the verdict, both costs, why, the next step);
- *  2. the journey: only events and choices, with the selected event's details under it;
- *  3. everything deeper (costs over time, why this result, what could change, the inputs), one deliberate click away.
- * Expanded gives the journey the whole page.
+ * The second page: your next five years as one interactive road. Everything on it reads the same clock (the selected
+ * month) and the same scenario state, through one Journey:
+ *   the recommendation and what it costs, the road with both futures, a scrubber with play, and one compact explanation
+ *   of the selected moment. Costs over time, the reasoning and the inputs are each one deliberate click away.
+ * The chat composer sits below this page (Workspace gives it room), so it never covers the road.
  */
 export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
-  const evaluation = useForkStore((s) => s.evaluation);
-  const expanded = useForkStore((s) => s.ui.futureExpanded);
-  const detailsOpen = useForkStore((s) => s.ui.detailsOpen);
-  const scenario = useForkStore(selectActiveScenario);
-  const setFutureExpanded = useForkStore((s) => s.actions.setFutureExpanded);
+  const journey = useJourney();
+  const go = useJourneyActions();
+  const playing = useForkStore((s) => s.ui.playing);
+  const reducedMotion = useForkStore((s) => s.ui.reducedMotion);
+  const nextActionLabel = useForkStore((s) => s.evaluation?.nextAction.label ?? "");
+  const play = useForkStore((s) => s.actions.play);
+  const pause = useForkStore((s) => s.actions.pause);
 
-  // Escape closes the expanded timeline, unless the assumptions drawer is up: that one takes Escape first.
-  useEffect(() => {
-    if (!expanded || detailsOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFutureExpanded(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [expanded, detailsOpen, setFutureExpanded]);
+  // The player moves the one clock; it never starts by itself.
+  usePlayback(journey?.stops ?? []);
+  const impact = useEventImpact(journey?.selectedEventId ?? null, { future: journey?.selectedFuture });
 
-  const expandButton = (
-    <IconButton
-      label={expanded ? "Collapse timeline" : "Expand timeline"}
-      aria-expanded={expanded}
-      data-testid="expand-timeline"
-      onClick={() => setFutureExpanded(!expanded)}
-    >
-      {expanded ? <Minimize2 /> : <Maximize2 />}
-    </IconButton>
-  );
+  if (!journey) return null;
 
   return (
     <>
@@ -52,33 +41,36 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
       <div
         data-testid="future-view"
         style={{ bottom: bottomInset }}
-        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[4%] pb-12 pt-[clamp(3.5rem,8vh,6rem)]"
+        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[clamp(1rem,4vw,3rem)] pb-8 pt-[clamp(3.5rem,8vh,5.5rem)]"
       >
-        <h1 className="sr-only">Your next five years</h1>
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-[clamp(2rem,5vh,3.5rem)]">
-          {/* Expanded puts the journey alone on the page. It is the same section in the same place either way, so the step you had open stays open. */}
-          {!expanded && <DecisionSummary />}
+        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5">
+          <JourneyHeader
+            journey={journey}
+            nextActionLabel={nextActionLabel}
+            onOpenRecommendation={() => go.openDrawer("recommendation")}
+            onOpenCosts={() => go.openDrawer("costs")}
+            onCompare={go.compare}
+          />
 
-          <section aria-label="Your journey" data-testid="journey">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-              {expanded ? (
-                <p data-testid="expanded-title" className="text-lg text-ink/60">
-                  {evaluation ? "Your options over five years" : scenario?.name}
-                </p>
-              ) : (
-                <h2 className="text-xl font-medium text-ink">Your journey</h2>
-              )}
-              <div className="flex items-center gap-3">
-                <FutureSelector />
-                {expandButton}
-              </div>
-            </div>
-            <WindingTimeline expanded={expanded} />
-          </section>
+          {/* Only when you have made more than one life to look at. */}
+          <FutureSelector className="self-end" />
 
-          {!expanded && <DeepDive />}
+          <JourneyTimeline
+            journey={journey}
+            reducedMotion={reducedMotion}
+            onScrub={go.scrub}
+            onSelectEvent={go.selectEvent}
+            onSelectFuture={go.selectFuture}
+            onCompare={go.compare}
+          />
+
+          <Scrubber journey={journey} playing={playing} onScrub={go.scrub} onTogglePlay={() => (playing ? pause() : play())} />
+
+          <EventCard journey={journey} impact={impact} onExplain={() => go.openDrawer("explain")} />
         </div>
       </div>
+
+      <JourneyDrawers journey={journey} explain={<ExplainContent journey={journey} impact={impact} />} />
     </>
   );
 }
