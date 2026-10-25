@@ -1,0 +1,34 @@
+{
+  "city": "Austin, TX",
+  "capturedOn": "2026-10-25",
+  "dealers": [
+    {
+      "name": "Group 1 Toyota North Austin",
+      "address": "8400 Research Blvd, Austin, TX 78758",
+      "rating": 4.2,
+      "phone": "(512) 458-2331",
+      "link": "https://www.group1toyotanorthaustin.com/"
+    },
+    {
+      "name": "AutoNation Toyota South Austin",
+      "address": "4800 S I-35 Frontage Rd, Austin, TX 78745",
+      "rating": 4.6,
+      "phone": "(512) 518-6900",
+      "link": "https://www.autonationtoyotasouthaustin.com/"
+    },
+    {
+      "name": "Toyota of Cedar Park",
+      "address": "5600 183A Toll Rd, Leander, TX 78641",
+      "rating": 4.8,
+      "phone": "(737) 302-6399",
+      "link": "https://www.toyotaofcedarpark.com/"
+    },
+    {
+      "name": "Round Rock Toyota",
+      "address": "2307 N Interstate Hwy 35, Round Rock, TX 78664",
+      "rating": 4.6,
+      "phone": "(512) 488-4877",
+      "link": "https://www.roundrocktoyota.com/"
+    }
+  ]
+}

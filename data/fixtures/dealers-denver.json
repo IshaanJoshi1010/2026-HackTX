@@ -1,0 +1,41 @@
+{
+  "city": "Denver, CO",
+  "capturedOn": "2026-10-25",
+  "dealers": [
+    {
+      "name": "Mountain States Toyota",
+      "address": "201 W 70th Ave, Denver, CO 80221",
+      "rating": 4.4,
+      "phone": "(844) 283-1824",
+      "link": "https://www.mountainstatestoyota.com/"
+    },
+    {
+      "name": "Groove Toyota",
+      "address": "5460 S Broadway, Englewood, CO 80113",
+      "rating": 4.6,
+      "phone": "(720) 961-4465",
+      "link": "https://www.groovetoyota.com/"
+    },
+    {
+      "name": "AutoNation Toyota Arapahoe",
+      "address": "10531 E Arapahoe Rd, Centennial, CO 80112",
+      "rating": 4.6,
+      "phone": "(303) 578-6111",
+      "link": "https://www.autonationtoyotaarapahoe.com/"
+    },
+    {
+      "name": "Stevinson Toyota East",
+      "address": "444 S Havana St, Aurora, CO 80012",
+      "rating": 4.3,
+      "phone": "(720) 706-3866",
+      "link": "https://www.stevinsontoyotaeast.com/"
+    },
+    {
+      "name": "Stevinson Toyota West",
+      "address": "780 Denver West Colorado Mills Blvd, Lakewood, CO 80401",
+      "rating": 4.6,
+      "phone": "(720) 902-9966",
+      "link": "https://www.stevinsontoyotawest.com/"
+    }
+  ]
+}
