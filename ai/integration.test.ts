@@ -35,7 +35,7 @@ describe("Gemini transport configuration", () => {
     vi.stubEnv("GEMINI_MODEL", "test-model");
     sdk.generateContent.mockResolvedValue({ text: "hello" });
     expect(await generateWithGemini({ system: "rules", input: { value: 1 }, schema: { type: "object" } })).toBe("hello");
-    expect(sdk.constructor).toHaveBeenCalledWith(expect.objectContaining({ httpOptions: { timeout: 15000, retryOptions: { attempts: 1 } } }));
+    expect(sdk.constructor).toHaveBeenCalledWith(expect.objectContaining({ httpOptions: { timeout: 10000, retryOptions: { attempts: 1 } } }));
     expect(sdk.generateContent.mock.calls[0][0]).toMatchObject({ model: "test-model", config: { systemInstruction: "rules", responseMimeType: "application/json" } });
     expect(sdk.generateContent.mock.calls[0][0].config.tools).toBeUndefined();
   });
@@ -166,4 +166,31 @@ describe("manual path, return visit and route handlers", () => {
     const bad = await explainRoute(new Request("http://localhost/api/explain", { method: "POST", body: JSON.stringify({ evaluation: {} }) }));
     expect(bad.status).toBe(400);
   });
+});
+
+describe("AI integration transport metadata", () => {
+  it("uses the tested fallback model and forwards request cancellation and remaining timeout", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-only-not-a-credential"); vi.stubEnv("GEMINI_MODEL", "");
+    sdk.generateContent.mockResolvedValue({ text: "ok" });
+    const controller = new AbortController();
+    await generateWithGemini({ system: "rules", input: {}, signal: controller.signal, timeoutMs: 2345 });
+    expect(sdk.constructor).toHaveBeenCalledWith(expect.objectContaining({ httpOptions: { timeout: 2345, retryOptions: { attempts: 1 } } }));
+    expect(sdk.generateContent.mock.calls[0][0]).toMatchObject({ model: "gemini-3.1-flash-lite", config: { abortSignal: controller.signal } });
+  });
+  it("distinguishes busy from validation failure without changing the frozen response body", async () => {
+    vi.spyOn(interpreterModule, "interpret").mockImplementation(async (_prompt, _context, options) => {
+      options?.onUnavailable?.({ status: "busy", retryAfter: 12 }); return { aiAvailable: false };
+    });
+    const response = await interpretRoute(new Request("http://localhost/api/interpret", { method: "POST", body: JSON.stringify({ prompt: "hi", context }) }));
+    expect(response.headers.get("x-fork-ai-status")).toBe("busy");
+    expect(response.headers.get("retry-after")).toBe("12");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ aiAvailable: false });
+  });
+});
+
+it("classifies a provider timeout without exposing its error message", async () => {
+  vi.stubEnv("GEMINI_API_KEY", "test-only-not-a-credential");
+  sdk.generateContent.mockRejectedValue(new Error("private-provider-details timed out"));
+  await expect(generateWithGemini({ system: "rules", input: {} })).rejects.toMatchObject({ message: "AI request deadline", statusInfo: { status: "timeout" } });
 });

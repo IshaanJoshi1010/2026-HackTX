@@ -2,7 +2,10 @@ import "server-only";
 import type { DecisionEvaluation, SimulationResult } from "../contracts";
 import { DecisionEvaluationSchema, SimulationResultSchema } from "../contracts/schemas";
 import { generateWithGemini, type Generator } from "./gemini";
+import { createGenerationBudget, EXPLAIN_BUDGET_MS } from "./generationBudget";
+import { type AIRequestOptions, unavailableInfo } from "./status";
 import { numberCheck } from "./numberCheck";
+import { retrieveVehicleKnowledge, type VehicleKnowledgeResult } from "../data/snowflake/repository";
 import { explanationInstructions } from "./prompts/system";
 
 const fitMessages: Record<string, string> = {
@@ -20,8 +23,10 @@ const fitMessages: Record<string, string> = {
 
 export class InvalidExplanationInput extends Error {}
 
-export function createExplainer(generate: Generator = generateWithGemini) {
-  return async (evaluation: DecisionEvaluation, results: SimulationResult[]): Promise<{ text: string; usedFallback: boolean }> => {
+export interface ExplanationOptions extends AIRequestOptions { onKnowledge?: (result: VehicleKnowledgeResult) => void }
+
+export function createExplainer(generate: Generator = generateWithGemini, retrieve = retrieveVehicleKnowledge) {
+  return async (evaluation: DecisionEvaluation, results: SimulationResult[], options?: ExplanationOptions): Promise<{ text: string; usedFallback: boolean }> => {
     const e = DecisionEvaluationSchema.parse(evaluation);
     const r = results.map(result => SimulationResultSchema.parse(result));
     // A stale UI evaluation must not be explained alongside a different set of scenario results.
@@ -33,8 +38,13 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       || (e.sensitivity.length !== 0 && e.sensitivity.length !== e.scenarioIds.length)) {
       throw new InvalidExplanationInput("Evaluation and results must describe the same scenarios");
     }
+    const vehicleKnowledge = await retrieve([...new Set(r.flatMap(result => result.points.map(point => point.vehicleId)))], options?.signal);
+    options?.onKnowledge?.(vehicleKnowledge);
     // Supply computed summaries, not raw driver/account/profile data or the full monthly timeline.
-    const input = { evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,
+    const input = { vehicleKnowledge, verdictMeaning: e.preferredScenarioId === "inconclusive"
+      ? "No option clearly leads. A Held in X of Y tested cases line refers to this inconclusive verdict, never a Camry or RAV4 win."
+      : "The preferred scenario ID is the computed verdict; sensitivity describes how often that verdict held, not a confidence percentage.",
+      evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,
       milestones: result.milestones, warnings: result.warnings, finalPoint: result.points.at(-1),
       // Keep earlier fit issues even when a later replacement resolves them.
       fitChecks: [...new Set(result.points.flatMap(point => [
@@ -56,13 +66,19 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       ])])],
       "These demo results are not a financial quote.",
     ].join("\n\n"), usedFallback: true });
+    const budget = createGenerationBudget(generate, EXPLAIN_BUDGET_MS, options?.signal);
     try {
-      const text = (await generate({ system: explanationInstructions, input })).trim();
+      const text = (await budget.run({ purpose: "explain", system: explanationInstructions, input })).trim();
       // Engine scores are fractions, not confidence percentages. Numeric membership alone cannot check units.
-      if (!text || text.length > 6000 || !numberCheck(text, input).ok || /https?:\/\//i.test(text)
+      // Numeric membership alone misses a winner incorrectly attached to an inconclusive sensitivity count.
+      const falseStabilityWinner = e.preferredScenarioId === "inconclusive" && text.split(/[.!?\n]/).some(sentence =>
+        /\b(?:camry|rav4)\b/i.test(sentence) && /\b(?:remain\w*|hold\w*|held|win\w*|winner|preferred|favou?red|lead\w*)\b/i.test(sentence)
+        && /\b(?:tested\s+cases?|cases|sensitivity|robustness)\b/i.test(sentence));
+      if (falseStabilityWinner || !text || text.length > 6000 || !numberCheck(text, input).ok || /https?:\/\//i.test(text)
         || /%|\bpercent(?:age)?s?\b/i.test(text)) return fallback();
       return { text, usedFallback: false };
-    } catch { return fallback(); }
+    } catch (error) { options?.onUnavailable?.(unavailableInfo(error)); return fallback(); }
+    finally { budget.dispose(); }
   };
 }
 export const explain = createExplainer();

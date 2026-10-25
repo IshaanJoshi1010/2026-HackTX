@@ -1,0 +1,245 @@
+{
+  "target": "http://127.0.0.1:3000",
+  "productionBefore": "Daily sentence reproduced generic no-change message in actual hosted browser. Production still awaits integration.",
+  "date": "2026-10-25T06:19:00.145Z",
+  "cases": [
+    {
+      "id": "daily",
+      "prompt": "im going to drive 100 miles a day next year in denver",
+      "httpStatus": 200,
+      "status": "ready",
+      "elapsedMs": 11489,
+      "passed": true,
+      "result": {
+        "aiAvailable": true,
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "id": "ai-c99c7e54",
+            "type": "mileage_change",
+            "month": 12,
+            "payload": {
+              "annualMiles": 36500
+            },
+            "source": "ai",
+            "assumptions": [
+              "Daily driving converted by code: 100 miles/day \u00d7 365 days/year = 36500 annual miles. Assumes driving every day; confirm the frequency."
+            ],
+            "quote": "im going to drive 100 miles a day next year in denver",
+            "certainty": "inferred",
+            "status": "proposed"
+          }
+        ],
+        "profilePatches": []
+      },
+      "effective": [
+        {
+          "type": "mileage_change",
+          "month": 12,
+          "payload": {
+            "annualMiles": 36500
+          }
+        }
+      ]
+    },
+    {
+      "id": "baby",
+      "prompt": "We're having a baby in March",
+      "httpStatus": 200,
+      "status": "ready",
+      "elapsedMs": 3533,
+      "passed": true,
+      "result": {
+        "aiAvailable": true,
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "id": "ai-20a568fd",
+            "type": "family_change",
+            "month": 5,
+            "payload": {
+              "childrenDelta": 1
+            },
+            "source": "ai",
+            "assumptions": [
+              "pregnancy implies one additional child",
+              "No year stated: assuming the upcoming march 2027; confirm the date."
+            ],
+            "quote": "We're having a baby in March",
+            "certainty": "inferred",
+            "status": "proposed"
+          }
+        ],
+        "profilePatches": []
+      },
+      "effective": [
+        {
+          "type": "family_change",
+          "month": 5,
+          "payload": {
+            "childrenDelta": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "commute",
+      "prompt": "I got a new job 30 miles away, so I'll be commuting 5 days a week starting in the spring",
+      "httpStatus": 200,
+      "status": "ready",
+      "elapsedMs": 4416,
+      "passed": true,
+      "result": {
+        "aiAvailable": true,
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "id": "ai-b4c4f906",
+            "type": "mileage_change",
+            "month": 5,
+            "payload": {
+              "commuteMilesOneWay": 30,
+              "commuteDaysPerWeek": 5
+            },
+            "source": "ai",
+            "assumptions": [
+              "one-way commute distance",
+              "spring is represented by march 2027 using a US-season estimate; confirm or correct the start month.",
+              "Job distance described as miles away is assumed one way; confirm the commute distance."
+            ],
+            "quote": "I got a new job 30 miles away, so I'll be commuting 5 days a week starting in the spring",
+            "certainty": "inferred",
+            "status": "proposed"
+          }
+        ],
+        "profilePatches": []
+      },
+      "effective": [
+        {
+          "type": "mileage_change",
+          "month": 5,
+          "payload": {
+            "commuteDaysPerWeek": 5,
+            "commuteMilesOneWay": 30
+          }
+        }
+      ]
+    },
+    {
+      "id": "january",
+      "prompt": "Moving to Austin in January",
+      "httpStatus": 200,
+      "status": "ready",
+      "elapsedMs": 1695,
+      "passed": true,
+      "result": {
+        "aiAvailable": true,
+        "intent": "CREATE_SCENARIO",
+        "proposals": [
+          {
+            "id": "ai-bf9707f5",
+            "type": "relocation",
+            "month": 3,
+            "payload": {
+              "location": "Austin"
+            },
+            "source": "ai",
+            "assumptions": [
+              "No year stated: assuming the upcoming january 2027; confirm the date."
+            ],
+            "quote": "Moving to Austin in January",
+            "certainty": "inferred",
+            "status": "proposed"
+          }
+        ],
+        "profilePatches": []
+      },
+      "effective": [
+        {
+          "type": "relocation",
+          "month": 3,
+          "payload": {
+            "location": "Austin"
+          }
+        }
+      ]
+    },
+    {
+      "id": "demo-am",
+      "prompt": "I am moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.",
+      "httpStatus": 200,
+      "status": "provider-error",
+      "elapsedMs": 10805,
+      "passed": true,
+      "result": {
+        "aiAvailable": false
+      },
+      "effective": [
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        }
+      ]
+    },
+    {
+      "id": "demo-contraction",
+      "prompt": "I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.",
+      "httpStatus": 200,
+      "status": "busy",
+      "elapsedMs": 339,
+      "passed": true,
+      "result": {
+        "aiAvailable": false
+      },
+      "effective": [
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          }
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          }
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          }
+        }
+      ]
+    }
+  ],
+  "explain": {
+    "httpStatus": 200,
+    "status": "provider-error",
+    "elapsedMs": 2962,
+    "text": "No option clearly leads on your priorities yet.\n\nNext step: Reevaluate if your driving drops below 14,434 mi/yr\nNeither option leads by a clear margin today. The verdict changes at 14,434 mi/yr (modeled break-even, tested between 5000 and 40000).\n\nWhat drives this comparison:\nInconclusive: Keep Camry 0.50 vs Replace with RAV4 0.50, within the 0.05 margin\nNet economic cost over 60 months: Keep Camry $31,287, Replace with RAV4 $35,862\nFuel spend over 60 months: Keep Camry $9,375, Replace with RAV4 $8,001\nLongevity (miles left of 250,000): Keep Camry 0.41, Replace with RAV4 0.53\nFamily fit: Keep Camry 1.00, Replace with RAV4 1.00\nComfort: Keep Camry 0.50, Replace with RAV4 0.50\nWeights: cost 0.20, family 0.20, longevity 0.20, fuel 0.20, comfort 0.20\nKeep Camry score 0.50 = cost 0.20 + family 0.10 + longevity 0.05 + fuel 0.05 + comfort 0.10\nReplace with RAV4 score 0.50 = cost 0.00 + family 0.10 + longevity 0.15 + fuel 0.15 + comfort 0.10\nHeld in 9 of 9 tested cases\n\nThese demo results are not a financial quote.",
+    "usedFallback": true,
+    "aiAvailable": false,
+    "numberCheck": true
+  }
+}
