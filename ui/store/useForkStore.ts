@@ -16,6 +16,7 @@ import type {
   ExploreState,
   FieldKey,
   InterpretContext,
+  InterpretResult,
   Intent,
   LifeEvent,
   ProfilePatch,
@@ -28,6 +29,7 @@ import type {
   VehicleTwin,
 } from "@/contracts";
 import type { ReproductionSide } from "@/decision";
+import { interpretOffline } from "@/ui/command/extract";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { RevealStage } from "@/ui/mocks/CarStageStub";
 import { eventTitle } from "./eventLabels";
@@ -68,6 +70,21 @@ export interface Comparison {
 
 export type BreakEvenCheck = { below: ReproductionSide; above: ReproductionSide };
 
+/** The engine's plain-language account of its own numbers. The AI writes words only; every number comes in. */
+export interface Explanation {
+  text: string;
+  /** True when the deterministic template wrote it, because the AI was off or its answer was rejected. */
+  usedFallback: boolean;
+}
+
+/** What a typed sentence led to, so the command bar knows whether to clear itself. */
+export type DumpOutcome =
+  | { kind: "proposed" } // changes are waiting for a confirm
+  | { kind: "asked" } // a question is waiting for an answer
+  | { kind: "compared" } // opened the keep vs replace comparison
+  | { kind: "break_even" } // ran the break-even
+  | { kind: "nothing"; message?: string };
+
 export interface UiState {
   reducedMotion: boolean;
   lowPerformance: boolean;
@@ -88,7 +105,7 @@ export interface ForkActions {
   startFromSample(vehicleId: string): Promise<void>;
   startFromPicker(make: string, model: string, year: number, trim?: string): Promise<void>;
   answerRiders(choice: Riders): void;
-  submitDump(text: string): Promise<void>;
+  submitDump(text: string): Promise<DumpOutcome>;
   confirmDrafts(ids: string[]): void;
   editDraft(id: string, patch: Partial<LifeEvent>): void;
   rejectDraft(id: string): void;
@@ -132,6 +149,8 @@ export interface ForkState {
   evaluation: DecisionEvaluation | null;
   /** Why the next step is what it is, from the engine. Travels with the evaluation, never typed in. */
   nextActionFactors: string[];
+  /** Words for the current evaluation. Null until written, and cleared whenever the evaluation changes. */
+  explanation: Explanation | null;
   breakEven: BreakEvenResult | null;
   /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
   breakEvenCheck: BreakEvenCheck | null;
@@ -197,6 +216,7 @@ function initialData(): DataFields {
     results: {},
     evaluation: null,
     nextActionFactors: [],
+    explanation: null,
     breakEven: null,
     breakEvenCheck: null,
     activeScenarioId: BASE_ID,
@@ -369,10 +389,19 @@ function evaluateComparison(s: ComparisonState, breakEven?: BreakEvenResult | nu
 }
 
 /** The store fields that come from a verdict, or cleared ones when there is none. */
-const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors"> => ({
+const verdictPatch = (v: Verdict | null): Pick<ForkState, "evaluation" | "nextActionFactors" | "explanation"> => ({
   evaluation: v?.evaluation ?? null,
   nextActionFactors: v?.nextActionFactors ?? [],
+  explanation: null, // the words belong to the numbers they came with
 });
+
+/** Which number a "what would have to change" question is about: fuel price if it says so, otherwise miles. */
+export function breakEvenParameterFor(prompt: string): "annualMiles" | "fuelPricePerGal" {
+  return /\b(?:fuel|gas(?:oline)?|gallon|pump)\b/i.test(prompt) ? "fuelPricePerGal" : "annualMiles";
+}
+
+let draftSeq = 0;
+const newDraftId = () => `draft-${Date.now()}-${(draftSeq += 1)}`;
 
 /** At most one question, never one the user already answered or skipped. */
 function nextQuestion(
@@ -497,10 +526,33 @@ function markEstimated(twin: VehicleTwin, profile: DriverProfile, field: FieldKe
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let detachPersistence: (() => void) | undefined;
 
-export const useForkStore = create<ForkState>()((set, get) => {
+export const useForkStore = create<ForkState>()((set, get, api) => {
   const setBusy = (busy: UiState["busy"]) => set((s) => ({ ui: { ...s.ui, busy } }));
   const fail = (e: unknown) =>
     set((s) => ({ error: e instanceof Error ? e.message : String(e), ui: { ...s.ui, busy: "idle" } }));
+
+  /**
+   * Ask for words about the current evaluation. A late answer about an older comparison is
+   * dropped, so the page never shows an explanation for numbers that are no longer on it.
+   */
+  let explainSeq = 0;
+  async function requestExplanation() {
+    const s = get();
+    const evaluation = s.evaluation;
+    if (!evaluation) return;
+    const results = evaluation.scenarioIds.map((id) => s.results[id]).filter(Boolean);
+    if (results.length !== evaluation.scenarioIds.length) return;
+    const seq = (explainSeq += 1);
+    try {
+      const explanation = await ai.explain(evaluation, results);
+      if (seq === explainSeq && get().evaluation === evaluation) set({ explanation });
+    } catch {
+      // The engine's own lines are already on the page.
+    }
+  }
+  api.subscribe((state, prev) => {
+    if (state.evaluation && state.evaluation !== prev.evaluation) void requestExplanation();
+  });
 
   /**
    * Common tail of every start path: build the twin, reset the session, begin the reveal.
@@ -619,8 +671,10 @@ export const useForkStore = create<ForkState>()((set, get) => {
     async submitDump(text) {
       const s = get();
       const prompt = text.trim();
-      if (!s.twin || !prompt) return;
+      if (!s.twin || !prompt) return { kind: "nothing" };
       set((cur) => ({ error: null, ui: { ...cur.ui, busy: "interpreting" } }));
+      let result: InterpretResult;
+      let offline = false;
       try {
         const active = findScenario(s, s.activeScenarioId);
         const ctx: InterpretContext = {
@@ -629,32 +683,70 @@ export const useForkStore = create<ForkState>()((set, get) => {
           existingEvents: (active?.events ?? []).map((e) => ({ type: e.type, month: e.month })),
           todayISO: s.todayISO,
         };
-        const result = await ai.interpret(prompt, ctx);
+        // A throw counts as "not available", the same as no key or no network.
+        result = await ai.interpret(prompt, ctx).catch((): InterpretResult => ({ aiAvailable: false }));
         if (!result.aiAvailable) {
-          return void set((cur) => ({ ui: { ...cur.ui, aiAvailable: false, busy: "idle" } }));
+          // Plain rules read it instead, and they only ever extract what was written,
+          // so the whole demo still runs.
+          offline = true;
+          const read = interpretOffline(prompt, s.todayISO);
+          result = {
+            aiAvailable: true,
+            intent: read.intent,
+            proposals: read.events.map((e): LifeEvent => ({ ...e, id: newDraftId(), status: "proposed" })),
+            profilePatches: [],
+            ...(read.note ? { unsupportedReason: read.note } : {}),
+          };
         }
-        // Proposals are drafts. Force "proposed" so nothing from the AI can arrive confirmed.
-        const proposals = result.proposals.map((e): LifeEvent => ({ ...e, status: "proposed" }));
-        set((cur) => {
-          const withDrafts = {
-            ...cur,
-            explore: { ...cur.explore, draftChanges: [...cur.explore.draftChanges, ...proposals] },
-          };
-          return {
-            explore: withDrafts.explore,
-            draftPatches: [...cur.draftPatches, ...result.profilePatches],
-            lastIntent: result.intent,
-            question: nextQuestion(withDrafts, result.question),
-            ui: { ...cur.ui, aiAvailable: true, busy: "idle" },
-          };
-        });
       } catch (e) {
-        // A throwing interpret falls back to manual forms.
         set((cur) => ({
           error: e instanceof Error ? e.message : String(e),
-          ui: { ...cur.ui, aiAvailable: false, busy: "idle" },
+          ui: { ...cur.ui, busy: "idle" },
         }));
+        return { kind: "nothing" };
       }
+
+      // Proposals are drafts. Force "proposed" so nothing from the AI can arrive confirmed.
+      const proposals = result.proposals.map((e): LifeEvent => ({ ...e, status: "proposed" }));
+      set((cur) => {
+        const withDrafts = {
+          ...cur,
+          explore: { ...cur.explore, draftChanges: [...cur.explore.draftChanges, ...proposals] },
+        };
+        return {
+          explore: withDrafts.explore,
+          draftPatches: [...cur.draftPatches, ...result.profilePatches],
+          lastIntent: result.intent,
+          question: nextQuestion(withDrafts, result.question),
+          ui: { ...cur.ui, aiAvailable: !offline, busy: "idle" },
+        };
+      });
+
+      if (proposals.length > 0) return { kind: "proposed" };
+      if (get().question) return { kind: "asked" };
+
+      // A question, not a change: show the answer. Nothing here edits the profile or a scenario.
+      const ensureComparison = async () => {
+        if (!get().comparison) await actions.openReplaceComparison();
+        return get().comparison !== null;
+      };
+      switch (result.intent) {
+        case "FIND_BREAK_EVEN":
+          if (!(await ensureComparison())) break;
+          actions.runBreakEven(breakEvenParameterFor(prompt));
+          actions.setView("future");
+          return { kind: "break_even" };
+        case "COMPARE_SCENARIOS":
+        case "RECOMMEND_ACTION":
+          if (!(await ensureComparison())) break;
+          actions.setView("future");
+          return { kind: "compared" };
+        case "EXPLAIN_RESULT":
+          if (!get().evaluation) break;
+          actions.setView("future");
+          return { kind: "compared" };
+      }
+      return { kind: "nothing", message: result.unsupportedReason };
     },
 
     // ---- confirm ----

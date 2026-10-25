@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifeEvent } from "@/contracts";
 import { ai, data } from "@/ui/mocks";
-import { BASE_ID, resetForkStoreForTests, simulationInputs, useForkStore } from "./useForkStore";
+import { BASE_ID, breakEvenParameterFor, resetForkStoreForTests, simulationInputs, useForkStore } from "./useForkStore";
 
 const CAMRY = "camry-2022-se";
 const RAV4 = "rav4-2024-hybrid-xle";
@@ -173,21 +173,35 @@ describe("time", () => {
 });
 
 describe("dump and confirm", () => {
-  it("with the mock AI (unavailable) it switches to manual forms and proposes nothing", async () => {
+  it("with no AI it reads the sentence with plain rules and proposes only what was written", async () => {
     await enterWorkspace();
-    await actions().submitDump("I'm moving to Denver");
+    const before = state().explore.scenarios;
+    const outcome = await actions().submitDump("I'm moving to Denver");
+    expect(outcome).toEqual({ kind: "proposed" });
     expect(state().ui.aiAvailable).toBe(false);
-    expect(state().explore.draftChanges).toEqual([]);
+    const drafts = state().explore.draftChanges;
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ type: "relocation", status: "proposed", payload: { location: "Denver" } });
+    expect(drafts[0].assumptions[0]).toMatch(/didn't say when/);
+    expect(state().explore.scenarios).toBe(before); // a proposal changes nothing
     expect(state().ui.busy).toBe("idle");
   });
 
-  it("a throwing interpret falls back to manual forms and changes nothing", async () => {
+  it("with no AI, text with no change in it proposes nothing and says so", async () => {
+    await enterWorkspace();
+    const outcome = await actions().submitDump("I'm moving");
+    expect(outcome.kind).toBe("nothing");
+    expect(state().explore.draftChanges).toEqual([]);
+  });
+
+  it("a throwing interpret falls back to the plain rules and changes nothing", async () => {
     await enterWorkspace();
     vi.spyOn(ai, "interpret").mockRejectedValue(new Error("gemini down"));
     const before = state().explore.scenarios;
-    await actions().submitDump("anything");
+    const outcome = await actions().submitDump("moving to Denver next year");
+    expect(outcome).toEqual({ kind: "proposed" });
     expect(state().ui.aiAvailable).toBe(false);
-    expect(state().error).toBe("gemini down");
+    expect(state().error).toBeNull();
     expect(state().explore.scenarios).toBe(before);
   });
 
@@ -684,5 +698,107 @@ describe("demo story A through the store (numbers pinned by sim/DEMO.md)", () =>
     actions().runBreakEven("annualMiles");
     expect(state().explore.confirmedProfile).toEqual(profileBefore);
     expect(state().explore.scenarios.find((s) => s.id === BASE_ID)?.events).toEqual([]);
+  });
+});
+
+describe("questions typed in the command bar (no AI: plain rules route them)", () => {
+  it("'would a RAV4 make more sense?' opens keep vs replace on the future page and changes nothing", async () => {
+    await enterWorkspace();
+    const profileBefore = structuredClone(state().explore.confirmedProfile);
+    const outcome = await actions().submitDump("Would switching to a RAV4 Hybrid make more sense?");
+    expect(outcome).toEqual({ kind: "compared" });
+    expect(state().comparison).not.toBeNull();
+    expect(state().evaluation).not.toBeNull();
+    expect(state().ui.view).toBe("future");
+    expect(state().explore.draftChanges).toEqual([]); // a question proposes no change
+    expect(state().explore.confirmedProfile).toEqual(profileBefore);
+  });
+
+  it("'what would have to change…' runs the break-even, opening the comparison first if there is none", async () => {
+    await enterWorkspace();
+    expect(state().comparison).toBeNull();
+    const outcome = await actions().submitDump("What would have to change for keeping the Camry to be the better option?");
+    expect(outcome).toEqual({ kind: "break_even" });
+    expect(state().comparison).not.toBeNull();
+    expect(state().breakEven).toMatchObject({ parameter: "annualMiles" });
+    expect(state().ui.view).toBe("future");
+  });
+
+  it("asking about fuel price tests fuel price, not miles", async () => {
+    expect(breakEvenParameterFor("What fuel price would make keeping my Camry better?")).toBe("fuelPricePerGal");
+    expect(breakEvenParameterFor("what if gas goes up, what would have to change?")).toBe("fuelPricePerGal");
+    expect(breakEvenParameterFor("What would have to change for keeping the Camry?")).toBe("annualMiles");
+    await enterWorkspace();
+    await actions().submitDump("What fuel price would have to change for keeping the Camry to be the better option?");
+    expect(state().breakEven?.parameter).toBe("fuelPricePerGal");
+  });
+
+  it("a question about some other car is not answered with the RAV4", async () => {
+    await enterWorkspace();
+    const outcome = await actions().submitDump("Would a Corolla make more sense?");
+    expect(outcome.kind).toBe("nothing");
+    expect(outcome).toMatchObject({ message: expect.stringMatching(/RAV4/) });
+    expect(state().comparison).toBeNull();
+    expect(state().ui.view).toBe("car");
+  });
+
+  it("asking again does not open a second comparison", async () => {
+    await enterWorkspace();
+    await actions().submitDump("Would a RAV4 make more sense?");
+    const count = state().explore.scenarios.length;
+    await actions().submitDump("Should I replace my Camry?");
+    expect(state().explore.scenarios).toHaveLength(count);
+  });
+});
+
+describe("the explanation", () => {
+  const words = { text: "Keeping and replacing are close. Nothing here is a quote.", usedFallback: true };
+
+  it("is asked for once there is an evaluation, and shown with how it was written", async () => {
+    const explain = vi.spyOn(ai, "explain").mockResolvedValue(words);
+    await enterWorkspace();
+    expect(state().explanation).toBeNull();
+    await actions().openReplaceComparison();
+    await vi.waitFor(() => expect(state().explanation).toEqual(words));
+    // it was given the engine's evaluation and both projections, nothing else
+    const [evaluation, results] = explain.mock.calls[0];
+    expect(evaluation).toBe(state().evaluation);
+    expect(results.map((r) => r.scenarioId)).toEqual(evaluation.scenarioIds);
+  });
+
+  it("is cleared the moment the numbers change, so it never describes old ones", async () => {
+    vi.spyOn(ai, "explain").mockResolvedValue(words);
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    await vi.waitFor(() => expect(state().explanation).not.toBeNull());
+    vi.spyOn(ai, "explain").mockReturnValue(new Promise(() => {})); // never answers
+    actions().setAssumption("insurancePerMonth", 250);
+    expect(state().explanation).toBeNull();
+  });
+
+  it("drops a late answer about an older comparison", async () => {
+    let answerFirst!: (v: typeof words) => void;
+    vi.spyOn(ai, "explain")
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValue({ text: "about the new numbers", usedFallback: true });
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    actions().setAssumption("insurancePerMonth", 250); // new numbers, new request
+    await vi.waitFor(() => expect(state().explanation?.text).toBe("about the new numbers"));
+    answerFirst({ text: "about the old numbers", usedFallback: false });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state().explanation?.text).toBe("about the new numbers");
+  });
+
+  it("failing to get words changes nothing else: no error, the verdict stays", async () => {
+    vi.spyOn(ai, "explain").mockRejectedValue(new Error("offline"));
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state().explanation).toBeNull();
+    expect(state().error).toBeNull();
+    expect(state().evaluation).not.toBeNull();
   });
 });

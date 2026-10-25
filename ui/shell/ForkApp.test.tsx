@@ -57,9 +57,9 @@ describe("flow", () => {
     render(<ForkApp />);
     await advance(0);
     expect(screen.getByText("The future branches. Explore yours.", { selector: "p" })).toBeInTheDocument();
-    // Data, sim and decision are real now. The banner lists only what is still a placeholder.
-    expect(screen.getByTestId("mock-banner")).toHaveTextContent("car, ai");
-    expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim|decision)\b/);
+    // Data, sim, decision and the AI are real now. Only the 3D stage is still a placeholder.
+    expect(screen.getByTestId("mock-banner")).toHaveTextContent("car is a placeholder");
+    expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim|decision|ai)\b/);
     expect(screen.getByRole("button", { name: /2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
     // nothing to open before there is a car
     expect(screen.queryByRole("button", { name: "Your details" })).toBeNull();

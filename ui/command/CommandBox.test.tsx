@@ -98,7 +98,9 @@ describe("CommandBox", () => {
     expect(drafts.map((d) => d.type)).toEqual(["relocation", "mileage_change", "family_change"]);
     expect(drafts.map((d) => d.status)).toEqual(["proposed", "proposed", "proposed"]);
     expect(drafts[0].payload).toEqual({ location: "Denver" });
-    expect(drafts[2].month).toBe(36);
+    // the months and counts Dev 4's demo story is pinned on
+    expect(drafts.map((d) => d.month)).toEqual([12, 0, 32]);
+    expect(drafts[2].payload).toEqual({ children: 2 });
     // nothing confirmed: no new future yet
     expect(useForkStore.getState().explore.scenarios).toHaveLength(1);
   });

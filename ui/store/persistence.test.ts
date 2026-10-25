@@ -136,7 +136,7 @@ describe("store hydration", () => {
 
   it("drops a session saved under a different mock mix but keeps preferences", async () => {
     const blob = await savedBlob();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...blob, mocks: "car" }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...blob, mocks: "car,sim" }));
     resetForkStoreForTests();
     actions().hydrate();
     expect(state().twin).toBeNull();

@@ -9,6 +9,7 @@
  * never from /data, /ai, /sim or /decision directly.
  */
 import type { ComponentType } from "react";
+import { z } from "zod";
 import type {
   BreakEvenResult,
   DecisionEvaluation,
@@ -34,6 +35,7 @@ import type {
   VehicleTwin,
 } from "@/contracts";
 import { mockInterpret, mockQuestion, mockSpecs, mockTwin } from "@/contracts/mocks";
+import { InterpretResultSchema } from "@/contracts/schemas";
 import { identifyVehicle as realIdentifyVehicle } from "@/data/decode";
 import { buildDemoTwin as realBuildDemoTwin, demoBrainDump, demoTodayISO } from "@/data/demo";
 import { vehicleFixtures } from "@/data/fixtures/vehicles";
@@ -70,7 +72,7 @@ export type ModuleName = "car" | "data" | "ai" | "sim" | "decision";
 export const USE_MOCKS: Record<ModuleName, boolean> = {
   car: true, // Kareem: real CarStage reveal h14 to 18
   data: false, // Paarth: real since the first integration merge (e935e1f)
-  ai: true, // Paarth: interpret and explain h13
+  ai: false, // Paarth: real through /api/interpret and /api/explain; offline rules take over when it is unavailable
   sim: false, // Anirudh: real since the first integration merge (e935e1f)
   decision: false, // Anirudh: real since the first integration merge (e935e1f)
 };
@@ -245,7 +247,43 @@ const realData: DataApi = {
   },
   demo: { brainDump: demoBrainDump, todayISO: demoTodayISO },
 };
-const realAi = notLanded<AiApi>("ai");
+/**
+ * Gemini stays on the server: both calls go through Paarth's routes. Anything that goes
+ * wrong (offline, a timeout, a bad answer) comes back as "not available", never as an
+ * error, so the offline rules in the store take over and the demo keeps running.
+ */
+async function postJson(path: string, body: unknown, timeoutMs: number): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const ExplanationSchema = z.object({ text: z.string().min(1), usedFallback: z.boolean() });
+const AI_TIMEOUT_MS = 15_000;
+
+const realAi: AiApi = {
+  async interpret(prompt, ctx) {
+    const parsed = InterpretResultSchema.safeParse(await postJson("/api/interpret", { prompt, context: ctx }, AI_TIMEOUT_MS));
+    return parsed.success ? parsed.data : { aiAvailable: false };
+  },
+  async explain(e, results) {
+    const parsed = ExplanationSchema.safeParse(await postJson("/api/explain", { evaluation: e, results }, AI_TIMEOUT_MS));
+    if (!parsed.success) throw new Error("No explanation is available right now.");
+    return { text: parsed.data.text, usedFallback: parsed.data.usedFallback };
+  },
+};
 const realSim: SimApi = {
   simulate: realSimulate,
   fork: realFork,
