@@ -3,7 +3,11 @@
 Model: gemini-3.1-flash-lite, configured only in the ignored local environment file. Key was never printed or committed. Tests used authored synthetic prompts and Alex's synthetic relevant profile fields. No real account, vehicle signals or financial records were sent.
 
 
-## Latest update: previously unverified cases now pass
+## Latest full-suite attempt
+
+A complete paced live run reached all 20 cases without quota rejection: 15 matched; five generation requests failed with service/time-out errors (contradiction, vague-commute, commute, fuel, payment). No semantic mismatch occurred among successful responses, and confirmed context stayed unchanged. All of the original five previously unverified cases matched again in this full run. This is not a 20/20 clean run. See ai/FULL-LIVE-RUN.md and ai/fixtures/full-live-run.json.
+
+## Earlier targeted update: previously unverified cases now pass
 
 Retested demo, multiple, pure-rav4-question, paid-off and break-even against the current source-grounded interpreter (source commit 7524da7) with gemini-3.1-flash-lite. All five matched in one targeted pass, each requiring one generation call, with no transport errors and no confirmed context changes. Sanitized exact results and timestamps are in ai/fixtures/live-revalidation.json. The earlier "five require revalidation" status is resolved.
 
@@ -35,6 +39,6 @@ Seven deterministic regression tests replay captured failures and check feedback
 
 215 automated tests pass, plus TypeScript, full lint and production build. Existing public signatures are unchanged. Changes stay in ai plus the Dev 3 handoff row; no UI, simulation, shared contract or credential changes are included.
 
-Keep manual entry and explicit confirmation available during the demo. The targeted five-case revalidation is complete. A fresh complete live set is still needed to establish one clean post-fix baseline. Use the synthetic case context; do not substitute real personal/account information. No billing settings or subscriptions were changed.
+Keep manual entry and explicit confirmation available during the demo. The targeted five-case revalidation is complete. A complete paced live set has since been attempted (see the latest full-suite section); service errors still prevent a clean 20/20 baseline. Use the synthetic case context; do not substitute real personal/account information. No billing settings or subscriptions were changed.
 
 Google describes generation errors in its [API troubleshooting reference](https://ai.google.dev/gemini-api/docs/generate-content/api-errors). A model-list success verifies only that metadata can be read; it does not establish generation availability or project billing/quota eligibility.

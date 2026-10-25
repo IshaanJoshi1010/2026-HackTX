@@ -1,6 +1,6 @@
 # Fork contract review, 2026-10-24
 
-Status: awaiting Anirudh and Ishaan's explicit confirmations for this review. Do not mark newly frozen until both confirmations are recorded. Paarth is the sole editor of /contracts under the current team instructions; other developers send proposals here rather than editing these files directly.
+Status: Paarth APPROVED and Anirudh confirmed; awaiting Ishaan's explicit OK to freeze and apply the nextAction documentation clarification. Do not mark newly frozen before that confirmation is recorded. Paarth is the sole editor of /contracts under the current team instructions; other developers send proposals here rather than editing these files directly.
 
 ## Agreed decisions from Paarth's current instructions
 
@@ -45,7 +45,7 @@ The optional fourth argument defaults to an empty array. Dev 2 should pass the e
 
 ## Confirmation record
 
-- Paarth: records the four decisions above under the user's current instructions and implements the canonical odometer source label in real/mock twin builders.
+- Paarth / Dev 3: APPROVED on 2026-10-24. All four decisions above are accepted. FinanceState, VehicleSignals and AccountData as written are sufficient for data/AI/providers, with no extra fields required. The optional fourth results argument and Anirudh's exact nextAction comment are approved. Real/mock builders implement the agreed odometer source. No objection to freezing this contract once Ishaan explicitly confirms; no further Dev 3 question remains open.
 - Anirudh: explicitly confirmed all three supporting shapes and their sufficiency, including estimated APR inference. Proposed the exact optional fourth nextAction argument plus its default/results comment; Dev 3 approved. Canonical INTERFACES.md application awaits Ishaan's OK.
 - Ishaan: agent acknowledged sole contract ownership and confirmed the UI already consumes driver.provenance.mileage. It reads finance.financeType/provenance and writes financeType/monthlyPayment/leaseEndMonth/provenance; no requested type change. The agent explicitly withheld approval to freeze on Ishaan's behalf, so Ishaan's freeze confirmation remains pending.
 
