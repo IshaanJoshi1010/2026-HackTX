@@ -71,6 +71,9 @@ function fieldChanges(before: MonthState, after: MonthState): string[] {
   return out;
 }
 
+/** The simulation's own "this event changes no number" notes. The page says them in words next to the event, so the warnings list skips them. */
+export const isNoEffectNote = (warning: string): boolean => /^Event \S+: (?:no modeled effect|a budget change does not change cost)/.test(warning);
+
 /** A simulation warning in words a person reads: the event id is dropped, "no modeled effect" says what it means. */
 function plainWarning(w: string): string {
   const t = w.replace(/^Event \S+: /, "");

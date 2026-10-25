@@ -16,10 +16,10 @@ Story A: after Alex's brain dump, keeping the Camry vs a RAV4 Hybrid is a **clos
 | Time | You do | You say | The screen shows |
 | --- | --- | --- | --- |
 | 0:00 | Tap "2022 Camry SE". Or Enter VIN and type `4T1G11AK1NU900001`. | "This is Alex's Camry. A VIN gives the model, not the paint or the driver, so we label the 3D model representative." | The car assembles, then "2022 Toyota Camry, SE, Representative 3D model". Press Skip if it drags. |
-| 0:15 | Drag to rotate. Tap **Future**. Drag along the road. | "Here is the next five years if nothing changes." | A straight road. One net cost number with a "demo data" label. |
+| 0:15 | Drag to rotate. Tap **Future**. | "Here is the next five years if nothing changes." | One calm stream of particles, "If nothing changes", and a dashed offer to switch to the RAV4. No numbers. Tap **See the numbers** for the net cost and the road. |
 | 0:30 | Back on **Car**, tap the suggestion under the box, press send. | "I just tell it what is changing." | A card: Move to Denver (1 yr), 20,000 miles a year (Now), Second child (2 yr 8 mo). The inferred ones say so. Nothing has changed yet. |
-| 0:40 | Tap **Branch timeline**. | "Nothing counts until I confirm it." | The Future page. The road bends away from the straight line: about +$5,912 over five years, with signposts for each decision. |
-| 0:50 | Type: `Would switching to a RAV4 Hybrid make more sense?` | "Does a RAV4 Hybrid make more sense?" | **Close call**, "Held in 9 of 9 tested cases", three roads on one chart, and a next step. The car morphs on the Car page. |
+| 0:40 | Tap **Branch timeline**. | "Nothing counts until I confirm it." | The Future page. The stream splits: the new future bends away from "If nothing changes", with a label on it for each change. The card above the command bar says what each did: the miles cost money, the move and the second child say "No change to cost". |
+| 0:50 | Type: `Would switching to a RAV4 Hybrid make more sense?` | "Does a RAV4 Hybrid make more sense?" | **Close call**, "Held in 9 of 9 tested cases", two futures splitting at the swap ("Keep your Camry" and "Switch to the RAV4", each saying how it costs against the other), and a next step. The car morphs on the Car page. **See the numbers** shows them side by side. |
 | 1:05 | Type: `What would have to change for keeping the Camry to be the better option?` | "What would make keeping it better?" | "Keeping the Camry wins below 14,434 mi/yr", a bar with the threshold and "You" at 20,000, and two reruns on either side. |
 | 1:20 | Point at the next step. | "One concrete step, and it can say keep your car." | "Reevaluate if your driving drops below 14,434 mi/yr". |
 
