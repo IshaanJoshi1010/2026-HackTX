@@ -38,20 +38,28 @@ describe("Landing", () => {
 });
 
 describe("Landing explainer", () => {
-  it("says what Fork does and that the numbers come from code, before anything is entered", () => {
+  it("says what Fork does in one short line, before anything is entered", () => {
     render(<Landing />);
     const text = screen.getByTestId("landing-explainer").textContent!;
     expect(text).toContain("digital twin of your Toyota");
-    expect(text).toContain("The numbers come from code, not the AI");
+    expect(text).toContain("see your options");
+    expect(text.length).toBeLessThan(100);
     expect(text).not.toContain("\u2014");
   });
 
   it("names Alex on the sample cars tab, and says Alex is made up", () => {
     render(<Landing />);
     expect(screen.getByTestId("alex-note")).toHaveTextContent("Alex, a made-up driver in Austin");
-    expect(screen.getByTestId("alex-note")).toHaveTextContent("synthetic");
     fireEvent.click(screen.getByRole("tab", { name: "Enter VIN" }));
     expect(screen.queryByTestId("alex-note")).toBeNull();
+  });
+
+  it("keeps the credits to one quiet line until asked", () => {
+    render(<Landing />);
+    expect(screen.getByTestId("credits")).toHaveTextContent("Representative 3D models.");
+    expect(screen.queryByTestId("credits-panel")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "3D model credits" }));
+    expect(screen.getAllByTestId("model-credit").length).toBeGreaterThan(0);
   });
 });
 
@@ -108,18 +116,19 @@ describe("VinEntry", () => {
 });
 
 describe("SampleCarPicker", () => {
-  it("renders sample vehicles with badges and handles selection", async () => {
+  it("shows the two cars as one tap each, with no spec sheet to read", async () => {
     render(<SampleCarPicker />);
 
-    const camryBtn = screen.getByRole("button", { name: /select 2022 camry se/i });
-    const rav4Btn = screen.getByRole("button", { name: /select 2024 rav4 hybrid xle/i });
+    const camryBtn = screen.getByRole("button", { name: /2022 camry se/i });
+    const rav4Btn = screen.getByRole("button", { name: /2024 rav4 hybrid xle/i });
 
-    expect(camryBtn).toBeInTheDocument();
-    expect(rav4Btn).toBeInTheDocument();
-
-    // Check spec numbers are accompanied by source badges
-    expect(screen.getAllByText("mpg")).toHaveLength(2);
-    expect(screen.getAllByText("cu ft")).toHaveLength(2);
+    expect(camryBtn).toHaveTextContent("Demo car");
+    expect(rav4Btn).toHaveTextContent("Hybrid");
+    // the specs come once the car is on screen, so there is nothing here to label
+    expect(screen.queryByText("mpg")).toBeNull();
+    expect(screen.queryByText("cu ft")).toBeNull();
+    expect(document.querySelectorAll("[data-source]")).toHaveLength(0);
+    expect(screen.getAllByRole("button")).toHaveLength(2);
 
     // Click sample car
     await act(async () => {
@@ -172,7 +181,7 @@ describe("VinEntry sample VIN", () => {
   it("tells a stranger which two cars Fork knows, and that the sample VIN is made up", () => {
     render(<VinEntry />);
     const note = screen.getByText(/No VIN handy\?/).closest("p")!;
-    expect(note).toHaveTextContent("made up for the demo");
+    expect(note).toHaveTextContent("Made up for the demo");
     expect(note).toHaveTextContent("2022 Camry SE");
     expect(note).toHaveTextContent("2024 RAV4 Hybrid XLE");
   });

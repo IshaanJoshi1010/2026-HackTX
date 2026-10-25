@@ -44,9 +44,9 @@ export function ConfirmedCard({ className }: { className?: string }) {
       <div className="flex items-start justify-between gap-3 border-b border-line pb-2.5">
         <div>
           <h3 className="text-sm font-medium text-ink">
-            {rows.length} {rows.length === 1 ? "change" : "changes"} added to your road
+            {rows.length} {rows.length === 1 ? "change" : "changes"} added
           </h3>
-          <p className="text-xs text-ink/55">What each one did to your cost, over {monthLabel(MONTH_MAX)}</p>
+          <p className="text-xs text-ink/55">Effect on your cost over {monthLabel(MONTH_MAX)}</p>
         </div>
         <button
           type="button"

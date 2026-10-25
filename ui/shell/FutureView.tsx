@@ -1,6 +1,6 @@
 "use client";
 
-import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict } from "@/ui/compare/ComparisonSection";
+import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict, TermsToggle } from "@/ui/compare/ComparisonSection";
 import { Toggle } from "@/ui/compare/Toggle";
 import { FutureField } from "@/ui/future/FutureField";
 import { useForkStore } from "@/ui/store/useForkStore";
@@ -43,9 +43,7 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
                   Your next 5 years
                 </h1>
                 <p data-testid="future-subline" className="mt-2 text-base text-ink/60">
-                  {futuresCount > 0
-                    ? "Each stream is a way it could go. Tap a name to look at one."
-                    : "This is where you are headed if nothing changes. Tell Fork what is changing and it splits."}
+                  {futuresCount > 0 ? "Tap a name to look at that future." : "This is where you are headed if nothing changes."}
                 </p>
               </>
             )}
@@ -59,13 +57,16 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
             <Toggle pressed={numbers} onClick={() => setFutureDetails(!numbers)}>
               See the numbers
             </Toggle>
-            <ComparisonToggles />
+            <ComparisonToggles terms={false} />
           </div>
 
           {numbers && (
             <div data-testid="the-numbers" className="fork-page flex flex-col gap-[clamp(1.75rem,4vh,3rem)]">
               <DecisionList />
               <YourOptions />
+              <div className="flex justify-center">
+                <TermsToggle />
+              </div>
               <FutureDetails />
               <section aria-label="Over time" data-testid="over-time">
                 <h2 className="text-base font-medium text-ink">Over time</h2>

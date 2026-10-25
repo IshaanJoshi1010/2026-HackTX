@@ -103,14 +103,13 @@ export function ComparisonNextStep() {
   return <NextStep action={c.evaluation.nextAction} source={c.source} />;
 }
 
-/** The two opt-ins that belong to a comparison. Inline, so the page can put them in its own row. */
-export function ComparisonToggles() {
+/** The opt-ins that belong to a comparison. Inline, so the page can put them in its own row. */
+export function ComparisonToggles({ terms: withTerms = true }: { terms?: boolean } = {}) {
   const c = useComparison();
   const breakEven = useForkStore((s) => s.breakEven);
   const why = useForkStore((s) => s.ui.futureWhy);
-  const terms = useForkStore((s) => s.ui.futureTerms);
   const breakEvenOn = useForkStore((s) => s.ui.futureBreakEven);
-  const { setFutureWhy, setFutureTerms, setFutureBreakEven } = useForkStore((s) => s.actions);
+  const { setFutureWhy, setFutureBreakEven } = useForkStore((s) => s.actions);
   if (!c) return null;
   const showBreakEven = breakEvenOn && breakEven !== null;
   return (
@@ -118,13 +117,24 @@ export function ComparisonToggles() {
       <Toggle pressed={showBreakEven} onClick={() => setFutureBreakEven(!showBreakEven)}>
         What would change it
       </Toggle>
-      <Toggle pressed={terms} onClick={() => setFutureTerms(!terms)}>
-        Edit terms
-      </Toggle>
+      {withTerms && <TermsToggle />}
       <Toggle pressed={why} onClick={() => setFutureWhy(!why)}>
         Why
       </Toggle>
     </>
+  );
+}
+
+/** Opens the purchase and insurance terms. Only once there is a comparison to apply them to. */
+export function TermsToggle() {
+  const c = useComparison();
+  const terms = useForkStore((s) => s.ui.futureTerms);
+  const setFutureTerms = useForkStore((s) => s.actions.setFutureTerms);
+  if (!c) return null;
+  return (
+    <Toggle pressed={terms} onClick={() => setFutureTerms(!terms)}>
+      Edit terms
+    </Toggle>
   );
 }
 

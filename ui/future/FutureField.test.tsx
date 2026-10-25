@@ -232,3 +232,15 @@ describe("what is drawn", () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe("quiet labels", () => {
+  it("a change on a stream is its name and nothing more: where it sits and the year marks say when", () => {
+    stage();
+    confirm(MOVE, KID);
+    render(<FutureField />);
+    const pills = screen.getAllByTestId("field-decision").map((p) => p.textContent);
+    expect(pills).toEqual(expect.arrayContaining(["Move to Denver", "Second child"]));
+    for (const text of pills) expect(text).not.toMatch(/\bin \d|\bnow\b|\d yr/);
+    expect(screen.getAllByText(/^\d yr$/).length).toBeGreaterThan(0); // the marks along the bottom are still there
+  });
+});

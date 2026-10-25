@@ -107,7 +107,7 @@ describe("the confirm card after confirming", () => {
     render(<CommandBox />);
     expect(screen.queryByTestId("confirmed-card")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /branch timeline/i }));
-    expect(screen.getByTestId("confirmed-card")).toHaveTextContent("1 change added to your road");
+    expect(screen.getByTestId("confirmed-card")).toHaveTextContent("1 change added");
     expect(screen.queryByTestId("confirm-proposal-card")).toBeNull();
   });
 });

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { data, sim } from "@/ui/mocks";
-import { monthLabel } from "@/ui/profile/format";
 import { eventTitle } from "@/ui/store/eventLabels";
 import { MONTH_MAX } from "@/ui/store/months";
 import { useForkStore } from "@/ui/store/useForkStore";
@@ -153,7 +152,6 @@ export function FutureField({ className }: { className?: string }) {
             >
               <Icon className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="font-medium">{eventTitle(e)}</span>
-              <span className="text-ink/60">{e.month === 0 ? "now" : `in ${monthLabel(e.month)}`}</span>
             </div>
           );
         })}

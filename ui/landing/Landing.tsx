@@ -28,13 +28,12 @@ export function Landing() {
     <main className="absolute inset-0 flex flex-col items-center justify-center overflow-y-auto px-4 py-20 text-center">
       <StageBackdrop />
 
-      <div className="fork-rise relative z-10 flex w-full max-w-xl flex-col items-center gap-9" style={rise(0)}>
+      <div className="fork-rise relative z-10 flex w-full max-w-xl flex-col items-center gap-8" style={rise(0)}>
         <div>
           <h1 className="text-[56px] leading-none font-medium tracking-tight text-ink">Fork</h1>
           <p className="mt-3 text-lg text-ink/70">The future branches. Explore yours.</p>
-          <p data-testid="landing-explainer" className="mx-auto mt-5 max-w-md text-sm leading-6 text-ink/60">
-            Fork is a digital twin of your Toyota. Tell it what is changing in your life and it shows how keeping your car compares with
-            replacing it. The numbers come from code, not the AI, and each one says where it came from.
+          <p data-testid="landing-explainer" className="mx-auto mt-4 max-w-sm text-sm leading-6 text-ink/60">
+            A digital twin of your Toyota. Tell it what is changing and see your options.
           </p>
         </div>
 
@@ -59,8 +58,8 @@ export function Landing() {
           {mode === "samples" && (
             <>
               <SampleCarPicker />
-              <p data-testid="alex-note" className="mt-3 text-xs leading-5 text-ink/60">
-                Both sample cars come with Alex, a made-up driver in Austin with 48,000 miles on a 2022 Camry. Everything about Alex is synthetic.
+              <p data-testid="alex-note" className="mt-4 text-sm text-ink/60">
+                Both come with Alex, a made-up driver in Austin.
               </p>
             </>
           )}
@@ -75,7 +74,7 @@ export function Landing() {
         )}
       </div>
 
-      <Credits defaultOpen className="relative z-10 mt-12 w-full" />
+      <Credits className="relative z-10 mt-14 w-full" />
 
     </main>
   );

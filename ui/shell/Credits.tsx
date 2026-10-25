@@ -35,7 +35,7 @@ function CreditLine({ credit }: { credit: Credit }) {
  * What is real and what is not, and who made the two car models (CC BY 4.0). Pages say it in one quiet line; the credits
  * open from it. On the landing they start open, since there is room.
  */
-export function Credits({ defaultOpen = false, className }: { defaultOpen?: boolean; className?: string }) {
+export function Credits({ defaultOpen = false, compact = false, className }: { defaultOpen?: boolean; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(defaultOpen);
   const panel = useId();
 
@@ -52,6 +52,7 @@ export function Credits({ defaultOpen = false, className }: { defaultOpen?: bool
           )}
         >
           <p className="mb-1.5 text-ink/80">3D model credits</p>
+          {compact && <p className="mb-2 text-ink/60">{honestyLine()}</p>}
           <ul className="space-y-1.5">
             {MODEL_CREDITS.map((c) => (
               <CreditLine key={c.vehicleId} credit={c} />
@@ -60,7 +61,7 @@ export function Credits({ defaultOpen = false, className }: { defaultOpen?: bool
         </div>
       )}
       <p>
-        {honestyLine()}{" "}
+        {!compact && <>{honestyLine()}{" "}</>}
         <button
           type="button"
           aria-expanded={open}
@@ -68,7 +69,7 @@ export function Credits({ defaultOpen = false, className }: { defaultOpen?: bool
           onClick={() => setOpen((v) => !v)}
           className={cn(LINK, "cursor-pointer text-ink/80")}
         >
-          {open ? "Hide credits" : "3D model credits"}
+          {open ? "Hide credits" : compact ? "Credits" : "3D model credits"}
         </button>
       </p>
     </footer>

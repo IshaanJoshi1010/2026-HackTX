@@ -91,7 +91,7 @@ export function Workspace() {
             <ErrorNotice />
             <CommandBox />
             <ViewSwitch />
-            <Credits className="-mt-2" />
+            <Credits compact className="-mt-2" />
           </div>
           <DetailsSheet />
         </>

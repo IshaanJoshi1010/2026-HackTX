@@ -91,3 +91,15 @@ describe("the starter chip", () => {
     expect(screen.getByTestId("confirm-proposal-card")).toBeInTheDocument();
   });
 });
+
+describe("the starter chip stays one line", () => {
+  it("truncates the long sentence, keeps all of it in the tooltip, and still fills the box with all of it", () => {
+    render(<CommandBox />);
+    const chip = screen.getByTestId("starter-chip");
+    expect(chip.className).toContain("truncate");
+    expect(chip.className).toContain("w-fit");
+    expect(chip).toHaveAttribute("title", STARTER_PROMPT);
+    fireEvent.click(chip);
+    expect((screen.getByPlaceholderText(/tell fork what's changing/i) as HTMLInputElement).value).toBe(STARTER_PROMPT);
+  });
+});

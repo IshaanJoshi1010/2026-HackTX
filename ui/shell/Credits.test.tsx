@@ -92,3 +92,17 @@ describe("the Credits footer", () => {
     }
   });
 });
+
+describe("the compact credits", () => {
+  it("is one small word until asked, then says everything the full line does", () => {
+    render(<Credits compact />);
+    const footer = screen.getByTestId("credits");
+    expect(footer.textContent).toBe("Credits");
+    expect(footer.textContent).not.toContain("synthetic");
+    fireEvent.click(screen.getByRole("button", { name: "Credits" }));
+    const panel = screen.getByTestId("credits-panel");
+    expect(panel).toHaveTextContent(honestyLine());
+    expect(panel.querySelectorAll("[data-testid='model-credit']")).toHaveLength(manifest.length);
+    expect(screen.getByRole("button", { name: "Hide credits" })).toBeInTheDocument();
+  });
+});

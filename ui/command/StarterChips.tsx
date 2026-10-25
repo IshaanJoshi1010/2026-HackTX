@@ -41,10 +41,11 @@ export function StarterChips({ prompt, onSelect, disabled = false, className }: 
     <button
       type="button"
       data-testid="starter-chip"
+      title={prompt}
       disabled={disabled}
       onClick={() => onSelect(prompt)}
       className={cn(
-        "mx-auto block max-w-xl rounded-full border border-line bg-ink/10 px-4 py-2 text-center text-sm leading-5 text-ink/80 transition-colors",
+        "mx-auto block w-fit max-w-full truncate rounded-full border border-line bg-ink/10 px-4 py-2 text-center text-sm leading-5 text-ink/80 transition-colors",
         "hover:bg-ink/15 hover:text-ink disabled:opacity-40",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         className,

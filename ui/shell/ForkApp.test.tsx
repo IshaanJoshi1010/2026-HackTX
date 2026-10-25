@@ -551,3 +551,27 @@ describe("preferences", () => {
     expect(JSON.stringify(saved)).not.toMatch(/"view"|detailsOpen/);
   });
 });
+
+describe("one calm row of options", () => {
+  it("after comparing, the row is the numbers, what would change it, and why. Edit terms is with the numbers.", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(within(screen.getByTestId("future-field")).getByTestId("field-offer"));
+    await advance(0);
+    const row = screen.getByRole("button", { name: "See the numbers" }).parentElement!;
+    expect([...row.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["See the numbers", "What would change it", "Why"]);
+    expect(screen.queryByRole("button", { name: "Edit terms" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "See the numbers" }));
+    const numbers = screen.getByTestId("the-numbers");
+    fireEvent.click(within(numbers).getByRole("button", { name: "Edit terms" }));
+    expect(state().ui.futureTerms).toBe(true);
+  });
+
+  it("the sentence under the heading is short, and has no em dash", async () => {
+    await enterWorkspace();
+    goFuture();
+    const line = screen.getByTestId("future-subline").textContent!;
+    expect(line).toBe("This is where you are headed if nothing changes.");
+    expect(line).not.toContain("\u2014");
+  });
+});

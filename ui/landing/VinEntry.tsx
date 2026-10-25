@@ -107,7 +107,7 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
       </div>
 
       {sampleVin && (
-        <p className="text-left text-xs leading-5 text-ink/60">
+        <p className="text-left text-sm text-ink/60">
           No VIN handy?{" "}
           <button
             type="button"
@@ -117,7 +117,9 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
           >
             Use sample VIN
           </button>
-          . It is made up for the demo and opens a 2022 Camry SE with Alex, a fictional driver. Fork only knows two cars: that Camry and a 2024 RAV4 Hybrid XLE.
+          <span className="mt-1 block text-xs leading-5">
+            Made up for the demo. Fork knows two cars: a 2022 Camry SE and a 2024 RAV4 Hybrid XLE.
+          </span>
         </p>
       )}
 
