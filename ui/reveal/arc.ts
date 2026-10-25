@@ -40,3 +40,15 @@ export function arcKeyframes(arc: Arc): Array<{ transform: string; offset: numbe
 /** How long the move takes, and how far apart the chips set off. */
 export const DOCK_MS = 950;
 export const STAGGER_MS = 70;
+/**
+ * How long to wait before the first chip sets off. The workspace mounts in the same moment the reveal ends, and that
+ * React commit is the heaviest thing the page does, so the flight starts just after it. The animation fills backwards,
+ * so each chip is held at its starting place while it waits and nothing jumps.
+ */
+export const DOCK_START_MS = 120;
+
+/** When chip number `i` (the question counts as the first) sets off, counted from the moment the layout changes. */
+export const flightDelay = (i: number): number => DOCK_START_MS + i * STAGGER_MS;
+
+/** When the last of `count` chips has landed. */
+export const flightEnd = (count: number): number => flightDelay(Math.max(0, count - 1)) + DOCK_MS;

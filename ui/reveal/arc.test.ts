@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOCK_MS, STAGGER_MS, arcKeyframes, arcOffset, defaultLift, easeInOutCubic } from "./arc";
+import { DOCK_MS, DOCK_START_MS, STAGGER_MS, arcKeyframes, arcOffset, defaultLift, easeInOutCubic, flightDelay, flightEnd } from "./arc";
 
 const arc = { dx: -800, dy: 520, lift: 120 };
 
@@ -108,5 +108,22 @@ describe("keyframes", () => {
     expect(DOCK_MS).toBeLessThanOrEqual(1200);
     expect(STAGGER_MS).toBeGreaterThan(0);
     expect(STAGGER_MS * 4).toBeLessThan(DOCK_MS / 2);
+  });
+});
+
+describe("when the flight starts", () => {
+  it("waits at least 120ms so the workspace's React commit is done before anything flies", () => {
+    expect(DOCK_START_MS).toBeGreaterThanOrEqual(120);
+    expect(DOCK_START_MS).toBeLessThan(300); // but not so long that the chips seem stuck
+    expect(flightDelay(0)).toBe(DOCK_START_MS);
+  });
+
+  it("keeps the stagger on top of that base", () => {
+    expect([0, 1, 2, 3, 4].map(flightDelay)).toEqual([0, 1, 2, 3, 4].map((i) => DOCK_START_MS + i * STAGGER_MS));
+  });
+
+  it("knows when the last chip lands", () => {
+    expect(flightEnd(5)).toBe(DOCK_START_MS + 4 * STAGGER_MS + DOCK_MS);
+    expect(flightEnd(0)).toBe(DOCK_START_MS + DOCK_MS);
   });
 });

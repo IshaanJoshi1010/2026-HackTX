@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useForkStore, type Riders } from "@/ui/store/useForkStore";
-import { DOCK_MS, STAGGER_MS, arcKeyframes } from "./arc";
+import { DOCK_MS, arcKeyframes, flightDelay } from "./arc";
 
 export const RIDER_CHOICES: Array<{ id: Riders; label: string; detail: string }> = [
   { id: "solo", label: "Just me", detail: "1 person" },
@@ -32,6 +32,9 @@ export const ROW_BOTTOM = 100;
  * one set of elements that changes layout, so each chip really is the same chip before and after, and the move is played
  * back from where each one was (FLIP). A replayed reveal sends them back down the same way. With reduced motion they just
  * appear in their place.
+ *
+ * Kept cheap on purpose, because the 3D canvas is redrawing behind it: only transform and opacity ever animate, the panel
+ * frame has no blur, and each chip is promoted to its own layer (will-change) only while it is flying.
  */
 export function RiderDock() {
   const phase = useForkStore((s) => s.phase);
@@ -44,6 +47,8 @@ export function RiderDock() {
   const root = useRef<HTMLDivElement>(null);
   const from = useRef<Map<string, DOMRect> | null>(null);
   const lastMode = useRef<DockMode | null>(null);
+  // The move each chip is on now, so a finished or cancelled older one cannot clear the hint of the newer one.
+  const flying = useRef(new WeakMap<HTMLElement, Animation>());
 
   const mode: DockMode = phase === "reveal" ? "row" : "panel";
   // The row belongs to the reveal and the panel to the car page. Neither shows on the future page.
@@ -82,7 +87,18 @@ export function RiderDock() {
       const dy = was.top - now.top;
       if (Math.abs(dx) + Math.abs(dy) < 2) return;
       chip.getAnimations?.().forEach((a) => a.cancel());
-      chip.animate(arcKeyframes({ dx, dy }), { duration: DOCK_MS, delay: i * STAGGER_MS, easing: "linear", fill: "backwards" });
+      // Tell the browser about the layer just before the move, and drop it when the move is over.
+      chip.style.willChange = "transform";
+      const move = chip.animate(arcKeyframes({ dx, dy }), { duration: DOCK_MS, delay: flightDelay(i), easing: "linear", fill: "backwards" });
+      flying.current.set(chip, move);
+      const settle = () => {
+        if (flying.current.get(chip) !== move) return;
+        flying.current.delete(chip);
+        chip.style.willChange = "";
+      };
+      if (move && typeof move.finished?.then === "function") move.finished.then(settle, settle);
+      else if (move && "onfinish" in move) move.onfinish = settle;
+      else settle();
     });
   }, [mode, reducedMotion]);
 
@@ -100,21 +116,21 @@ export function RiderDock() {
       inert={!visible}
       className={cn(
         "pointer-events-none absolute z-20 flex flex-col transition-opacity duration-300",
-        row ? "inset-x-0 items-center gap-3" : "top-1/2 right-6 w-44 -translate-y-1/2 gap-3",
+        row ? "inset-x-0 items-center gap-3" : "top-1/2 right-6 w-40 -translate-y-1/2 gap-2",
         visible ? "opacity-100" : "opacity-0",
       )}
       style={row ? { bottom: ROW_BOTTOM } : undefined}
     >
-      {/* The panel itself fades in once the chips have landed. */}
+      {/* The panel frame fades in as the chips land. A solid tint, not a blur: a blur would redraw over the canvas every frame. */}
       <div
         aria-hidden="true"
         data-testid="rider-panel-chrome"
         className={cn(
-          "absolute -inset-4 -z-10 rounded-2xl border border-line bg-black/40 backdrop-blur-md transition-opacity duration-500",
-          row ? "opacity-0" : "opacity-100 delay-700",
+          "absolute -inset-3 -z-10 rounded-xl border border-line bg-black/50 transition-opacity duration-500",
+          row ? "opacity-0" : "opacity-100 delay-1000",
         )}
       />
-      <span data-flip="title" className="pointer-events-auto text-sm text-ink/60">
+      <span data-flip="title" className={cn("pointer-events-auto text-ink/60", row ? "text-sm" : "text-xs")}>
         Who rides with you most?
       </span>
       <div className={cn("flex gap-2", row ? "flex-wrap justify-center" : "flex-col")}>
@@ -129,7 +145,7 @@ export function RiderDock() {
             className={cn(
               "pointer-events-auto rounded text-sm font-medium transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              row ? "h-9 px-4" : "h-10 w-full px-4 text-left",
+              row ? "h-9 px-4" : "h-9 w-full px-3 text-left",
               selected === id ? "bg-ink text-canvas" : "bg-ink/10 text-ink hover:bg-ink/20",
             )}
           >
