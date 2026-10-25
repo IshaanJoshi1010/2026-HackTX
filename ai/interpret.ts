@@ -60,6 +60,7 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
         ...(validationFeedback ? { validationFeedback } : {}) }, schema: responseSchema }); }
       catch { return { aiAvailable: false }; }
       try {
+        if (text.length > 64000) throw new Error("Extraction response exceeds the supported size");
         const extraction = ExtractionSchema.parse(JSON.parse(text));
         const mapped = mapExtraction(extraction, ctx, request.data.prompt);
         if (!mapped.result.aiAvailable) return mapped.result;
