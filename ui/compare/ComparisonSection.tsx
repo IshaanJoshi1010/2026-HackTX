@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ai, sim } from "@/ui/mocks";
 import { metricSource } from "@/ui/profile/metricSources";
+import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { specsFor } from "@/ui/store/selectors";
 import { simulationInputs, useForkStore } from "@/ui/store/useForkStore";
 import { AssumptionsReview } from "./AssumptionsReview";
@@ -11,7 +12,7 @@ import { BreakEvenViz } from "./BreakEvenViz";
 import { NextStep } from "./NextStep";
 import { currentTerms, termsOf } from "./termsMath";
 import { Toggle } from "./Toggle";
-import { Verdict } from "./Verdict";
+import { Verdict, robustnessLine } from "./Verdict";
 import { WhyPanel } from "./WhyPanel";
 
 /**
@@ -126,6 +127,44 @@ export function ComparisonToggles() {
         Why
       </Toggle>
     </>
+  );
+}
+
+/** "Why this result": how robust the verdict is, then the engine's reasons. The tested-cases line lives here, not at the top. */
+export function ComparisonWhy() {
+  const c = useComparison();
+  const explanation = useForkStore((s) => s.explanation);
+  if (!c) return null;
+  const robust = robustnessLine(c.evaluation);
+  return (
+    <div data-testid="why-panel" className="flex flex-col gap-5">
+      {robust && (
+        <p data-testid="why-robustness" className="mx-auto flex w-full max-w-2xl items-center gap-2 text-base text-ink">
+          {robust}
+          <SourceBadge compact source={c.source} />
+        </p>
+      )}
+      <WhyPanel explanation={explanation} rationale={c.evaluation.rationale} source={c.source} />
+    </div>
+  );
+}
+
+/** "What could change": the break-even bar and the engine's reruns on either side of it. Nothing until it has been run. */
+export function ComparisonChange() {
+  const c = useComparison();
+  const breakEven = useForkStore((s) => s.breakEven);
+  const check = useForkStore((s) => s.breakEvenCheck);
+  if (!c || !breakEven) return null;
+  return (
+    <div data-testid="change-panel">
+      <BreakEvenViz
+        breakEven={breakEven}
+        check={check}
+        source={c.source}
+        currentSource={breakEven.parameter === "annualMiles" ? annualMilesSource(c.keep, c.profile) : c.profile.provenance.fuelPricePerGal}
+        {...c.names}
+      />
+    </div>
   );
 }
 

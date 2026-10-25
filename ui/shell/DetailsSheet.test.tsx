@@ -18,6 +18,12 @@ const COMPARING_HEADINGS = ["Vehicle", "Household", "Financing", "Priorities", "
 
 const dialog = () => screen.getByRole("dialog", DIALOG);
 const openButton = () => screen.getByRole("button", { name: "Edit assumptions" });
+/** Opens a group by its header, if it is not open, and returns queries scoped to it. */
+function group(name: string) {
+  const header = within(dialog()).getByRole("button", { name });
+  if (header.getAttribute("aria-expanded") !== "true") fireEvent.click(header);
+  return within(within(dialog()).getByRole("region", { name }));
+}
 const sectionTitles = () => within(dialog()).getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
 
 async function enterWorkspace() {
@@ -131,11 +137,11 @@ describe("size", () => {
   it("uses bigger text: body text-base, section titles text-base font-medium text-ink", async () => {
     await enterWorkspace();
     expect(within(dialog()).getByTestId("assumptions-scroll").className).toContain("text-base");
-    for (const title of within(dialog()).getAllByRole("heading", { level: 3 })) {
+    for (const heading of within(dialog()).getAllByRole("heading", { level: 3 })) {
+      const title = within(heading).getByRole("button");
       expect(title.className).toContain("text-base");
       expect(title.className).toContain("font-medium");
       expect(title.className).toContain("text-ink");
-      expect(title.className).not.toContain("text-ink/");
       expect(title.className).not.toContain("text-sm");
     }
   });
@@ -152,7 +158,7 @@ describe("sections", () => {
 
   it("puts the car, the household, financing and priorities under their own headings", async () => {
     await enterWorkspace();
-    const within_ = (name: string) => within(within(dialog()).getByRole("region", { name }));
+    const within_ = (name: string) => group(name);
     const vehicle = within_("Vehicle");
     expect(vehicle.getByText("Fuel economy")).toBeInTheDocument();
     expect(vehicle.getByText("Cargo space")).toBeInTheDocument();
@@ -173,9 +179,9 @@ describe("sections", () => {
 
     await compare();
     expect(sectionTitles()).toEqual(COMPARING_HEADINGS);
-    const terms = within(dialog()).getByRole("region", { name: "Replacement terms" });
-    expect(within(terms).getByTestId("terms-review")).toBeInTheDocument();
-    expect(within(terms).getAllByRole("textbox").length).toBeGreaterThan(0);
+    const terms = group("Replacement terms");
+    expect(terms.getByTestId("terms-review")).toBeInTheDocument();
+    expect(terms.getAllByRole("textbox").length).toBeGreaterThan(0);
   });
 
   it("drop Replacement terms again when you start over and come back", async () => {
@@ -209,6 +215,7 @@ describe("display and session", () => {
     await enterWorkspace();
     fireEvent.click(openButton());
     const before = state().stage;
+    group("Display");
 
     fireEvent.click(within(dialog()).getByRole("button", { name: "Wireframe" }));
     expect(state().stage.viewMode).toBe("wireframe");
@@ -231,6 +238,7 @@ describe("display and session", () => {
   it("switch car restarts on the other car and start over goes back to the landing screen", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
+    group("Session");
     const current = within(dialog()).getByRole("button", { name: /2022 Camry/ });
     expect(current).toHaveAttribute("aria-current", "true");
 
@@ -244,6 +252,7 @@ describe("display and session", () => {
       actions().onRevealStage("done");
     });
     fireEvent.click(openButton());
+    group("Session");
     fireEvent.click(within(dialog()).getByRole("button", { name: "Start over" }));
     expect(state().phase).toBe("landing");
   });
@@ -297,3 +306,85 @@ describe("words and numbers", () => {
     });
   });
 });
+
+describe("the sections are dropdown headers", () => {
+  const headers = () => within(dialog()).getAllByRole("heading", { level: 3 }).map((h) => within(h).getByRole("button"));
+  const expanded = () => headers().filter((b) => b.getAttribute("aria-expanded") === "true").map((b) => b.textContent);
+
+  it("start closed: the drawer opens as a short list of headers, with nothing inside any of them showing", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    expect(headers().map((b) => b.textContent)).toEqual(BASE_HEADINGS);
+    expect(expanded()).toEqual([]);
+    for (const button of headers()) expect(dialog().querySelector(`#${CSS.escape(button.getAttribute("aria-controls")!)}`)).toHaveAttribute("hidden");
+    // a short drawer: the close button and one header per group, and nothing else to scroll past
+    expect(within(dialog()).getAllByRole("button")).toHaveLength(1 + BASE_HEADINGS.length);
+  });
+
+  it("each header is a compact row with a chevron that turns when it opens", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    const vehicle = within(dialog()).getByRole("button", { name: "Vehicle" });
+    expect(vehicle.className).toContain("h-14");
+    const chevron = vehicle.querySelector("svg")!;
+    expect(chevron.getAttribute("class")).not.toContain("rotate-180");
+    fireEvent.click(vehicle);
+    expect(vehicle.querySelector("svg")!.getAttribute("class")).toContain("rotate-180");
+  });
+
+  it("opening one closes the one that was open, and tapping the open one closes it", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    group("Household");
+    expect(expanded()).toEqual(["Household"]);
+    group("Financing");
+    expect(expanded()).toEqual(["Financing"]);
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Financing" }));
+    expect(expanded()).toEqual([]);
+  });
+
+  it("each header controls its own panel, inside a section the header names", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    for (const button of headers()) {
+      const panel = dialog().querySelector(`#${CSS.escape(button.getAttribute("aria-controls")!)}`)!;
+      expect(panel).not.toBeNull();
+      const section = button.closest("section")!;
+      expect(section.contains(panel)).toBe(true);
+      expect(section.getAttribute("aria-labelledby")).toBe(button.closest("h3")!.id);
+    }
+  });
+
+  it("a closed group keeps what you typed, so switching groups does not lose a form", async () => {
+    await enterWorkspace();
+    await compare();
+    fireEvent.click(openButton());
+    const terms = group("Replacement terms");
+    const field = terms.getAllByRole("textbox")[0] as HTMLInputElement;
+    fireEvent.change(field, { target: { value: "123" } });
+    group("History"); // opens another, which closes the terms
+    expect(within(dialog()).getByRole("button", { name: "Replacement terms" })).toHaveAttribute("aria-expanded", "false");
+    const again = group("Replacement terms").getAllByRole("textbox")[0] as HTMLInputElement;
+    expect(again.value).toBe("123");
+  });
+
+  it("works from the keyboard: Enter and Space on a header are the button's own click", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    const header = within(dialog()).getByRole("button", { name: "Priorities" });
+    expect(header.tagName).toBe("BUTTON"); // a native button, so Enter and Space open it
+    header.focus();
+    expect(header).toHaveFocus();
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("the Replacement terms header joins only once there is a comparison", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    expect(headers().map((b) => b.textContent)).not.toContain("Replacement terms");
+    await compare();
+    expect(headers().map((b) => b.textContent)).toEqual(COMPARING_HEADINGS);
+  });
+});
+

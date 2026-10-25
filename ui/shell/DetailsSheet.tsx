@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, type ReactNode } from "react";
-import { Clock, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Clock, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FinanceChips } from "@/ui/command/FinanceChips";
 import { TradeoffCards } from "@/ui/command/TradeoffCards";
@@ -22,15 +22,31 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string }> = [
   { mode: "points", label: "Points" },
 ];
 
-/** One group of controls, named by what it edits. The title is the region's accessible name. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/**
+ * One group of controls, named by what it edits, as a small dropdown header: a row with a chevron that opens it. Only one
+ * is open at a time, so the drawer stays short however many groups there are. Closed content stays mounted (just hidden), so
+ * a half typed number in a form is still there when you come back to it.
+ */
+function Section({ title, open, onToggle, children }: { title: string; open: boolean; onToggle(): void; children: ReactNode }) {
   const headingId = useId();
+  const panelId = useId();
   return (
-    <section aria-labelledby={headingId} className="border-t border-line py-8 first:border-t-0 first:pt-4">
-      <h3 id={headingId} className="mb-4 text-base font-medium text-ink">
-        {title}
+    <section aria-labelledby={headingId} className="border-t border-line first:border-t-0">
+      <h3 id={headingId} className="m-0">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={onToggle}
+          className="flex h-14 w-full cursor-pointer items-center justify-between gap-4 text-left text-base font-medium text-ink transition-colors hover:text-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          {title}
+          <ChevronDown aria-hidden="true" className={cn("size-5 shrink-0 text-ink/60 transition-transform duration-200", open && "rotate-180")} />
+        </button>
       </h3>
-      {children}
+      <div id={panelId} hidden={!open} className="pb-6">
+        {children}
+      </div>
     </section>
   );
 }
@@ -56,6 +72,9 @@ export function DetailsSheet() {
     useForkStore((s) => s.actions);
   const samples = useMemo(() => data.listSampleVehicles(), []);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // Which group is open. None to start: the drawer opens as a short list of headers.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const group = (id: string) => ({ open: openId === id, onToggle: () => setOpenId((cur) => (cur === id ? null : id)) });
 
   useEffect(() => {
     if (!open) return;
@@ -107,24 +126,24 @@ export function DetailsSheet() {
           </button>
         </div>
 
-        <div data-testid="assumptions-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-16 text-base sm:px-8">
+        <div data-testid="assumptions-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 pt-2 text-base sm:px-8">
           {vehicle && twin && (
             <>
-              <Section title="Vehicle">
+              <Section title="Vehicle" {...group("vehicle")}>
                 <DataRow label="Fuel economy" value={`${vehicle.mpg} mpg`} source={spec?.sources.mpgCombined} />
                 <DataRow label="Cargo space" value={`${vehicle.cargoCuFt} cu ft`} source={spec?.sources.cargoCuFt} />
                 <DataRow label="Seats" value={vehicle.seats} source={spec?.sources.seats} />
               </Section>
 
-              <Section title="Household">
+              <Section title="Household" {...group("household")}>
                 <ProfileConfirmCard compact />
               </Section>
 
-              <Section title="Financing">
+              <Section title="Financing" {...group("financing")}>
                 <FinanceChips />
               </Section>
 
-              <Section title="Priorities">
+              <Section title="Priorities" {...group("priorities")}>
                 <TradeoffCards />
                 <div className="mt-4">
                   <WeightsEditor />
@@ -134,12 +153,12 @@ export function DetailsSheet() {
           )}
 
           {comparing && (
-            <Section title="Replacement terms">
+            <Section title="Replacement terms" {...group("terms")}>
               <TermsSection />
             </Section>
           )}
 
-          <Section title="History">
+          <Section title="History" {...group("history")}>
             {history.length > 0 ? (
               <ul className="space-y-2" data-testid="vehicle-history-list">
                 {history.map((record, idx) => (
@@ -163,7 +182,7 @@ export function DetailsSheet() {
             )}
           </Section>
 
-          <Section title="Display">
+          <Section title="Display" {...group("display")}>
             <div role="group" aria-label="3D view" className="flex gap-2">
               {VIEW_MODES.map(({ mode, label }) => (
                 <button
@@ -209,7 +228,7 @@ export function DetailsSheet() {
             </button>
           </Section>
 
-          <Section title="Session">
+          <Section title="Session" {...group("session")}>
             <ul className="space-y-2">
               {samples.map((v) => {
                 const current = v.id === vehicle?.id;
