@@ -44,7 +44,7 @@ export function Landing() {
           label="Vehicle entry options"
           tabs={TABS}
           value={mode}
-          onChange={(id) => setMode(id)}
+          onChange={setMode}
           className="flex gap-7 text-sm"
           tabClassName={(selected) =>
             cn(

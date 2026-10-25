@@ -12,7 +12,8 @@ export interface TabsProps<T extends string> {
   label: string;
   tabs: ReadonlyArray<{ id: T; label: ReactNode }>;
   value: T;
-  onChange(id: T): void;
+  /** NoInfer, so a state setter (which also takes an updater function) cannot widen T. */
+  onChange(id: NoInfer<T>): void;
   className?: string;
   tabClassName(selected: boolean): string;
 }
