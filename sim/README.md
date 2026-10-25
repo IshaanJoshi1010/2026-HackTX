@@ -9,11 +9,14 @@ Accounting rules and replacement mechanics: [ECONOMICS.md](ECONOMICS.md). Defaul
 ## How Dev 2 wires it
 
 ```ts
-import { simulate, fork, makeReplaceScenario, editEvent, withParameter } from "@/sim";
-import { evaluate, findBreakEven, sensitivity, withSensitivity, nextAction } from "@/decision";
+import { simulate, fork, makeReplaceScenario, editEvent } from "@/sim";
+import { evaluate, findBreakEven, sensitivity, withSensitivity, nextAction, withParameter } from "@/decision";
 
 const ctx = { vehicles: { [camry.id]: camry, [rav4.id]: rav4 }, specs: { [camry.id]: getSpecs(camry.id), [rav4.id]: getSpecs(rav4.id) } };
-const denver = fork(baseline, 12, confirmedEvents, "Denver move");
+// Fork at the earliest event month, as the store does. A fork month later than an event moves that event up to it
+// (a month-0 annualMiles event would silently land at month 12).
+const forkMonth = Math.min(...confirmedEvents.map(e => e.month));
+const denver = fork(baseline, forkMonth, confirmedEvents, "Denver move");
 const replace = makeReplaceScenario(denver, rav4);               // optional: editEvent to add payload.price / mileage
 const scenarios = [denver, replace];
 const results = scenarios.map(s => simulate(twin, s, ctx));
@@ -34,9 +37,9 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 | `simulate(twin, scenario, ctx)` | `VehicleTwin`, `Scenario`, `SimContext` (vehicles and specs by id) | `SimulationResult`: 60 points (months 1..60, end of month), milestones, warnings, summary |
 | `simulateDetailed(twin, scenario, ctx)` | same | `{ result, assumptions: SimAssumption[], timeline: MonthState[] }`. Every input used, each with a `Source` label |
 | `applyEvents(twin, scenario)` | twin, scenario | `{ timeline: MonthState[]; warnings }`. Only confirmed events apply; on a same-month conflict the later one wins, with a warning |
-| `fork(parent, month, newEvents, name)` | scenario, month, events, name | New `Scenario`, id `parentId/month-slug`. Keeps parent events before the fork; never mutates the parent |
+| `fork(parent, month, newEvents, name)` | scenario, month, events, name | New `Scenario`, id `parentId/month-slug`. Keeps parent events before the fork month and drops the parent's own events at or after it, so a caller that wants them (a second brain dump) passes them in `newEvents`; the store does, see `ui/store/carryOver.ts`. New events dated before the fork month move to it, with a note on the event. Never mutates the parent |
 | `makeReplaceScenario(parent, vehicle, month?)` | scenario, `VehicleConfig`, month | New `Scenario` with a confirmed `vehicle_replacement`. Default month: first relocation or family change, else 12 |
-| `moveEvent(s, id, month)`, `editEvent(s, id, patch)`, `deleteEvent(s, id)` | scenario, event id | New `Scenario`. Throw `InheritedEventError` on events a branch inherited |
+| `moveEvent(s, id, month)`, `editEvent(s, id, patch)`, `deleteEvent(s, id)` | scenario, event id | New `Scenario`. `editEvent` merges a patch payload into the event's payload key by key (editing `price` keeps `vehicleId`). Throw `InheritedEventError` on events a branch inherited |
 | `canEditEvent(s, id)`, `isInherited(s, e)` | scenario, event | `boolean`. Use to disable controls |
 | `affectedFromMonth(before, after)` | two scenarios | First month that can differ, or `null` |
 | `purchaseTerms`, `taxAndFees`, `financedAmount`, `newLoanPayment` | assumptions, price | Replacement purchase math |
