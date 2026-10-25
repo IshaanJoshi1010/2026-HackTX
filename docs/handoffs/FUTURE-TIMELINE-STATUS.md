@@ -6,12 +6,9 @@ Spec: docs/handoffs/FUTURE-TIMELINE-SPEC.md. Branch: `audit-fixes` (worktree /Us
 - Store clock and state (e74fcf1, 4e9d239): selectedEventId, playback (play/pause/advanceMonth), drawers (openDrawer/closeDrawer), revision, lastChange, vehicleAtMonth, selection kept when confirming on the switch future.
 - journey/model (useJourney, useJourneyActions), journey/scrubber (Scrubber, usePlayback), journey/drawers (Drawer, JourneyDrawers, CostsContent, RecommendationContent, JourneyHeader), journey/explain (EventCard, ExplainContent, impact, useEventImpact).
 
-## NOT done
-1. The road. A background agent was still writing it on branch `journey/timeline`, worktree
-   /private/tmp/claude-501/-Users-ishaan-dev-2026-HackTX/01d0c7d4-d4f3-4caf-a534-b7252dcafab6/scratchpad/wt-jtimeline
-   (ui/journey/JourneyTimeline.tsx + roadGeometry.ts; geometry tests written, component tests not). Check `git log journey/timeline` for a commit.
-   To use it: delete the two temporary UNTRACKED copies in ui/journey/ (JourneyTimeline.tsx, roadGeometry.ts), then `git merge journey/timeline`.
-2. ui/shell/FutureView.tsx is rewritten (uncommitted in the working tree) to compose header, road, scrubber, event card and drawers. It needs the road to compile. Commit it together with the road.
-3. Old tests pin the old page: ui/shell/ForkApp.test.tsx (future page, expanded timeline, answer fits the page, details), ui/customerWords.test.tsx, ui/integration/fuzz.test.tsx checks. Rewrite for the new testids.
-4. Remove dead code once the new page is in: ui/shell/DeepDive.tsx, ui/compare/DecisionSummary.tsx, ui/timeline/WindingTimeline.tsx + steps.ts + windingMath.ts, the expand button state (futureExpanded) and other old future flags if unused.
-5. Browser check: script at scratchpad/shot/future.mjs (run against `next start` on 3100 after `npm run build`); inspect screenshots at 1440, 1280, 1024 and 390 wide. Then preview deploy, then prod on Ishaan's word.
+## Update: the road is now merged
+The road (journey/timeline, 632ec59) is merged and FutureView is committed, so the page compiles and `npm run dev` shows it. Typecheck is clean and `npx vitest run ui/journey` passes. Not done:
+1. Old tests that pin the previous layout still fail: ui/shell/ForkApp.test.tsx (future page, expanded timeline, answer fits the page), ui/customerWords.test.tsx (future steps), ui/integration/fuzz.test.tsx screen checks. Rewrite for the new testids (journey-timeline, event-marker, destination, time-marker, event-card, scrubber, JourneyHeader, drawers).
+2. Remove dead code: ui/shell/DeepDive.tsx, ui/compare/DecisionSummary.tsx, ui/timeline/WindingTimeline.tsx + steps.ts + windingMath.ts (keep ui/timeline/useElementSize.ts: the road imports it), the expand button state (futureExpanded) and other old future flags if unused.
+3. Look at it in a browser at 1440, 1280, 1024 and 390 wide (script: scratchpad/shot/future.mjs) and fix what shows up. Nothing has been rendered yet.
+4. Preview deploy, then prod on Ishaan's word.
