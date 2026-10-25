@@ -92,6 +92,20 @@ describe("viewer resource ownership", () => {
 });
 
 describe("vehicle switching", () => {
+  it("hides dense exterior topology in Structure and restores Studio without reloading", async () => {
+    const loader = vi.fn(async () => source());
+    const controller = new VehicleController(loader);
+    await controller.select(vehicle, 0, vi.fn(), vi.fn(), vi.fn());
+    const root = controller.group.children[0];
+    controller.update(1 / 60, "wireframe");
+    expect(root.visible).toBe(false);
+    controller.update(1 / 60, "solid");
+    expect(root.visible).toBe(true);
+    expect(controller.group.children[0]).toBe(root);
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect((root.children[0] as Mesh<BoxGeometry, MeshStandardMaterial>).material.wireframe).toBe(false);
+    controller.dispose();
+  });
   it("waits for shader preparation and disposes a prepared clone after unmount", async () => {
     let release!: () => void;
     let prepared: Group | undefined;
