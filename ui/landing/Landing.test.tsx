@@ -33,7 +33,25 @@ describe("Landing", () => {
 
     // Switch to Select Model tab
     fireEvent.click(screen.getByRole("tab", { name: "Select Model" }));
-    expect(screen.getByLabelText("Select Vehicle Model")).toBeInTheDocument();
+    expect(screen.getByLabelText("Select vehicle model")).toBeInTheDocument();
+  });
+});
+
+describe("Landing explainer", () => {
+  it("says what Fork does and that the numbers come from code, before anything is entered", () => {
+    render(<Landing />);
+    const text = screen.getByTestId("landing-explainer").textContent!;
+    expect(text).toContain("digital twin of your Toyota");
+    expect(text).toContain("The numbers come from code, not the AI");
+    expect(text).not.toContain("\u2014");
+  });
+
+  it("names Alex on the sample cars tab, and says Alex is made up", () => {
+    render(<Landing />);
+    expect(screen.getByTestId("alex-note")).toHaveTextContent("Alex, a made-up driver in Austin");
+    expect(screen.getByTestId("alex-note")).toHaveTextContent("synthetic");
+    fireEvent.click(screen.getByRole("tab", { name: "Enter VIN" }));
+    expect(screen.queryByTestId("alex-note")).toBeNull();
   });
 });
 
@@ -117,7 +135,7 @@ describe("ModelYearPicker", () => {
     const startFromPickerSpy = vi.spyOn(useForkStore.getState().actions, "startFromPicker");
     render(<ModelYearPicker />);
 
-    const select = screen.getByLabelText("Select Vehicle Model");
+    const select = screen.getByLabelText("Select vehicle model");
     expect(select).toBeInTheDocument();
 
     // Submit default Camry
@@ -125,5 +143,48 @@ describe("ModelYearPicker", () => {
       fireEvent.click(screen.getByRole("button", { name: /explore 2022 camry se/i }));
     });
     expect(startFromPickerSpy).toHaveBeenCalledWith("Toyota", "Camry", 2022, "SE");
+  });
+});
+
+describe("VinEntry sample VIN", () => {
+  it("fills in the demo Camry's VIN, ready to decode, and never says exact", async () => {
+    render(<VinEntry />);
+    const input = screen.getByPlaceholderText("17-character VIN");
+    expect(input).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Use sample VIN" }));
+    expect((input as HTMLInputElement).value).toMatch(/^[A-HJ-NPR-Z0-9]{17}$/);
+    expect(screen.getByText("17/17")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /decode vin/i })).toBeEnabled();
+    expect(screen.queryByText(/exact/i)).toBeNull();
+  });
+
+  it("clears an earlier error, and the VIN it fills is the one the sample Camry card uses", async () => {
+    render(<VinEntry />);
+    const input = screen.getByPlaceholderText("17-character VIN");
+    fireEvent.change(input, { target: { value: "123i" } });
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Use sample VIN" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    const { data } = await import("@/ui/mocks");
+    expect((input as HTMLInputElement).value).toBe(data.listSampleVehicles()[0].vin);
+  });
+
+  it("tells a stranger which two cars Fork knows, and that the sample VIN is made up", () => {
+    render(<VinEntry />);
+    const note = screen.getByText(/No VIN handy\?/).closest("p")!;
+    expect(note).toHaveTextContent("made up for the demo");
+    expect(note).toHaveTextContent("2022 Camry SE");
+    expect(note).toHaveTextContent("2024 RAV4 Hybrid XLE");
+  });
+
+  it("decodes the sample VIN through the normal path and opens the demo", async () => {
+    vi.useRealTimers();
+    render(<VinEntry />);
+    fireEvent.click(screen.getByRole("button", { name: "Use sample VIN" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /decode vin/i }));
+    });
+    await vi.waitFor(() => expect(useForkStore.getState().phase).toBe("reveal"));
+    expect(useForkStore.getState().twin?.vehicle.model).toBe("Camry");
   });
 });

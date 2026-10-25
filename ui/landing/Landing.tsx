@@ -31,6 +31,10 @@ export function Landing() {
         <div>
           <h1 className="text-[56px] leading-none font-medium tracking-tight text-ink">Fork</h1>
           <p className="mt-3 text-lg text-ink/70">The future branches. Explore yours.</p>
+          <p data-testid="landing-explainer" className="mx-auto mt-5 max-w-md text-sm leading-6 text-ink/60">
+            Fork is a digital twin of your Toyota. Tell it what is changing in your life and it shows how keeping your car compares with
+            replacing it. The numbers come from code, not the AI, and each one says where it came from.
+          </p>
         </div>
 
         {/* Three ways in. Quiet text tabs. */}
@@ -54,7 +58,14 @@ export function Landing() {
 
         {/* Mode content */}
         <div className="w-full">
-          {mode === "samples" && <SampleCarPicker />}
+          {mode === "samples" && (
+            <>
+              <SampleCarPicker />
+              <p data-testid="alex-note" className="mt-3 text-xs leading-5 text-ink/60">
+                Both sample cars come with Alex, a made-up driver in Austin with 48,000 miles on a 2022 Camry. Everything about Alex is synthetic.
+              </p>
+            </>
+          )}
           {mode === "vin" && <VinEntry />}
           {mode === "model" && <ModelYearPicker />}
         </div>
