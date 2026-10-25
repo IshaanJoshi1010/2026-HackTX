@@ -1,5 +1,4 @@
-import type { DecisionEvaluation, Source } from "@/contracts";
-import { SourceBadge } from "@/ui/profile/SourceBadge";
+import type { DecisionEvaluation } from "@/contracts";
 
 export interface VerdictProps {
   evaluation: DecisionEvaluation;
@@ -9,13 +8,10 @@ export interface VerdictProps {
   keepModel: string;
   /** "RAV4": the car it is compared with. */
   replaceModel: string;
-  source: Source | undefined;
-  /** Smaller, and set to the right on a wide screen: for beside a heading instead of being one. */
-  compact?: boolean;
 }
 
 /** The engine's pick as a headline. "inconclusive" is a close call, said plainly. */
-export function verdictHeadline(p: Pick<VerdictProps, "evaluation" | "keepId" | "replaceId" | "keepModel" | "replaceModel">): {
+export function verdictHeadline(p: VerdictProps): {
   headline: string;
   line: string;
 } {
@@ -29,25 +25,4 @@ export function verdictHeadline(p: Pick<VerdictProps, "evaluation" | "keepId" | 
 /** "Held in 9 of 9 tested cases", when the engine ran the robustness check. A count, never a probability. */
 export function robustnessLine(evaluation: DecisionEvaluation): string | null {
   return evaluation.rationale.find((line) => /^Held in \d+ of \d+ tested cases$/.test(line)) ?? null;
-}
-
-export function Verdict(p: VerdictProps) {
-  const { headline, line } = verdictHeadline(p);
-  const robust = robustnessLine(p.evaluation);
-  return (
-    <section aria-label="Keep or replace" data-testid="verdict" data-compact={p.compact ? true : undefined} className={p.compact ? "text-left md:max-w-xs md:text-right" : "text-center"}>
-      {/* On a short window the headline says it alone, and the room goes to the next step. */}
-      <p className="text-sm text-ink/50 [@media(max-height:800px)]:hidden">{p.compact ? "The recommendation" : "Keep or replace"}</p>
-      <p data-testid="verdict-headline" className={p.compact ? "mt-1 text-[clamp(24px,3.4vh,32px)] leading-tight font-medium tracking-tight text-ink" : "mt-1 text-[clamp(34px,6vh,52px)] leading-tight font-medium tracking-tight text-ink"}>
-        {headline}
-      </p>
-      <p className="mt-2 text-base text-ink/60">{line}</p>
-      {robust && (
-        <p data-testid="verdict-robustness" className={p.compact ? "mt-2 flex items-center gap-2 text-sm text-ink/50 md:justify-end" : "mt-2 flex items-center justify-center gap-2 text-sm text-ink/50"}>
-          {robust}
-          <SourceBadge compact source={p.source} />
-        </p>
-      )}
-    </section>
-  );
 }

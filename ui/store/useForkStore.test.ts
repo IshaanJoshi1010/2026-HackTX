@@ -595,39 +595,8 @@ describe("pages", () => {
   });
 });
 
-describe("future page options", () => {
-  it("start off: the road is minimal until you ask for more", () => {
-    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: false });
-  });
-
-  it("details and other futures are independent switches", async () => {
-    await enterWorkspace();
-    actions().setFutureDetails(true);
-    expect(state().ui).toMatchObject({ futureDetails: true, futureCompare: false });
-    actions().setFutureCompare(true);
-    actions().setFutureDetails(false);
-    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: true });
-  });
-
-  it("asking to compare with another car turns the other futures on", async () => {
-    await enterWorkspace();
-    expect(state().ui.futureCompare).toBe(false);
-    await actions().openReplaceComparison();
-    expect(state().ui.futureCompare).toBe(true);
-  });
-
-  it("every new session starts minimal again", async () => {
-    await enterWorkspace();
-    actions().setFutureDetails(true);
-    actions().setFutureCompare(true);
-    await actions().startFromSample(RAV4);
-    expect(state().ui).toMatchObject({ futureDetails: false, futureCompare: false });
-    actions().setFutureDetails(true);
-    actions().resetAll();
-    expect(state().ui.futureDetails).toBe(false);
-  });
-
-  it("gives the road what it needs to re-run a future, as arguments", async () => {
+describe("re-running a future", () => {
+  it("gives the page what it needs to re-run a future, as arguments", async () => {
     await enterWorkspace();
     const inputs = simulationInputs(state());
     expect(inputs?.twin.vehicle.id).toBe(CAMRY);
@@ -1130,33 +1099,6 @@ describe("purchase and insurance terms: applied only when confirmed, to every fu
     actions().applyScenarioTerms({ insurancePerMonth: 400 });
     const saved = state().explore.scenarios.map((sc) => sc.assumptions.insurancePerMonth);
     expect(saved.every((v) => v === 400)).toBe(true);
-  });
-});
-
-describe("the expanded timeline flag", () => {
-  it("starts off, turns on and off, and is never saved", async () => {
-    await enterWorkspace();
-    expect(state().ui.futureExpanded).toBe(false);
-    actions().setFutureExpanded(true);
-    expect(state().ui.futureExpanded).toBe(true);
-    expect(JSON.stringify(localStorage.getItem("fork:v1") ?? "")).not.toContain("futureExpanded");
-    actions().setFutureExpanded(false);
-    expect(state().ui.futureExpanded).toBe(false);
-  });
-
-  it("closes when you go back to the car, stays through the future page, and resets with a new session", async () => {
-    await enterWorkspace();
-    actions().setView("future");
-    actions().setFutureExpanded(true);
-    actions().setView("future");
-    expect(state().ui.futureExpanded).toBe(true);
-    actions().setView("car");
-    expect(state().ui.futureExpanded).toBe(false);
-
-    actions().setView("future");
-    actions().setFutureExpanded(true);
-    actions().resetAll();
-    expect(state().ui.futureExpanded).toBe(false);
   });
 });
 

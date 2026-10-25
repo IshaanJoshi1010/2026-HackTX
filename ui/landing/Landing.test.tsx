@@ -48,7 +48,7 @@ describe("the first screen is your VIN", () => {
 
   it("has no em dashes and no all-caps copy", () => {
     const { container } = render(<Landing />);
-    expect(container.textContent).not.toContain("—");
+    expect(container.textContent).not.toContain(String.fromCharCode(0x2014));
     expect(container.querySelector(".uppercase:not(input)")).toBeNull();
   });
 

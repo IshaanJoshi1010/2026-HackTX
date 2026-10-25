@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { ai, sim } from "@/ui/mocks";
 import { metricSource } from "@/ui/profile/metricSources";
-import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { specsFor } from "@/ui/store/selectors";
 import { simulationInputs, useForkStore } from "@/ui/store/useForkStore";
 import { AssumptionsReview } from "./AssumptionsReview";
 import { annualMilesSource } from "./breakEvenMath";
 import { BreakEvenViz } from "./BreakEvenViz";
-import { NextStep } from "./NextStep";
 import { currentTerms, termsOf } from "./termsMath";
-import { Toggle } from "./Toggle";
-import { Verdict, robustnessLine } from "./Verdict";
-import { WhyPanel } from "./WhyPanel";
 
 /**
  * Everything the keep vs replace parts share, read once from the store. Null until you have
@@ -81,74 +76,6 @@ export function TermsSection() {
   );
 }
 
-/** The headline of the Future page once you compare: the engine's pick, in plain words. */
-export function ComparisonVerdict({ compact = false }: { compact?: boolean } = {}) {
-  const c = useComparison();
-  if (!c) return null;
-  return (
-    <Verdict
-      evaluation={c.evaluation}
-      keepId={c.comparison.keepId}
-      replaceId={c.comparison.replaceId}
-      keepModel={c.twin.vehicle.model}
-      replaceModel={c.replacement.model}
-      source={c.source}
-      compact={compact}
-    />
-  );
-}
-
-/** One concrete next step, from the engine. */
-export function ComparisonNextStep() {
-  const c = useComparison();
-  if (!c) return null;
-  return <NextStep action={c.evaluation.nextAction} source={c.source} />;
-}
-
-/** The two opt-ins that belong to a comparison. Inline, so the page can put them in its own row. */
-export function ComparisonToggles() {
-  const c = useComparison();
-  const breakEven = useForkStore((s) => s.breakEven);
-  const why = useForkStore((s) => s.ui.futureWhy);
-  const terms = useForkStore((s) => s.ui.futureTerms);
-  const breakEvenOn = useForkStore((s) => s.ui.futureBreakEven);
-  const { setFutureWhy, setFutureTerms, setFutureBreakEven } = useForkStore((s) => s.actions);
-  if (!c) return null;
-  const showBreakEven = breakEvenOn && breakEven !== null;
-  return (
-    <>
-      <Toggle pressed={showBreakEven} onClick={() => setFutureBreakEven(!showBreakEven)}>
-        What would change it
-      </Toggle>
-      <Toggle pressed={terms} onClick={() => setFutureTerms(!terms)}>
-        Edit terms
-      </Toggle>
-      <Toggle pressed={why} onClick={() => setFutureWhy(!why)}>
-        Why
-      </Toggle>
-    </>
-  );
-}
-
-/** "Why this result": how robust the verdict is, then the engine's reasons. The tested-cases line lives here, not at the top. */
-export function ComparisonWhy() {
-  const c = useComparison();
-  const explanation = useForkStore((s) => s.explanation);
-  if (!c) return null;
-  const robust = robustnessLine(c.evaluation);
-  return (
-    <div data-testid="why-panel" className="flex flex-col gap-5">
-      {robust && (
-        <p data-testid="why-robustness" className="mx-auto flex w-full max-w-2xl items-center gap-2 text-base text-ink">
-          {robust}
-          <SourceBadge compact source={c.source} />
-        </p>
-      )}
-      <WhyPanel explanation={explanation} rationale={c.evaluation.rationale} source={c.source} />
-    </div>
-  );
-}
-
 /** "What could change": the break-even bar and the engine's reruns on either side of it. Nothing until it has been run. */
 export function ComparisonChange() {
   const c = useComparison();
@@ -164,79 +91,6 @@ export function ComparisonChange() {
         currentSource={breakEven.parameter === "annualMiles" ? annualMilesSource(c.keep, c.profile) : c.profile.provenance.fuelPricePerGal}
         {...c.names}
       />
-    </div>
-  );
-}
-
-/** What was opted into: the break-even, and the reasons. Each scrolls into view when it opens. */
-export function ComparisonMore() {
-  const c = useComparison();
-  const breakEven = useForkStore((s) => s.breakEven);
-  const check = useForkStore((s) => s.breakEvenCheck);
-  const explanation = useForkStore((s) => s.explanation);
-  const why = useForkStore((s) => s.ui.futureWhy);
-  const terms = useForkStore((s) => s.ui.futureTerms);
-  const breakEvenOn = useForkStore((s) => s.ui.futureBreakEven);
-  const reducedMotion = useForkStore((s) => s.ui.reducedMotion);
-  const showBreakEven = c !== null && breakEvenOn && breakEven !== null;
-  const showWhy = c !== null && why;
-  const showTerms = c !== null && terms;
-
-  // What you just asked for should not open out of sight under the road.
-  const breakRef = useRef<HTMLDivElement>(null);
-  const whyRef = useRef<HTMLDivElement>(null);
-  const termsRef = useRef<HTMLDivElement>(null);
-  const wasShown = useRef({ breakEven: false, why: false, terms: false });
-  useEffect(() => {
-    const behavior = reducedMotion ? "auto" : "smooth";
-    if (showBreakEven && !wasShown.current.breakEven) breakRef.current?.scrollIntoView?.({ behavior, block: "start" });
-    if (showTerms && !wasShown.current.terms) termsRef.current?.scrollIntoView?.({ behavior, block: "start" });
-    if (showWhy && !wasShown.current.why) whyRef.current?.scrollIntoView?.({ behavior, block: "start" });
-    wasShown.current = { breakEven: showBreakEven, why: showWhy, terms: showTerms };
-  }, [showBreakEven, showWhy, showTerms, reducedMotion]);
-
-  if (!c || (!showBreakEven && !showWhy && !showTerms)) return null;
-  return (
-    <div className="flex flex-col gap-[clamp(1.5rem,4vh,2.75rem)]">
-      {showBreakEven && (
-        <div ref={breakRef} className="scroll-mt-24">
-          <BreakEvenViz
-            breakEven={breakEven}
-            check={check}
-            source={c.source}
-            currentSource={
-              breakEven.parameter === "annualMiles" ? annualMilesSource(c.keep, c.profile) : c.profile.provenance.fuelPricePerGal
-            }
-            {...c.names}
-          />
-        </div>
-      )}
-      {showTerms && (
-        <div ref={termsRef} className="scroll-mt-24">
-          <TermsSection />
-        </div>
-      )}
-      {showWhy && (
-        <div ref={whyRef} className="scroll-mt-24">
-          <WhyPanel explanation={explanation} rationale={c.evaluation.rationale} source={c.source} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** All of it in one place, in reading order. The Future page splits it up around the road. */
-export function ComparisonSection() {
-  const c = useComparison();
-  if (!c) return null;
-  return (
-    <div data-testid="comparison" className="flex flex-col gap-[clamp(1.5rem,4vh,2.75rem)] pt-4">
-      <ComparisonVerdict />
-      <ComparisonNextStep />
-      <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
-        <ComparisonToggles />
-      </div>
-      <ComparisonMore />
     </div>
   );
 }

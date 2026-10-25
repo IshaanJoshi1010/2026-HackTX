@@ -92,33 +92,6 @@ describe("the future selector", () => {
   it("has no em dashes and no build words", () => {
     confirm(draft("relocation", 12, { location: "Denver" }));
     const { container } = render(<FutureSelector />);
-    expect(container.textContent).not.toMatch(/demo|data|—/i);
-  });
-});
-
-describe("one deeper panel at a time", () => {
-  it("opening one closes the others, and null closes all", () => {
-    const ui = () => state().ui;
-    actions().setFuturePanel("costs");
-    expect([ui().futureDetails, ui().futureWhy, ui().futureBreakEven]).toEqual([true, false, false]);
-    actions().setFuturePanel("why");
-    expect([ui().futureDetails, ui().futureWhy, ui().futureBreakEven]).toEqual([false, true, false]);
-    actions().setFuturePanel(null);
-    expect([ui().futureDetails, ui().futureWhy, ui().futureBreakEven]).toEqual([false, false, false]);
-  });
-
-  it("'what could change' runs the break-even the first time and shows it", async () => {
-    confirm(draft("relocation", 12, { location: "Denver" }));
-    await act(async () => {
-      await actions().openReplaceComparison();
-    });
-    expect(state().breakEven).toBeNull();
-    act(() => actions().setFuturePanel("change"));
-    expect(state().breakEven).not.toBeNull();
-    expect(state().ui.futureBreakEven).toBe(true);
-    act(() => actions().setFuturePanel("costs"));
-    expect(state().ui.futureBreakEven).toBe(false);
-    expect(state().ui.futureDetails).toBe(true);
-    expect(state().breakEven).not.toBeNull(); // kept, so opening it again is instant
+    expect(container.textContent).not.toMatch(new RegExp(`demo|data|${String.fromCharCode(0x2014)}`, "i"));
   });
 });

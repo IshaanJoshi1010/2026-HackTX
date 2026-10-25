@@ -417,6 +417,6 @@ describe("edges", () => {
   it("has no em dashes or build words", () => {
     render(<RiderDock />);
     finishReveal();
-    expect(dock().textContent).not.toMatch(/demo|data|—/i);
+    expect(dock().textContent).not.toMatch(new RegExp(`demo|data|${String.fromCharCode(0x2014)}`, "i"));
   });
 });

@@ -1,3 +1,7 @@
+> SUPERSEDED. This was the first redesign spec and it was never built as written. The Future page that shipped follows
+> `docs/handoffs/FUTURE-TIMELINE-SPEC.md` (see `FUTURE-TIMELINE-STATUS.md` for where it stands). The components this
+> document talks about (WindingTimeline, DecisionSummary, DeepDive, the expanded timeline) are removed. Kept for history only.
+
 # Future page redesign (not built yet) and where the work stands
 
 Written so the work survives the session. The spec below is Ishaan's, pasted as written. Everything here is on branch
