@@ -142,3 +142,33 @@ describe("Dev 4 explanation compatibility", () => {
     expect(generate.mock.calls[0][0].input.evaluation.sensitivity).toEqual(evaluation.sensitivity);
   });
 });
+
+
+describe("retrieved vehicle grounding", () => {
+  it("passes server-retrieved specs and provenance to Gemini alongside computed results", async () => {
+    const { getLocalVehicleKnowledge } = await import("../data/snowflake/documents");
+    const knowledge = { source: "snowflake" as const, status: "ready" as const, vehicles: getLocalVehicleKnowledge() };
+    const retrieve = vi.fn().mockResolvedValue(knowledge);
+    const generate = vi.fn().mockResolvedValue("The Camry has 15 cubic feet of cargo space in the synthetic demo assumptions. Physical fit needs verification.");
+    const onKnowledge = vi.fn();
+    const output = await createExplainer(generate, retrieve)(evaluation, results, { onKnowledge });
+    expect(output.usedFallback).toBe(false);
+    expect(generate.mock.calls[0][0].input.vehicleKnowledge).toEqual(knowledge);
+    expect(retrieve.mock.calls[0][0]).toEqual([...new Set(results.flatMap(r => r.points.map(p => p.vehicleId)))]);
+    expect(onKnowledge).toHaveBeenCalledWith(knowledge);
+  });
+  it("rejects a fabricated spec even with successful Snowflake retrieval", async () => {
+    const { getLocalVehicleKnowledge } = await import("../data/snowflake/documents");
+    const retrieve = vi.fn().mockResolvedValue({ source: "snowflake", status: "ready", vehicles: getLocalVehicleKnowledge() });
+    const result = await createExplainer(async () => "The Camry has 987654 cubic feet of cargo space.", retrieve)(evaluation, results);
+    expect(result.usedFallback).toBe(true);
+    expect(result.text).not.toContain("987654");
+  });
+  it("exposes honest offline provenance on the existing explanation route without a key", async () => {
+    vi.stubEnv("GEMINI_API_KEY", ""); vi.stubEnv("SNOWFLAKE_ACCOUNT", "");
+    const result = await POST(new Request("http://localhost/api/explain", { method: "POST", body: JSON.stringify({ evaluation, results }) }));
+    expect(result.headers.get("x-fork-data-source")).toBe("local-fixture");
+    expect(result.headers.get("x-fork-data-status")).toBe("unconfigured");
+    expect((await result.json()).aiAvailable).toBe(false);
+  });
+});

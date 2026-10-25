@@ -5,6 +5,7 @@ import { generateWithGemini, type Generator } from "./gemini";
 import { createGenerationBudget, EXPLAIN_BUDGET_MS } from "./generationBudget";
 import { type AIRequestOptions, unavailableInfo } from "./status";
 import { numberCheck } from "./numberCheck";
+import { retrieveVehicleKnowledge, type VehicleKnowledgeResult } from "../data/snowflake/repository";
 import { explanationInstructions } from "./prompts/system";
 
 const fitMessages: Record<string, string> = {
@@ -22,8 +23,10 @@ const fitMessages: Record<string, string> = {
 
 export class InvalidExplanationInput extends Error {}
 
-export function createExplainer(generate: Generator = generateWithGemini) {
-  return async (evaluation: DecisionEvaluation, results: SimulationResult[], options?: AIRequestOptions): Promise<{ text: string; usedFallback: boolean }> => {
+export interface ExplanationOptions extends AIRequestOptions { onKnowledge?: (result: VehicleKnowledgeResult) => void }
+
+export function createExplainer(generate: Generator = generateWithGemini, retrieve = retrieveVehicleKnowledge) {
+  return async (evaluation: DecisionEvaluation, results: SimulationResult[], options?: ExplanationOptions): Promise<{ text: string; usedFallback: boolean }> => {
     const e = DecisionEvaluationSchema.parse(evaluation);
     const r = results.map(result => SimulationResultSchema.parse(result));
     // A stale UI evaluation must not be explained alongside a different set of scenario results.
@@ -35,8 +38,10 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       || (e.sensitivity.length !== 0 && e.sensitivity.length !== e.scenarioIds.length)) {
       throw new InvalidExplanationInput("Evaluation and results must describe the same scenarios");
     }
+    const vehicleKnowledge = await retrieve([...new Set(r.flatMap(result => result.points.map(point => point.vehicleId)))], options?.signal);
+    options?.onKnowledge?.(vehicleKnowledge);
     // Supply computed summaries, not raw driver/account/profile data or the full monthly timeline.
-    const input = { verdictMeaning: e.preferredScenarioId === "inconclusive"
+    const input = { vehicleKnowledge, verdictMeaning: e.preferredScenarioId === "inconclusive"
       ? "No option clearly leads. A Held in X of Y tested cases line refers to this inconclusive verdict, never a Camry or RAV4 win."
       : "The preferred scenario ID is the computed verdict; sensitivity describes how often that verdict held, not a confidence percentage.",
       evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,
