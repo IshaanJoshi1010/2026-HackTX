@@ -5,6 +5,7 @@ import { ArrowUp, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useForkStore, type DumpOutcome } from "@/ui/store/useForkStore";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
+import { ConfirmedCard } from "./ConfirmedCard";
 import { InlineQuestionCard } from "./InlineQuestionCard";
 import { ManualEventForm } from "./ManualEventForm";
 import { StarterChips } from "./StarterChips";
@@ -32,6 +33,7 @@ export function CommandBox({ className }: CommandBoxProps) {
   const question = useForkStore((s) => s.question);
   const futures = useForkStore((s) => s.explore.scenarios.length);
   const lastDump = useForkStore((s) => s.lastDump);
+  const receipt = useForkStore((s) => s.receipt);
   const { submitDump, retryDump, setView } = useForkStore((s) => s.actions);
 
   const isInterpreting = busy === "interpreting";
@@ -93,6 +95,7 @@ export function CommandBox({ className }: CommandBoxProps) {
   return (
     <div data-testid="command-box" className={cn("mx-auto flex w-full max-w-2xl flex-col gap-3", className)}>
       {hasDrafts && <ConfirmProposalCard onConfirmed={() => setView("future")} />}
+      {receipt && !hasDrafts && <ConfirmedCard />}
       {question && !hasDrafts && <InlineQuestionCard />}
 
       {showManual && (

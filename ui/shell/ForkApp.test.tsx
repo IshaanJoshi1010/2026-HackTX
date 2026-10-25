@@ -192,8 +192,11 @@ describe("the future page", () => {
     const byTitle = (t: string) => rows.find((r) => r.textContent!.includes(t))!;
     // the stand-in sim reacts to mileage, not to a move: the road says exactly that
     expect(byTitle("24,000 miles a year").textContent).toMatch(/Adds \$[\d,]+/);
-    expect(byTitle("Move to Denver")).toHaveTextContent("No change in cost");
-    rows.forEach((r) => expect(r.querySelector("[data-source]")).not.toBeNull());
+    expect(byTitle("Move to Denver")).toHaveTextContent("No change to cost.");
+    expect(byTitle("Move to Denver")).toHaveTextContent("the simulation does not use location");
+    // every dollar figure carries its source; a decision that moves no dollar has no figure to label
+    expect(byTitle("24,000 miles a year").querySelector("[data-source]")).not.toBeNull();
+    expect(byTitle("Move to Denver").querySelector("[data-source]")).toBeNull();
 
     // the four supporting numbers arrive with it, each with a source
     expect(stats()).toHaveLength(5);

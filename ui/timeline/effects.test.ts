@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LifeEvent, ProjectionPoint, Scenario, SimulationResult, SuitabilityResult } from "@/contracts";
-import { decisionEffects, fitNote } from "./effects";
+import { decisionEffects, fitNote, noCostMessage } from "./effects";
 
 const fit = (passengerFit: SuitabilityResult["passengerFit"], cargoFit: SuitabilityResult["cargoFit"] = "good"): SuitabilityResult => ({
   passengerFit,
@@ -50,7 +50,9 @@ function fakeSimulate(s: Scenario): SimulationResult {
       suitability: fit(tight ? "tight" : "good"),
     };
   });
-  return { scenarioId: s.id, points, milestones: [], warnings: [], summary: { totalCash: 0, netCost: 0 } };
+  // A decision with a `warn` note says so, the way the real sim does for an event it does not model.
+  const warnings = s.events.filter((e) => e.status === "confirmed" && e.payload.warn).map((e) => `Event ${e.id}: no modeled effect, ${e.payload.warn}`);
+  return { scenarioId: s.id, points, milestones: [], warnings, summary: { totalCash: 0, netCost: 0 } };
 }
 
 const run = (events: LifeEvent[], month = 60) => {
@@ -128,5 +130,55 @@ describe("fitNote", () => {
     expect(fitNote(fit("good", "insufficient"), fit("good", "good"))).toBe("Cargo fit goes from good to not enough");
     expect(fitNote(fit("good"), fit("good"))).toBeNull();
     expect(fitNote(fit("needs_verification"), fit("good"))).toBe("Passenger fit goes from good to unverified");
+  });
+});
+
+describe("does it change cost at all?", () => {
+  it("is false only when the net cost is the same in every month with and without it", () => {
+    const out = run([ev("none", 12, {}), ev("costs", 24, { cost: 10 })]);
+    expect(out.find((e) => e.event.id === "none")!.changesCost).toBe(false);
+    expect(out.find((e) => e.event.id === "costs")!.changesCost).toBe(true);
+  });
+
+  it("looks past the month asked for: a cost that starts later still counts", () => {
+    const [late] = run([ev("late", 40, { cost: 10 })], 12); // measured at month 12, before it starts
+    expect(late.costDelta).toBe(0);
+    expect(late.changesCost).toBe(true);
+    expect(late.costDeltaAtEnd).toBe(10 * 21);
+  });
+
+  it("a tiny difference under a dollar counts as none, like every phrase does", () => {
+    expect(run([ev("a", 12, { cost: 0.0001 })])[0].changesCost).toBe(false);
+  });
+});
+
+describe("noCostMessage", () => {
+  const effect = (e: LifeEvent) => run([e])[0];
+
+  it("says nothing for a decision that costs money: the dollars speak", () => {
+    expect(noCostMessage(effect(ev("a", 12, { cost: 10 })))).toBeNull();
+  });
+
+  it("says fit, not dollars, only when fit really changed", () => {
+    const m = noCostMessage(effect(ev("kid", 36, { tight: 1 })))!;
+    expect(m.headline).toBe("No change to cost. This changes fit, not dollars.");
+    expect(m.lines).toEqual(["Passenger fit goes from good to tight, from 3 yr"]);
+  });
+
+  it("does not claim fit when fit did not change, and lists the simulation's own note", () => {
+    const m = noCostMessage(effect(ev("move", 12, { warn: "the new place is recorded, but the simulation does not use location" })))!;
+    expect(m.headline).toBe("No change to cost.");
+    expect(m.lines).toEqual(["Not modeled: the new place is recorded, but the simulation does not use location."]);
+  });
+
+  it("when nothing at all changed, says that instead of inventing something", () => {
+    const m = noCostMessage(effect(ev("empty", 12, {})))!;
+    expect(m.headline).toBe("No change to cost.");
+    expect(m.lines).toEqual(["Nothing else the model tracks changes either."]);
+  });
+
+  it("has no em dashes", () => {
+    const m = noCostMessage(effect(ev("kid", 36, { tight: 1 })))!;
+    expect([m.headline, ...m.lines].join(" ")).not.toContain("\u2014");
   });
 });

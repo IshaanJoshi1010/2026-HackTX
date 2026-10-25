@@ -106,6 +106,12 @@ export type DumpOutcome =
   | { kind: "nothing"; message?: string; offline?: boolean }
   | { kind: "stale" }; // the answer came back after the session, car, future or request changed, so it was dropped
 
+/** What was just confirmed, so the result can be shown once: which future it made and which decisions went in. Not saved. */
+export interface Receipt {
+  scenarioId: string;
+  eventIds: string[];
+}
+
 /** The last sentence that was read without the AI, kept so the person can retry it or enter it by hand. */
 export interface LastDump {
   text: string;
@@ -146,6 +152,7 @@ export interface ForkActions {
   retryDump(): Promise<DumpOutcome>;
   /** Drop the offline notice without touching any draft. */
   dismissDumpNotice(): void;
+  dismissReceipt(): void;
   confirmDrafts(ids: string[]): void;
   editDraft(id: string, patch: Partial<LifeEvent>): void;
   rejectDraft(id: string): void;
@@ -204,6 +211,8 @@ export interface ForkState {
   explanation: Explanation | null;
   /** Set only while the last sentence was read without the AI. Not saved. */
   lastDump: LastDump | null;
+  /** The decisions just confirmed, until dismissed, replaced or left for another future. Not saved. */
+  receipt: Receipt | null;
   breakEven: BreakEvenResult | null;
   /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
   breakEvenCheck: BreakEvenCheck | null;
@@ -271,6 +280,7 @@ function initialData(): DataFields {
     nextActionFactors: [],
     explanation: null,
     lastDump: null,
+    receipt: null,
     breakEven: null,
     breakEvenCheck: null,
     activeScenarioId: BASE_ID,
@@ -760,7 +770,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         return seq !== dumpSeq || epoch !== dumpEpoch || cur.twin?.vehicle.id !== vehicleId || cur.activeScenarioId !== scenarioId;
       };
 
-      set((cur) => ({ error: null, ui: { ...cur.ui, busy: "interpreting" } }));
+      set((cur) => ({ error: null, receipt: null, ui: { ...cur.ui, busy: "interpreting" } }));
       const active = findScenario(s, scenarioId);
       const ctx: InterpretContext = {
         vehicle: { make: s.twin.vehicle.make, model: s.twin.vehicle.model, year: s.twin.vehicle.year, trim: s.twin.vehicle.trim },
@@ -862,6 +872,10 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       set({ lastDump: null });
     },
 
+    dismissReceipt() {
+      set({ receipt: null });
+    },
+
     // ---- confirm ----
     confirmDrafts(ids) {
       const s = get();
@@ -891,6 +905,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           breakEven: null,
           breakEvenCheck: null,
           lastDump: keepDump(s.lastDump, explore.draftChanges),
+          receipt: { scenarioId: child.id, eventIds: events.map((e) => e.id) },
           question: nextQuestion(withChild),
         });
       } catch (e) {
@@ -1085,7 +1100,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     setActiveScenario(id) {
-      set((s) => activation(s, id));
+      set((s) => ({ ...activation(s, id), receipt: s.receipt?.scenarioId === id ? s.receipt : null }));
     },
 
     setActiveMonth(m) {

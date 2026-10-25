@@ -16,6 +16,7 @@ import type { EventType, LifeEvent } from "@/contracts";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/ui/profile/format";
 import { eventTitle } from "@/ui/store/eventLabels";
+import type { NoCostMessage } from "./effects";
 import { clampMonth, xToMonth, type Milestone } from "./layout";
 
 export const EVENT_ICON: Record<EventType, LucideIcon> = {
@@ -53,6 +54,8 @@ export interface MarkerProps {
   locked?: boolean;
   /** The earliest month it can move to: the month its future starts. A future cannot rewrite what it inherited. */
   minMonth?: number;
+  /** Set when running the future without this decision gives the same cost to the dollar. Says so, and what it did change. */
+  noCost?: NoCostMessage | null;
   /** Where the road is on screen, for turning a drag into a month. */
   getAxis(): AxisRect | null;
   onMove(scenarioId: string, eventId: string, month: number): void;
@@ -63,7 +66,7 @@ export interface MarkerProps {
  * One decision, as a signpost on the road. Drag it to a new month, or focus it and
  * use the arrow keys (Shift moves by six months). Click it to put the playhead there.
  */
-export function Marker({ event, scenarioId, x, y, locked = false, minMonth = 0, getAxis, onMove, onSelect }: MarkerProps) {
+export function Marker({ event, scenarioId, x, y, locked = false, minMonth = 0, noCost = null, getAxis, onMove, onSelect }: MarkerProps) {
   const Icon = EVENT_ICON[event.type];
   const [dragX, setDragX] = useState<number | null>(null);
   const [dragMonth, setDragMonth] = useState<number | null>(null);
@@ -121,7 +124,7 @@ export function Marker({ event, scenarioId, x, y, locked = false, minMonth = 0, 
         data-testid="event-marker"
         data-event-id={event.id}
         data-locked={locked}
-        aria-label={`${title}, month ${event.month}.${locked ? " From an earlier future, so it cannot be moved here." : " Arrow keys move it."}`}
+        aria-label={`${title}, month ${event.month}.${noCost ? ` ${noCost.headline}` : ""}${locked ? " From an earlier future, so it cannot be moved here." : " Arrow keys move it."}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finish}
@@ -159,6 +162,16 @@ export function Marker({ event, scenarioId, x, y, locked = false, minMonth = 0, 
           {dragMonth !== null && dragMonth !== event.month ? ", release to move" : ""}
         </p>
         {event.quote && <p className="mt-1 text-canvas/80 italic">&ldquo;{event.quote}&rdquo;</p>}
+        {noCost && (
+          <div data-testid="marker-no-cost" className="mt-1">
+            <p className="text-canvas">{noCost.headline}</p>
+            {noCost.lines.map((line) => (
+              <p key={line} className="text-canvas/60">
+                {line}
+              </p>
+            ))}
+          </div>
+        )}
         <p className="mt-1 text-canvas/50">{locked ? "From an earlier future. Move it there." : CERTAINTY[event.certainty]}</p>
         {!locked && minMonth > 0 && month <= minMonth && (
           <p className="text-canvas/50">This future starts here, so it can only move later.</p>

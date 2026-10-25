@@ -156,7 +156,7 @@ describe("signposts", () => {
     render(<Road />);
     expect(markers()).toHaveLength(3);
     const labels = screen.getAllByTestId("decision-label").map((l) => l.textContent);
-    expect(labels).toEqual(expect.arrayContaining(["Move to Denverin 1 yr", "24,000 miles a yearin 1 yr", "New childin 3 yr"]));
+    expect(labels).toEqual(expect.arrayContaining(["Move to Denverin 1 yr, no cost change", "24,000 miles a yearin 1 yr", "New childin 3 yr, no cost change"]));
   });
 
   it("never draws a proposal", async () => {
@@ -399,5 +399,52 @@ describe("the slider", () => {
     act(() => actions().setFutureCompare(true));
     render(<Road />);
     screen.getAllByRole("button").forEach((b) => expect(b).toHaveAccessibleName());
+  });
+});
+
+describe("decisions that change no cost say so on the road", () => {
+  const markerFor = (eventId: string) => markers().find((m) => m.getAttribute("data-event-id") === eventId)!;
+  const noCostOn = (eventId: string) => within(markerFor(eventId).closest(".group") as HTMLElement).queryByTestId("marker-no-cost");
+
+  async function branched() {
+    await enterWorkspace();
+    actions().setView("future");
+    branch(MOVE, MILES, KID);
+    render(<Road />);
+    const byTitle = (title: string) => state().explore.scenarios.find((x) => x.id === state().activeScenarioId)!.events.find((e) => {
+      const t = e.type === "relocation" ? "move" : e.type === "mileage_change" ? "miles" : "kid";
+      return t === title;
+    })!.id;
+    return { move: byTitle("move"), miles: byTitle("miles"), kid: byTitle("kid") };
+  }
+
+  it("a move and a new child get the message; a driving change does not", async () => {
+    const ids = await branched();
+    expect(noCostOn(ids.move)).toHaveTextContent("No change to cost.");
+    expect(noCostOn(ids.kid)).toHaveTextContent("No change to cost.");
+    expect(noCostOn(ids.miles)).toBeNull();
+  });
+
+  it("the marker's label says it too, and only for the ones that cost nothing", async () => {
+    const ids = await branched();
+    const labels = screen.getAllByTestId("decision-label").map((l) => l.textContent ?? "");
+    expect(labels.filter((t) => t.includes("no cost change"))).toHaveLength(2);
+    expect(labels.find((t) => t.includes("24,000 miles a year"))).not.toContain("no cost change");
+    expect(markerFor(ids.move).getAttribute("aria-label")).toContain("No change to cost.");
+    expect(markerFor(ids.miles).getAttribute("aria-label")).not.toContain("No change to cost.");
+  });
+
+  it("lists only what the simulation changed", async () => {
+    const ids = await branched();
+    const move = noCostOn(ids.move)!;
+    expect(move).toHaveTextContent("Not modeled: the new place is recorded, but the simulation does not use location.");
+    expect(noCostOn(ids.kid)).toHaveTextContent(/Household goes from \d+ to \d+ people/);
+  });
+
+  it("says nothing for a future with no decisions", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    render(<Road />);
+    expect(screen.queryByTestId("marker-no-cost")).toBeNull();
   });
 });
