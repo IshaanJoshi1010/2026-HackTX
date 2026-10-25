@@ -2,16 +2,17 @@ import { AdditiveBlending, BufferGeometry, Float32BufferAttribute, Points, Shade
 import type { CarStageProps } from "./types";
 
 export const revealStages = ["converge", "pointcloud", "wireframe", "solid", "done"] as const;
-const boundaries = [0, 2, 2.5, 3, 4];
+export const revealTiming = { convergence: 1.2, pointcloud: 1.056, wireframe: 1.1, solid: 1.2, done: 2 } as const;
+const boundaries = [0, revealTiming.pointcloud, revealTiming.wireframe, revealTiming.solid, revealTiming.done];
 export class RevealClock {
   elapsed = 0;
   private next = 0;
   constructor(private readonly callback: CarStageProps["onRevealStage"]) {}
   advance(delta: number) {
-    this.elapsed = Math.min(4, this.elapsed + Math.max(0, delta));
+    this.elapsed = Math.min(revealTiming.done, this.elapsed + Math.max(0, delta));
     while (this.next < 5 && this.elapsed >= boundaries[this.next]) this.callback(revealStages[this.next++]);
   }
-  skip() { this.advance(4); }
+  skip() { this.advance(revealTiming.done); }
 }
 
 export function particleFragment(low: boolean) {

@@ -5,7 +5,7 @@ import { cloneOwnedObject, disposeObject } from "./dispose";
 import { applyPaint } from "./paint";
 import { createPointsView, ViewMaterials } from "./viewModes";
 import { loadPointsFile, pointsUrl, type Quality } from "./usePointsFile";
-import { createParticleReveal, RevealClock } from "./ParticleReveal";
+import { createParticleReveal, RevealClock, revealTiming } from "./ParticleReveal";
 import { createParticleMorph, createScanLine, forceFallback } from "./ParticleMorph";
 import type { CarStageProps } from "./types";
 import { smootherStep } from "./animationMath";
@@ -141,19 +141,18 @@ export class VehicleController {
       const { clock, cloud, wire, materials } = this.reveal;
       clock.advance(delta);
       const time = clock.elapsed, layer = this.layers.at(-1)!;
-      cloud.material.uniforms.uProgress.value = Math.min(1, time / 2);
+      cloud.material.uniforms.uProgress.value = Math.min(1, time / revealTiming.convergence);
       cloud.material.uniforms.uTime.value = time;
       cloud.material.uniforms.uPixelRatio.value = pixelRatio;
-      // A complementary handoff keeps the silhouette continuous. Finish the
-      // visual materialization early, leaving a settled beat before "done".
-      const solid = smootherStep((time - 3) / 0.5);
+      // No showcase holds: convergence flows straight into solid materialization.
+      const solid = smootherStep((time - revealTiming.solid) / (revealTiming.done - revealTiming.solid));
       cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.25) * (1 - solid);
       cloud.visible = solid < 1;
-      wire.visible = time >= 2.5 && solid < 1;
-      materials.update("wireframe", 0.18 * smootherStep((time - 2.5) / 0.35) * (1 - solid));
-      layer.root.visible = time >= 3;
+      wire.visible = time >= revealTiming.wireframe && solid < 1;
+      materials.update("wireframe", 0.12 * smootherStep((time - revealTiming.wireframe) / 0.2) * (1 - solid));
+      layer.root.visible = time >= revealTiming.solid;
       layer.materials.update("solid", solid);
-      if (time < 4) return;
+      if (time < revealTiming.done) return;
       this.clearReveal();
     }
     if (this.fading) {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Points, ShaderMaterial } from "three";
 import type { VehicleConfig } from "@/contracts";
-import { createParticleReveal, RevealClock, revealStages } from "../ParticleReveal";
+import { createParticleReveal, RevealClock, revealStages, revealTiming } from "../ParticleReveal";
 import { disposeObject } from "../dispose";
 import { VehicleController } from "../VehicleController";
 
@@ -15,15 +15,15 @@ describe("particle reveal", () => {
     const root = controller.group.children[0], body = (root.children[0] as Mesh).material as MeshStandardMaterial;
     const cloud = controller.group.children.find(child => child instanceof Points) as Points<never, ShaderMaterial>;
     expect(root.visible).toBe(false);
-    controller.update(3.25, "solid");
+    controller.update(1.6, "solid");
     expect(body.opacity).toBeCloseTo(0.5);
     expect(cloud.material.uniforms.uOpacity.value).toBeCloseTo(0.4);
-    controller.update(0.25, "solid");
+    controller.update(0.3, "solid");
+    expect(body.opacity).toBeGreaterThan(0.98);
+    expect(stages.mock.calls.flat()).not.toContain("done");
+    controller.update(0.11, "solid");
     expect(body.opacity).toBe(1);
     expect(body.alphaHash).toBe(false);
-    expect(cloud.visible).toBe(false);
-    expect(stages.mock.calls.flat()).not.toContain("done");
-    controller.update(0.5, "solid");
     expect(stages.mock.calls.flat()).toEqual(revealStages);
     expect(controller.group.children).toHaveLength(1);
     controller.dispose();
@@ -63,12 +63,12 @@ describe("particle reveal", () => {
     expect(target).toEqual(original);
     disposeObject(a); disposeObject(b);
   });
-  it("reports boundaries at the frozen times and skips remaining stages once", () => {
+  it("reports ordered stages on the continuous two-second timeline and skips once", () => {
     const events: [string, number][] = []; let time = 0;
     const clock = new RevealClock(stage => events.push([stage, time]));
     clock.advance(0);
-    for (const dt of [1.999, 0.001, 0.5, 0.5, 1]) { time += dt; clock.advance(dt); }
-    expect(events).toEqual([["converge", 0], ["pointcloud", 2], ["wireframe", 2.5], ["solid", 3], ["done", 4]]);
+    for (const boundary of [revealTiming.pointcloud, revealTiming.wireframe, revealTiming.solid, revealTiming.done]) { time = boundary; clock.advance(boundary - clock.elapsed); }
+    expect(events).toEqual([["converge", 0], ["pointcloud", 1.056], ["wireframe", 1.1], ["solid", 1.2], ["done", 2]]);
     clock.skip(); expect(events).toHaveLength(5);
   });
   it("preloads both resources and remembers skip during load", async () => {
