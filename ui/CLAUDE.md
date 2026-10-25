@@ -21,7 +21,7 @@ Own everything the user touches outside the 3D canvas, plus the store that conne
 /app/page.tsx                    renders Landing | Reveal | Workspace from store.phase
 /ui/store/useForkStore.ts, persistence.ts   (localStorage key "fork:v1", versioned)
 /ui/theme/tokens.css
-/ui/landing/VinEntry.tsx, SampleCarPicker.tsx, ModelYearPicker.tsx
+/ui/landing/Landing.tsx, VinEntry.tsx (the first screen is one VIN field), ModelYearPicker.tsx (only behind "No VIN? Choose your car")
 /ui/reveal/RevealOverlay.tsx     identity text, "Who rides with you most?" chips, specs, Skip, Replay
 /ui/shell/Workspace.tsx, CarView.tsx, FutureView.tsx, FutureDetails.tsx, ViewSwitch.tsx, DetailsSheet.tsx, AppHeader.tsx
 /ui/profile/ProfileConfirmCard.tsx, LiveProfileCard.tsx, SourceBadge.tsx, ConfidenceMeter.tsx
@@ -100,7 +100,7 @@ You pass data between modules: pass `getSpecs` output and `VehicleConfig` into D
 
 - **B0 Scaffold (hour 0 to 1).** Next.js App Router, TypeScript, Tailwind, shadcn/ui. Folders, copy all `CLAUDE.md` files, add `/contracts` placeholder, `npm test` script, `/docs/HANDOFF.md`.
 - **B1 Shell and store (hour 1 to 4).** Theme, layout zones, collapsible panels, store with mocks, `CarStageStub` in place, `SourceBadge`, reduced-motion and low-performance flags.
-- **B2 Entry and reveal (hour 4 to 8).** Landing, VIN entry with inline validation, sample picker, model and year picker, reveal overlay with the rider chips, profile confirm card, left panel. Gate 1.
+- **B2 Entry and reveal (hour 4 to 8).** Landing, VIN entry with inline validation (the first screen is your VIN and nothing else; the demo Camry's made-up VIN is one tap, and a car picker sits behind one quiet link), model and year picker, reveal overlay with the rider chips, profile confirm card, left panel. Gate 1.
 - **B3 Timeline (hour 8 to 11).** Built early as "the road" (custom SVG, no React Flow): `ui/timeline/Road.tsx` draws the active future as its net cost drift from the baseline (`roadMath.ts`, pure and tested), signposts for every decision (drag or arrow keys, inherited ones read-only), milestone marks, playhead readout, other futures on request. `effects.ts` re-runs a future without each decision to say what it changed (Details). Still to do: edit and delete controls on signposts, the break-even overlay.
 - **B4 Command box (hour 8 to 13).** One command bar (voice, manual entry behind a plus), one suggestion that seeds the box without submitting, offline fallback that only extracts what the user wrote (`command/extract.ts`, to move into Dev 3's interpret), live profile card with quoted phrases and certainty styling, confirm flow, inline questions, tradeoff cards, weights editor, manual forms. Gate 2.
 - **B5 Comparison (hour 13 to 18).** Done for the demo path (verdict, next step, break-even, why, held in X of Y). Still open: the assumptions editor and cost curves.

@@ -15,7 +15,7 @@ Story A: after Alex's brain dump, keeping the Camry vs a RAV4 Hybrid is a **clos
 
 | Time | You do | You say | The screen shows |
 | --- | --- | --- | --- |
-| 0:00 | Tap "2022 Camry SE". Or Enter VIN and type `4T1G11AK1NU900001`. | "This is Alex's Camry. A VIN gives the model, not the paint or the driver, so we label the 3D model representative." | The car assembles, then "2022 Toyota Camry, SE, Representative 3D model". Press Skip if it drags. |
+| 0:00 | The first screen is one VIN field. Type or paste `4T1G11AK1NU900001` (or tap **Use sample VIN**) and press Enter. | "This is Alex's Camry. A VIN gives the model, not the paint or the driver, so we label the 3D model representative." | The car assembles, then "2022 Toyota Camry, SE, Representative 3D model". Press Skip if it drags. |
 | 0:15 | Drag to rotate. Tap **Future**. Drag along the road. | "Here is the next five years if nothing changes." | A straight road. One net cost number with a "demo data" label. |
 | 0:30 | Back on **Car**, tap the suggestion under the box, press send. | "I just tell it what is changing." | A card: Move to Denver (1 yr), 20,000 miles a year (Now), Second child (2 yr 8 mo). The inferred ones say so. Nothing has changed yet. |
 | 0:40 | Tap **Branch timeline**. | "Nothing counts until I confirm it." | The Future page. The road bends away from the straight line: about +$5,912 over five years, with signposts for each decision. |

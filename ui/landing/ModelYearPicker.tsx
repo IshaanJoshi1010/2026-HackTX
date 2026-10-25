@@ -46,8 +46,8 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
   return (
     <form onSubmit={handleSubmit} className={cn("flex flex-col gap-4 text-left", className)}>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={selectId} className="text-xs font-medium tracking-wide uppercase text-ink/60">
-          Select Vehicle Model
+        <label htmlFor={selectId} className="text-sm font-medium text-ink/70">
+          Choose your car
         </label>
         <select
           id={selectId}

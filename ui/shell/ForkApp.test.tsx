@@ -12,10 +12,14 @@ async function advance(ms: number) {
   });
 }
 
+// The demo Camry's made-up VIN, typed into the first screen the way a person would.
+const ALEX_CAMRY_VIN = "4T1G11AK1NU900001";
+
 async function openCamry() {
   render(<ForkApp />);
   await advance(0);
-  fireEvent.click(screen.getByRole("button", { name: /2022 Camry SE/ }));
+  fireEvent.change(screen.getByPlaceholderText("Enter your VIN"), { target: { value: ALEX_CAMRY_VIN } });
+  fireEvent.click(screen.getByRole("button", { name: "Decode VIN" }));
   await advance(0);
 }
 
@@ -60,7 +64,7 @@ describe("flow", () => {
     // Data, sim, decision and the AI are real now. Only the 3D stage is still a placeholder.
     expect(screen.getByTestId("mock-banner")).toHaveTextContent("car is a placeholder");
     expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim|decision|ai)\b/);
-    expect(screen.getByRole("button", { name: /2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Enter your VIN")).toBeInTheDocument(); // the first screen is your VIN
     // nothing to open before there is a car
     expect(screen.queryByRole("button", { name: "Your details" })).toBeNull();
   });
@@ -94,7 +98,7 @@ describe("flow", () => {
     openDetails();
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     expect(state().phase).toBe("landing");
-    expect(screen.getByRole("button", { name: /2022 Camry SE/ })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Enter your VIN")).toHaveValue(""); // back to the one field, empty
   });
 
   it("switching the sample car restarts the stage on the new car", async () => {
