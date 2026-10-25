@@ -2,7 +2,6 @@
 
 import { Html, Line } from "@react-three/drei";
 import { useState } from "react";
-import { StructureAssembly } from "./StructureAssembly";
 import { useMaintenanceFindings, type CarComponent } from "./maintenance";
 import type { VehicleConfig } from "@/contracts";
 
@@ -21,9 +20,25 @@ export function StructureView({ vehicle }: { vehicle: VehicleConfig }) {
   const part = parts[selected];
   const active = findings.filter(finding => finding.component === selected);
   const color = (id: CarComponent) => findings.some(finding => finding.component === id) ? "#ffb454" : selected === id ? "#9ce3f0" : "#657b89";
+  const choose = (id: CarComponent) => (event: { stopPropagation(): void }) => { event.stopPropagation(); setPicked(id); };
   const label: [number, number, number] = [part.position[0] * 0.45, 1.9, part.position[2]];
   return <group userData={{ contactIgnore: true }}>
-    <StructureAssembly hybrid={vehicle.powertrain === "hybrid"} accent={id => findings.some(f => f.component === id) ? "#b98543" : selected === id ? "#8cabb5" : "#555e66"} onSelect={setPicked} />
+    {/* Sparse body rails provide context without dense exterior topology. */}
+    {[-0.72, 0.72].map(z => <Line key={z} points={[[-2.1, 0.5, z], [-1.65, 0.95, z], [-0.85, 1.5, z], [0.45, 1.5, z], [1.15, 0.95, z], [2.1, 0.65, z]]} color="#536d7b" transparent opacity={0.55} lineWidth={1} />)}
+    {/* Low-detail frame and axles preserve a readable vehicle silhouette. */}
+    <mesh position={[0, 0.24, 0]}><boxGeometry args={[4.1, 0.13, 1.35]} /><meshStandardMaterial color="#263641" metalness={0.35} roughness={0.6} /></mesh>
+    {[-1.3, 1.35].map(x => <mesh key={x} position={[x, 0.4, 0]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.055, 0.055, 1.85, 12]} /><meshStandardMaterial color="#71818c" /></mesh>)}
+    <mesh position={parts.engine.position} onClick={choose("engine")}>
+      <boxGeometry args={[0.85, 0.55, 0.85]} /><meshStandardMaterial color={color("engine")} metalness={0.45} roughness={0.35} />
+    </mesh>
+    {[0, 1, 2, 3].map(i => <mesh key={i} position={[1.08 + i * 0.18, 1, 0]}><boxGeometry args={[0.06, 0.08, 0.76]} /><meshStandardMaterial color="#a9b8c3" /></mesh>)}
+    <mesh position={parts.battery.position} onClick={choose("battery")}>
+      <boxGeometry args={vehicle.powertrain === "hybrid" ? [1.1, 0.23, 1] : [0.48, 0.32, 0.5]} /><meshStandardMaterial color={color("battery")} metalness={0.3} roughness={0.45} />
+    </mesh>
+    {[-1.3, 1.35].flatMap(x => [-0.9, 0.9].map(z => <group key={`${x}:${z}`} position={[x, 0.42, z]}>
+      <mesh onClick={choose("tires")}><torusGeometry args={[0.31, 0.11, 10, 24]} /><meshStandardMaterial color={selected === "tires" || findings.some(f => f.component === "tires") ? color("tires") : "#25303a"} roughness={0.85} /></mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} onClick={choose("brakes")}><cylinderGeometry args={[0.23, 0.23, 0.07, 24]} /><meshStandardMaterial color={color("brakes")} metalness={0.6} roughness={0.35} /></mesh>
+    </group>))}
     <Line points={[part.position, [part.position[0], 1.5, part.position[2]], label]} color={color(selected)} lineWidth={1.5} />
     <mesh position={part.position}><sphereGeometry args={[0.065, 12, 8]} /><meshBasicMaterial color={color(selected)} /></mesh>
     <Html position={label} center zIndexRange={[30, 0]}>

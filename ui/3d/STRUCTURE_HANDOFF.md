@@ -2,8 +2,6 @@
 
 The existing `viewMode="wireframe"` now displays a lightweight illustrative component layout. It hides dense exterior topology and shows powertrain, battery, brakes and tires with a sparse body outline. These are schematic shapes, not verified internal CAD. Only one component callout is open at a time. Click a part or its button to inspect it.
 
-The mechanical assembly now includes sills, crossmembers, pillars, roof rails, cast housings, intake runners, radiator, battery casing, struts, machined rotors, calipers and alloy spokes. Rubber and metal use separate material roughness. The hybrid layout has a taller frame and wider battery enclosure. These details remain illustrative. `StructureAssembly({ hybrid, accent, onSelect })` is an internal component, not a change to the CarStage API. Transforms use numeric tuples to remain compatible with the preview's separate Three bundles. Owned rounded housing geometries are explicitly disposed on unmount.
-
 ## Maintenance input
 
 `MaintenanceProvider({ findings, children })` is exported from `@/ui/3d/CarStage`. Wrap CarStage with it to supply findings. CarStage props remain unchanged.
