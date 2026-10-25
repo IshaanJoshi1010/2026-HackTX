@@ -77,6 +77,17 @@ describe("moveEvent, editEvent, deleteEvent", () => {
     expect(s.events).toHaveLength(2);
   });
 
+  it("an edited payload merges into the old one instead of replacing it", () => {
+    const replace = makeReplaceScenario(baseline, rav4);
+    const swap = replace.events.find(e => e.type === "vehicle_replacement")!;
+    const edited = editEvent(replace, swap.id, { payload: { price: 30000 } });
+    const after = edited.events.find(e => e.id === swap.id)!;
+    expect(after.payload).toEqual({ ...swap.payload, price: 30000 }); // vehicleId survives
+    expect(after.payload.vehicleId).toBe(rav4.id);
+    expect(simulate(twin, edited, ctx).points.at(-1)!.vehicleId).toBe(rav4.id); // still a replace, not a copy of keep
+    expect(replace.events.find(e => e.id === swap.id)!.payload).toEqual(swap.payload); // original untouched
+  });
+
   it("unknown ids return an unchanged copy", () => {
     const same = moveEvent(s, "nope", 5);
     expect(same).toEqual(s);
