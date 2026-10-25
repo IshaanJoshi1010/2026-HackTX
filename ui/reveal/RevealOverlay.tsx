@@ -1,16 +1,8 @@
 "use client";
 
 import { SkipForward } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { selectActiveVehicle } from "@/ui/store/selectors";
-import { useForkStore, type Riders } from "@/ui/store/useForkStore";
-
-const RIDER_CHOICES: Array<{ id: Riders; label: string; detail: string }> = [
-  { id: "solo", label: "Just me", detail: "1 person" },
-  { id: "partner", label: "Partner", detail: "2 people" },
-  { id: "kids", label: "Kids", detail: "Family with a child" },
-  { id: "mixed", label: "Mixed", detail: "4 or more people" },
-];
+import { useForkStore } from "@/ui/store/useForkStore";
 
 const STAGE_LABELS: Record<string, string> = {
   converge: "Assembling",
@@ -20,29 +12,19 @@ const STAGE_LABELS: Record<string, string> = {
   done: "Ready",
 };
 
-/** Which rider chip matches the profile right now, if any. */
-function activeRider(householdSize: number, children: number): Riders | null {
-  if (householdSize === 1 && children === 0) return "solo";
-  if (householdSize === 2 && children === 0) return "partner";
-  if (householdSize === 3 && children === 1) return "kids";
-  if (householdSize === 4 && children === 2) return "mixed";
-  return null;
-}
-
 /**
- * While the car assembles: a quiet progress line, one question, and Skip. No boxes. The name is shown by Identity above
- * the car, and the specs by SpecReadout, which stays up after this goes away.
+ * While the car assembles: a quiet progress line and Skip. No boxes. The name is shown by Identity above the car, the
+ * specs by SpecReadout and the rider question by RiderDock, all of which stay after this goes away. The gap between the
+ * line and Skip is where the dock's row sits.
  */
 export function RevealOverlay() {
   const vehicle = useForkStore(selectActiveVehicle);
   const stage = useForkStore((s) => s.stage);
-  const profile = useForkStore((s) => s.explore.confirmedProfile);
-  const { answerRiders, skip } = useForkStore((s) => s.actions);
+  const skip = useForkStore((s) => s.actions.skip);
 
   if (!vehicle) return null;
 
   const revealStage = stage.revealStage ?? "converge";
-  const selected = activeRider(profile.householdSize, profile.children);
 
   return (
     <div
@@ -53,27 +35,8 @@ export function RevealOverlay() {
         {STAGE_LABELS[revealStage] ?? "Assembling"}
       </p>
 
-      <div data-testid="reveal-riders" className="fork-fade pointer-events-auto flex flex-col items-center gap-3">
-        <span className="text-sm text-ink/60">Who rides with you most?</span>
-        <div className="flex flex-wrap justify-center gap-2">
-          {RIDER_CHOICES.map(({ id, label, detail }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => answerRiders(id)}
-              title={detail}
-              aria-pressed={selected === id}
-              className={cn(
-                "h-9 rounded px-4 text-sm font-medium transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                selected === id ? "bg-ink text-canvas" : "bg-ink/10 text-ink hover:bg-ink/20",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Room for the rider chips, which are drawn by RiderDock so they can fly to the side panel afterwards. */}
+      <div aria-hidden="true" className="h-[68px]" />
 
       <button
         type="button"

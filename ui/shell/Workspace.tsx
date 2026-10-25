@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { CommandBox } from "@/ui/command/CommandBox";
 import { car } from "@/ui/mocks";
 import { RevealOverlay } from "@/ui/reveal/RevealOverlay";
+import { RiderDock } from "@/ui/reveal/RiderDock";
 import { SpecReadout } from "@/ui/reveal/SpecReadout";
 import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
@@ -80,6 +81,9 @@ export function Workspace() {
 
       {/* The specs outlive the reveal, so they live here, not in the overlay. They sit above whatever is at the bottom. */}
       <SpecReadout bottom={revealing ? REVEAL_SPECS_BOTTOM : barHeight + 16} />
+
+      {/* One set of chips for the whole visit: a row while the car forms, then a panel at the side. */}
+      <RiderDock />
 
       {revealing ? (
         <>

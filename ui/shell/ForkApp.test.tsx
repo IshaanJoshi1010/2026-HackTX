@@ -788,3 +788,50 @@ describe("the expanded timeline", () => {
     expect(screen.getByRole("button", { name: "Submit changes" })).toBeInTheDocument();
   });
 });
+
+describe("the rider chips", () => {
+  const dock = () => screen.getByTestId("rider-dock");
+
+  it("sit in a row while the car forms, then move to a side panel when it can be turned", async () => {
+    await openCamry(); // the reveal has begun
+    expect(state().phase).toBe("reveal");
+    expect(dock()).toHaveAttribute("data-mode", "row");
+    expect(within(dock()).getAllByRole("button").map((b) => b.textContent)).toEqual(["Just me", "Partner", "Kids", "Mixed"]);
+    expect(screen.getByTestId("reveal-overlay")).not.toContainElement(dock()); // they are not part of what goes away with the reveal
+
+    await advance(4100);
+    expect(state().phase).toBe("workspace");
+    expect(dock()).toHaveAttribute("data-mode", "panel");
+    expect(dock()).toHaveAttribute("data-visible", "true");
+    expect(screen.queryByTestId("reveal-overlay")).toBeNull();
+  });
+
+  it("are the same chips afterwards, and still answer the question", async () => {
+    await openCamry();
+    const before = within(dock()).getAllByRole("button");
+    await advance(4100);
+    expect(within(dock()).getAllByRole("button")).toEqual(before);
+    fireEvent.click(within(dock()).getByRole("button", { name: "Kids" }));
+    expect([state().explore.confirmedProfile.householdSize, state().explore.confirmedProfile.children]).toEqual([3, 1]);
+    expect(within(dock()).getByRole("button", { name: "Kids" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("are on the car page only, and a replayed reveal brings them back to the row", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(dock()).toHaveAttribute("data-visible", "false");
+    goCar();
+    expect(dock()).toHaveAttribute("data-visible", "true");
+    openDetails();
+    fireEvent.click(screen.getByRole("button", { name: "Replay reveal" }));
+    expect(state().phase).toBe("reveal");
+    expect(dock()).toHaveAttribute("data-mode", "row");
+  });
+
+  it("never block turning the car, and read no build words", async () => {
+    await enterWorkspace();
+    expect(dock().className).toContain("pointer-events-none");
+    expect(dock().textContent).not.toMatch(/demo|data/i);
+  });
+});
+
