@@ -608,10 +608,24 @@ describe("the specs after the car forms", () => {
     expect(screen.getByTestId("reveal-specs")).toBeInTheDocument();
   });
 
-  it("lift above the command bar instead of sitting under it", async () => {
+  it("lift above the command bar instead of sitting under it (small screens)", async () => {
     await enterWorkspace();
-    const bottom = parseInt(screen.getByTestId("reveal-specs").style.bottom, 10);
+    const bottom = parseInt(screen.getByTestId("reveal-specs").style.getPropertyValue("--spec-bottom"), 10);
     expect(bottom).toBeGreaterThanOrEqual(150); // above the bar, never behind it
+  });
+
+  it("are a column at the left edge on wide screens, and only fade (opacity), never a moving position", async () => {
+    await enterWorkspace();
+    const specs = screen.getByTestId("reveal-specs");
+    for (const c of ["md:left-6", "md:top-1/2", "md:-translate-y-1/2"]) expect(specs.className).toContain(c);
+    expect(specs.style.transitionProperty).toBe("opacity");
+  });
+
+  it("the progress line is gone by the time they show", async () => {
+    await openCamry();
+    act(() => state().actions.onRevealStage("solid"));
+    expect(screen.getByTestId("reveal-specs")).toBeInTheDocument();
+    expect(screen.queryByTestId("reveal-stage-pill")).toBeNull();
   });
 
   it("never block turning the car", async () => {
