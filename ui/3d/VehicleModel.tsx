@@ -43,10 +43,7 @@ export function VehicleModel({ props, onReady, onBusy }: { props: CarStageProps;
   }, [props.skipSignal]);
   const wasBusy = useRef(false);
   useFrame((state, delta) => {
-    // Structure has its own interactive schematic. Animations must retain their
-    // solid destination even if a parent keeps Structure selected throughout.
-    const mode = props.viewMode === "wireframe" && props.phase !== "interactive" ? "solid" : props.viewMode;
-    controller.current?.update(delta, mode, state.gl.getPixelRatio());
+    controller.current?.update(delta, props.viewMode, state.gl.getPixelRatio());
     const busy = controller.current?.isMorphing ?? false;
     if (busy !== wasBusy.current) { wasBusy.current = busy; onBusy(busy); }
   }, -1);

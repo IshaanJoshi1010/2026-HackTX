@@ -22,6 +22,4 @@ The existing `viewMode="wireframe"` now displays a lightweight illustrative comp
 
 The layout uses declarative R3F geometry and materials, disposed on unmount. Asset credits remain unchanged. Replay and morph controls in the preview return to Studio mode.
 
-For integrations that retain `viewMode="wireframe"` during a reveal or transition, VehicleModel renders the solid animation destination. The schematic returns when the parent sets `phase="interactive"`. Switching between Studio and Structure reuses the loaded exterior without loading another asset.
-
 Validation: `npx vitest run ui/3d`, `npx eslint ui/3d scripts/3d/stub-preview.tsx`, `npx tsc --noEmit`.
