@@ -335,12 +335,12 @@ function Destination({ branch, rect, glide, onPick }: { branch: JourneyBranch; r
       <span className="line-clamp-2 text-sm leading-[18px] font-medium">{branch.title}</span>
       {branch.priced && branch.fiveYearCost !== null ? (
         <>
-          <span className={cn("font-bold tracking-tight tabular-nums", small ? "text-[22px] leading-[28px]" : "text-[26px] leading-[30px]")}>{usd(branch.fiveYearCost)}</span>
+          <span className={cn("font-light tracking-tight tabular-nums", small ? "text-[22px] leading-[28px]" : "text-[26px] leading-[30px]")}>{usd(branch.fiveYearCost)}</span>
           <span className="truncate text-xs leading-4 text-ink/60">over five years</span>
         </>
       ) : (
         <>
-          <span className={cn("font-bold tracking-tight", small ? "text-[22px] leading-[28px]" : "text-[26px] leading-[30px]")}>Compare</span>
+          <span className={cn("font-light tracking-tight", small ? "text-[22px] leading-[28px]" : "text-[26px] leading-[30px]")}>Compare</span>
           <span className="truncate text-xs leading-4 text-ink/60">five-year cost</span>
         </>
       )}

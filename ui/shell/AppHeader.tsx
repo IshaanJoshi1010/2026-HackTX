@@ -12,7 +12,7 @@ export function AppHeader() {
 
   return (
     <header className="absolute inset-x-0 top-0 z-20 flex h-14 items-center justify-between px-6">
-      <span className="text-[13px] font-bold tracking-[0.4em] text-ink">FORK</span>
+      <span className="text-[13px] font-semibold tracking-[0.4em] text-ink">FORK</span>
       {inWorkspace && !open && (
         <IconButton label="Edit assumptions" aria-haspopup="dialog" aria-expanded={open} active={open} onClick={() => setDetailsOpen(!open)}>
           <SlidersHorizontal />
