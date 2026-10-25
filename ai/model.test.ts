@@ -23,8 +23,12 @@ describe("the Gemini model default (audit A1)", () => {
     vi.stubEnv("GEMINI_API_KEY", "test-only-not-a-credential");
     for (const value of [undefined, "", "   "]) {
       sdk.generateContent.mockClear();
-      if (value === undefined) vi.unstubAllEnvs(), vi.stubEnv("GEMINI_API_KEY", "test-only-not-a-credential");
-      else vi.stubEnv("GEMINI_MODEL", value);
+      if (value === undefined) {
+        vi.unstubAllEnvs();
+        vi.stubEnv("GEMINI_API_KEY", "test-only-not-a-credential");
+      } else {
+        vi.stubEnv("GEMINI_MODEL", value);
+      }
       expect(await modelUsed()).toBe(DEFAULT_GEMINI_MODEL);
     }
   });
