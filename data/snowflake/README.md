@@ -6,7 +6,7 @@ Gemini generates explanation prose. Snowflake stores the public vehicle knowledg
 
 ## Current connection state
 
-No Snowflake settings were present when this integration was built. The adapter and seed are implemented, but no live Snowflake storage or retrieval has been verified. Until configured, `x-fork-data-source: local-fixture` and `x-fork-data-status: unconfigured` report the local path honestly. An outage or invalid result uses `local-fixture` / `unavailable`. Only validated database retrieval reports `snowflake` / `ready`. These headers identify retrieval, independently from `x-fork-ai-status` and `aiAvailable`.
+The local connection is now configured and live-verified: the read-only app role retrieved both seeded vehicle documents from Snowflake, and the actual explanation pipeline received `source: snowflake` / `status: ready`. The accompanying Gemini call timed out and used the deterministic fallback. Hosting settings and deployed behavior remain unverified. When not configured, `x-fork-data-source: local-fixture` and `x-fork-data-status: unconfigured` report the local path honestly. An outage or invalid result uses `local-fixture` / `unavailable`. Only validated database retrieval reports `snowflake` / `ready`. These headers identify retrieval, independently from `x-fork-ai-status` and `aiAvailable`.
 
 ## Connect an existing Snowflake account
 
@@ -55,3 +55,5 @@ Test command: `npm test -- ai data/snowflake --maxWorkers=2`. Also run `npx tsc 
 Primary implementation references: [SQL API requests and bindings](https://docs.snowflake.com/en/developer-guide/sql-api/submitting-requests), [asynchronous responses](https://docs.snowflake.com/en/developer-guide/sql-api/handling-responses), [PAT authentication](https://docs.snowflake.com/en/user-guide/programmatic-access-tokens). Secrets and provider error bodies are never returned to the browser.
 
 Verification on 2026-10-25: 310 tests across AI and Snowflake adapter passed; TypeScript, lint and production build passed. A local HTTP explanation returned 200 with honest local-fixture/unconfigured provenance and a Gemini timeout fallback. The Snowflake retrieval and successful Gemini generation were tested together with an injected generator/SQL response; live Snowflake remains unverified without account settings.
+
+Local setup follow-up: the owner created a dedicated SERVICE user FORK_APP with FORK_READ, and a user-scoped PAT-only authentication policy permitting tokens without an IP allowlist while enforcing any assigned network policy. Tokens must be role-restricted and expire within seven days. Rotate the app token before expiry. The new secret is stored only in ignored .env.local; hosting must be configured privately. The original personal-user token failed the default network-policy requirement and is no longer used by this local connection.
