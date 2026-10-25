@@ -55,15 +55,14 @@ describe(`demo story A: ${who}`, () => {
   it("step 5: keeping wins below about 14,400 mi/yr, and the flip reproduces", () => {
     expect(be).toMatchObject({ found: true, parameter: "annualMiles", direction: "below", currentValue: 20000 });
     if (!be.found) return;
-    expect(be.threshold).toBeGreaterThan(13500);
-    expect(be.threshold).toBeLessThan(15500);
+    expect(Math.round(be.threshold)).toBe(14434); // the number on stage (Dev 3 verified 14433.59375 with real data)
     const rep = reproduceBreakEven({ twin, keep, replace, parameter: "annualMiles", ctx, priorities }, be)!;
     expect(rep.below.preferredScenarioId).toBe(keep.id);
     expect(rep.above.preferredScenarioId).not.toBe(keep.id);
   });
 
   it("step 6: a concrete next step tied to the threshold, holding across the tested cases", () => {
-    expect(action.label).toMatch(/^Reevaluate if your driving drops below 1[3-5],\d{3} mi\/yr$/);
+    expect(action.label).toBe("Reevaluate if your driving drops below 14,434 mi/yr");
     expect(action.factors).toEqual(["break_even", "annualMiles"]);
     expect(evaluation.rationale).toContain("Held in 9 of 9 tested cases");
   });
