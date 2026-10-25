@@ -18,6 +18,13 @@ class CanvasErrorBoundary extends Component<{ children: ReactNode; onError: (mes
 export function CarStage(props: CarStageProps): JSX.Element {
   const host = useRef<HTMLElement>(null);
   const [highDpr, setHighDpr] = useState(1);
+  const [pageVisible, setPageVisible] = useState(true);
+  useEffect(() => {
+    const changed = () => setPageVisible(document.visibilityState !== "hidden");
+    changed();
+    document.addEventListener("visibilitychange", changed);
+    return () => document.removeEventListener("visibilitychange", changed);
+  }, []);
   const [spin, setSpin] = useState(false);
   const [morphBusy, setMorphBusy] = useState(false);
   const [cameraView, setCameraView] = useState<"threeQuarter" | "front" | "side">("threeQuarter");
@@ -67,7 +74,7 @@ export function CarStage(props: CarStageProps): JSX.Element {
   const fallback = <p>3D preview is unavailable. You can continue using the app.</p>;
   return <section ref={host} aria-label="Vehicle 3D preview" style={{ position: "relative", width: "100%", height: "100%", minHeight: 320, background: "#101114", color: "#eee" }}>
     <CanvasErrorBoundary onError={(error) => report({ vehicleId: target.id, ready: false, error })}>
-      <Canvas camera={{ position: [4.8, 1.6, 5.6], fov: 35, near: 0.1, far: 50 }} dpr={props.quality === "low" ? 1 : highDpr} shadows="percentage" gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }} fallback={fallback}>
+      <Canvas frameloop={pageVisible ? "always" : "never"} camera={{ position: [4.8, 1.6, 5.6], fov: 35, near: 0.1, far: 50 }} dpr={props.quality === "low" ? Math.min(1, highDpr) : highDpr} shadows="percentage" gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }} fallback={fallback}>
         <Scene props={{ ...props, phase: missingTarget ? "interactive" : props.phase, onModelStatus: report }} onReady={ready} spin={spin} cameraView={cameraView} viewSignal={viewSignal} onBusyChange={setMorphBusy} />
       </Canvas>
     </CanvasErrorBoundary>

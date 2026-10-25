@@ -66,3 +66,16 @@ npm run build
 ```
 
 Open `/scripts/3d/stub-preview.html` on port 4174. Choose Stage size and quality, then Audit 20 switches. The other audit buttons run ten reveals, ten morphs or ten mount/unmount cycles. Raw evidence is in `scripts/3d/a6-*.json`; previous A4/A5 measurements remain available separately.
+# Follow-up performance fixes
+
+Final local run: 20 alternating switches, mean of one-second FPS samples 103.58, worst observed frame 95.2 ms at 1240 x 860. GPU counts returned to Camry 46 geometries/8 textures and RAV4 39/9. Raw data: `scripts/3d/performance-switches-final.json`. Switching hitches remain; this is not a claim of a constant frame rate.
+
+The latest lag investigation removed repeated directional shadow rendering and contact-shadow captures for opacity-only changes. A numeric caster tracker invalidates on geometry, transforms, visibility and relevant material changes, without constructing strings every frame. Vehicle animation updates run before shadow capture.
+
+Same-vehicle reveal replay and phase adoption retain the solid model instead of cloning and preparing it again. Morton pairing uses stable typed-array radix sorting; a local CPU-only benchmark on the Camry points measured median preparation at 1.07 ms versus 8.29 ms for the old object/comparator sort, with identical output. These are preparation measurements, not FPS claims.
+
+Static decoded geometry arrays are treated as immutable and shared by separately owned GPU wrappers. This avoids large typed-array copies during switches. Exotic/interleaved/dynamic geometry retains deep-copy fallback. Geometry and material disposal ownership remains separate from loader-cache data.
+
+Hidden browser documents pause the frame loop and resume the retained canvas. Fullscreen stages now respect the full-HD pixel budget even when this requires fractional DPR. Low quality also respects that ceiling. This does not pause a canvas merely hidden by an app parent's CSS opacity.
+
+Live steady Camry draw calls decreased from 89 to 46, and RAV4 from 74 to 38, at the same 1240 x 860 buffer size. A duplicate preview browser tab was also closed. Browser frame-time runs are environment-sensitive and are not a guarantee of hitch-free rendering on all hardware. The frozen CarStage API, particle timings, skip, reduced-motion and crossfade fallback remain unchanged.

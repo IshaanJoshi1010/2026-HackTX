@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { CarStageProps } from "../types";
 
 const bridge = vi.hoisted(() => ({ busy: undefined as ((busy: boolean) => void) | undefined, props: undefined as CarStageProps | undefined, ready: undefined as (() => void) | undefined }));
-vi.mock("@react-three/fiber", () => ({ Canvas: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
+vi.mock("@react-three/fiber", () => ({ Canvas: ({ children, frameloop }: { children: ReactNode; frameloop: string }) => <div data-testid="canvas" data-frameloop={frameloop}>{children}</div> }));
 vi.mock("../Scene", () => ({ Scene: ({ props, onReady, onBusyChange }: { props: CarStageProps; onReady: () => void; onBusyChange: (busy: boolean) => void }) => { bridge.busy = onBusyChange; bridge.props = props; bridge.ready = onReady; return null; } }));
 vi.mock("../CarStageStub", () => ({ CarStageStub: () => null }));
 import { CarStage } from "../CarStage";
@@ -33,6 +33,22 @@ it("presentation controls honor reduced motion and retain skip/reveal callbacks"
   expect(screen.getByRole("button", { name: "Front" })).toBeDisabled();
   act(() => bridge.busy!(false));
   expect(screen.getByRole("button", { name: "Front" })).toBeEnabled();
+});
+
+it("pauses a hidden browser tab and resumes its retained canvas", () => {
+  const visibility = vi.spyOn(document, "visibilityState", "get");
+  visibility.mockReturnValue("visible");
+  render(<CarStage {...props()} />);
+  const canvas = screen.getByTestId("canvas");
+  expect(canvas).toHaveAttribute("data-frameloop", "always");
+  visibility.mockReturnValue("hidden");
+  fireEvent(document, new Event("visibilitychange"));
+  expect(canvas).toHaveAttribute("data-frameloop", "never");
+  visibility.mockReturnValue("visible");
+  fireEvent(document, new Event("visibilitychange"));
+  expect(screen.getByTestId("canvas")).toBe(canvas);
+  expect(canvas).toHaveAttribute("data-frameloop", "always");
+  visibility.mockRestore();
 });
 
 it("passes reveal lifecycle to the loaded scene, without a competing DOM timer", () => {

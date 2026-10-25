@@ -1,0 +1,57 @@
+import { expect, it } from "vitest";
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, Scene } from "three";
+import { createShadowTracker } from "../ContactShadows";
+
+it("reuses shadows for camera motion and opacity fades, but invalidates caster visibility and transforms", () => {
+  const scene = new Scene(), car = new Group();
+  const mesh = new Mesh(new BoxGeometry(), new MeshStandardMaterial());
+  const camera = new PerspectiveCamera();
+  car.add(mesh); scene.add(car, camera); scene.updateMatrixWorld();
+  const tracker = createShadowTracker();
+  expect(tracker.changed(scene)).toBe(true);
+  mesh.material.opacity = 0.4;
+  camera.position.set(5, 2, 3); scene.updateMatrixWorld();
+  expect(tracker.changed(scene)).toBe(false);
+  mesh.material.wireframe = true;
+  expect(tracker.changed(scene)).toBe(true);
+  mesh.material.wireframe = false;
+  mesh.material.visible = false;
+  expect(tracker.changed(scene)).toBe(true);
+  mesh.material.visible = true;
+  expect(tracker.changed(scene)).toBe(true);
+  expect(tracker.changed(scene)).toBe(false);
+  car.visible = false;
+  expect(tracker.changed(scene)).toBe(true);
+  expect(tracker.size).toBe(0);
+  car.visible = true;
+  expect(tracker.changed(scene)).toBe(true);
+  expect(tracker.size).toBe(1);
+  car.position.x = 1; scene.updateMatrixWorld();
+  expect(tracker.changed(scene)).toBe(true);
+  tracker.clear(); expect(tracker.size).toBe(0);
+  mesh.geometry.dispose(); mesh.material.dispose();
+});
+
+it("excludes the studio floor and detects replacement geometry", () => {
+  const scene = new Scene();
+  const geometry = new BoxGeometry(), replacement = new BoxGeometry();
+  const material = new MeshStandardMaterial();
+  const mesh = new Mesh(geometry, material), floor = new Mesh(geometry, material);
+  floor.userData.contactIgnore = true;
+  scene.add(mesh); scene.updateMatrixWorld();
+  const tracker = createShadowTracker();
+  expect(tracker.changed(scene)).toBe(true);
+  scene.add(floor); scene.updateMatrixWorld();
+  expect(tracker.changed(scene)).toBe(false);
+  mesh.geometry = replacement;
+  expect(tracker.changed(scene)).toBe(true);
+  const replacementMaterial = material.clone();
+  mesh.material = replacementMaterial;
+  expect(tracker.changed(scene)).toBe(true);
+  expect(tracker.changed(scene)).toBe(false);
+  scene.remove(mesh);
+  expect(tracker.changed(scene)).toBe(true);
+  expect(tracker.size).toBe(0);
+  tracker.clear(); replacementMaterial.dispose();
+  geometry.dispose(); replacement.dispose(); material.dispose();
+});

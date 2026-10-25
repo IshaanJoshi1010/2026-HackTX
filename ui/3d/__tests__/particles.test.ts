@@ -9,6 +9,23 @@ const car = { id: "camry-2022-se", modelAsset: "/fixture.glb", paint: "#111111" 
 const source = () => { const root = new Group(); root.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial({ name: "Body" }))); return root; };
 const data = new Float32Array(32768 * 3);
 describe("particle reveal", () => {
+  it("reuses the owned solid model across replays and phase adoption without recompiling it", async () => {
+    const load = vi.fn(async () => source()), prepare = vi.fn(async () => {});
+    const controller = new VehicleController(load, async () => data, prepare);
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high" });
+    const root = controller.group.children[0];
+    const dispose = vi.spyOn((root.children[0] as Mesh).geometry, "dispose");
+    const stage = vi.fn();
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high", reveal: true, onStage: stage });
+    controller.update(4, "solid");
+    expect(stage.mock.calls.flat()).toEqual(revealStages);
+    await controller.select(car, 0, vi.fn(), vi.fn(), vi.fn(), { quality: "high" });
+    expect(controller.group.children[0]).toBe(root);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(2);
+    controller.dispose(); expect(dispose).toHaveBeenCalledOnce();
+  });
   it("keeps seeded orbital starts repeatable and leaves cached surface samples untouched", () => {
     const target = new Float32Array([-2.3, 0, -1, 0, 1, 0, 2.3, 1.4, 1]);
     const original = target.slice();
