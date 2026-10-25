@@ -34,7 +34,10 @@ export function createExplainer(generate: Generator = generateWithGemini) {
       throw new InvalidExplanationInput("Evaluation and results must describe the same scenarios");
     }
     // Supply computed summaries, not raw driver/account/profile data or the full monthly timeline.
-    const input = { evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,
+    const input = { verdictMeaning: e.preferredScenarioId === "inconclusive"
+      ? "No option clearly leads. A Held in X of Y tested cases line refers to this inconclusive verdict, never a Camry or RAV4 win."
+      : "The preferred scenario ID is the computed verdict; sensitivity describes how often that verdict held, not a confidence percentage.",
+      evaluation: e, results: r.map(result => ({ scenarioId: result.scenarioId, summary: result.summary,
       milestones: result.milestones, warnings: result.warnings, finalPoint: result.points.at(-1),
       // Keep earlier fit issues even when a later replacement resolves them.
       fitChecks: [...new Set(result.points.flatMap(point => [
@@ -59,7 +62,11 @@ export function createExplainer(generate: Generator = generateWithGemini) {
     try {
       const text = (await generate({ system: explanationInstructions, input })).trim();
       // Engine scores are fractions, not confidence percentages. Numeric membership alone cannot check units.
-      if (!text || text.length > 6000 || !numberCheck(text, input).ok || /https?:\/\//i.test(text)
+      // Numeric membership alone misses a winner incorrectly attached to an inconclusive sensitivity count.
+      const falseStabilityWinner = e.preferredScenarioId === "inconclusive" && text.split(/[.!?\n]/).some(sentence =>
+        /\b(?:camry|rav4)\b/i.test(sentence) && /\b(?:remain\w*|hold\w*|held|win\w*|winner|preferred|favou?red|lead\w*)\b/i.test(sentence)
+        && /\b(?:tested\s+cases?|cases|sensitivity|robustness)\b/i.test(sentence));
+      if (falseStabilityWinner || !text || text.length > 6000 || !numberCheck(text, input).ok || /https?:\/\//i.test(text)
         || /%|\bpercent(?:age)?s?\b/i.test(text)) return fallback();
       return { text, usedFallback: false };
     } catch { return fallback(); }

@@ -6,6 +6,12 @@ export function hasTimingLanguage(text: string): boolean {
   const withoutModelYear = text.replace(/\$\s*20\d{2}\b/g, "amount").replace(/\b20\d{2}\s*(?:annual\s+)?(?:miles?|mi|dollars?|usd|a year|per year|\/yr|\/month)\b/gi, "quantity").replace(/\b20\d{2}\s+(?:toyota\s+)?(?:camry|rav4)\b/gi, "vehicle");
   return /\b(?:next|this|last)\s+(?:month|year|week|spring|summer|fall|autumn|winter|january|february|march|april|may|june|july|august|september|october|november|december)\b|\bin\s+[^,.;!?]*\b(?:months?|years?|weeks?|days?)\b|\b(?:in\s+)?20\d{2}\b|\b(?:after|before|by|until|soon|later|eventually)\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(withoutModelYear);
 }
+/** Shared clause boundaries keep dates attached to their own change; thousands separators stay intact. */
+export function splitClauses(text: string): string[] {
+  return text.replace(/(\d),(?=\d)/g, "$1\u0001").split(/[;!?\n]|[.](?!\d)|,|\s+and\s+/i)
+    .map(clause => clause.replaceAll("\u0001", ",").trim()).filter(Boolean);
+}
+
 export type EventTiming = { resolved: true; month: number; inferred: boolean; assumptions: string[] }
   | { resolved: false; reason: string };
 

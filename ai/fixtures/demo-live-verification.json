@@ -1,0 +1,316 @@
+{
+  "base": "e4e386a",
+  "model": "gemini-3.1-flash-lite",
+  "checkedAt": "2026-10-25T04:40:30.128Z",
+  "disclosure": "Synthetic live smoke-test evidence, not a guarantee of future model availability. Interpretation was tested once per phrase. Final explanation run used honest deterministic fallbacks. An earlier live close-call explanation incorrectly labeled sensitivity as a Camry win; regression tests now reject that wording.",
+  "interpretation": [
+    {
+      "id": "close-call",
+      "prompt": "I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.",
+      "passed": true,
+      "elapsedMs": 1560,
+      "events": [
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "close-call",
+      "prompt": "I will relocate to Denver in 12 months; my annual mileage is 20k; I am expecting my second child in June 2029.",
+      "passed": true,
+      "elapsedMs": 3103,
+      "events": [
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "close-call",
+      "prompt": "I drive 20000 miles per year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "passed": true,
+      "elapsedMs": 2733,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "close-call",
+      "prompt": "I'm moving to Denver next year and driving 20k miles annually and expecting my second child in 2029.",
+      "passed": true,
+      "elapsedMs": 3965,
+      "events": [
+        {
+          "type": "relocation",
+          "month": 12,
+          "payload": {
+            "location": "Denver"
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 20000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "family_change",
+          "month": 32,
+          "payload": {
+            "children": 2
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "camry-win",
+      "prompt": "I drive 8,000 miles a year.",
+      "passed": true,
+      "elapsedMs": 1114,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "camry-win",
+      "prompt": "My annual mileage is 8k.",
+      "passed": true,
+      "elapsedMs": 10038,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "camry-win",
+      "prompt": "I am driving about 8000 miles per year.",
+      "passed": true,
+      "elapsedMs": 1127,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "camry-win",
+      "prompt": "MY YEARLY MILEAGE IS 8000.",
+      "passed": true,
+      "elapsedMs": 2154,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 8000
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "rav4-win",
+      "prompt": "I drive 30,000 miles a year, and I will have high cargo needs next year.",
+      "passed": true,
+      "elapsedMs": 1709,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "rav4-win",
+      "prompt": "My annual mileage is 30k; my cargo needs will be high in 12 months.",
+      "passed": true,
+      "elapsedMs": 1539,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "rav4-win",
+      "prompt": "I am driving about 30000 miles per year. I need high cargo capacity next year.",
+      "passed": true,
+      "elapsedMs": 1363,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          },
+          "status": "proposed"
+        }
+      ]
+    },
+    {
+      "id": "rav4-win",
+      "prompt": "MY YEARLY MILEAGE IS 30000. MY CARGO NEEDS WILL BE HIGH NEXT YEAR.",
+      "passed": true,
+      "elapsedMs": 1337,
+      "events": [
+        {
+          "type": "mileage_change",
+          "month": 0,
+          "payload": {
+            "annualMiles": 30000
+          },
+          "status": "proposed"
+        },
+        {
+          "type": "cargo_change",
+          "month": 12,
+          "payload": {
+            "cargoNeed": "high"
+          },
+          "status": "proposed"
+        }
+      ]
+    }
+  ],
+  "explanations": [
+    {
+      "id": "close-call",
+      "elapsedMs": 13594,
+      "text": "No option clearly leads on your priorities yet.\n\nNext step: Reevaluate if your driving drops below 14,434 mi/yr\nNeither option leads by a clear margin today. The verdict changes at 14,434 mi/yr (modeled break-even, tested between 5000 and 40000).\n\nWhat drives this comparison:\nInconclusive: Keep Camry 0.50 vs Replace with RAV4 0.50, within the 0.05 margin\nNet economic cost over 60 months: Keep Camry $31,287, Replace with RAV4 $35,862\nFuel spend over 60 months: Keep Camry $9,375, Replace with RAV4 $8,001\nLongevity (miles left of 250,000): Keep Camry 0.41, Replace with RAV4 0.53\nFamily fit: Keep Camry 1.00, Replace with RAV4 1.00\nComfort: Keep Camry 0.50, Replace with RAV4 0.50\nWeights: cost 0.20, family 0.20, longevity 0.20, fuel 0.20, comfort 0.20\nKeep Camry score 0.50 = cost 0.20 + family 0.10 + longevity 0.05 + fuel 0.05 + comfort 0.10\nReplace with RAV4 score 0.50 = cost 0.00 + family 0.10 + longevity 0.15 + fuel 0.15 + comfort 0.10\nHeld in 9 of 9 tested cases\n\nThese demo results are not a financial quote.",
+      "usedFallback": true
+    },
+    {
+      "id": "camry-win",
+      "elapsedMs": 1,
+      "text": "Next step: Keep your Camry and review the service at 60,000 mi\nKeeping has a modeled net cost of $22,304 over 60 months vs $26,782 for the best alternative. Next major service: Illustrative fluids and component service around month 19.\n\nWhat drives this comparison:\nPreferred: Keep Camry scores 0.55 vs 0.45 for Replace with RAV4\nNet economic cost over 60 months: Keep Camry $22,304, Replace with RAV4 $26,782\nFuel spend over 60 months: Keep Camry $3,750, Replace with RAV4 $3,200\nLongevity (miles left of 250,000): Keep Camry 0.65, Replace with RAV4 0.73\nFamily fit: Keep Camry 1.00, Replace with RAV4 1.00\nComfort: Keep Camry 0.50, Replace with RAV4 0.50\nWeights: cost 0.20, family 0.20, longevity 0.20, fuel 0.20, comfort 0.20\nKeep Camry score 0.55 = cost 0.20 + family 0.10 + longevity 0.07 + fuel 0.08 + comfort 0.10\nReplace with RAV4 score 0.45 = cost 0.00 + family 0.10 + longevity 0.13 + fuel 0.12 + comfort 0.10\nHeld in 9 of 9 tested cases\n\nThese demo results are not a financial quote.",
+      "usedFallback": true
+    },
+    {
+      "id": "rav4-win",
+      "elapsedMs": 14816,
+      "text": "Next step: Investigate a RAV4 Hybrid\nReplacing leads on your weighted priorities. Modeled advantages: $2,061 less fuel, better family fit (1.00 vs 0.18), more miles of life left at the end.\n\nWhat drives this comparison:\nPreferred: Replace with RAV4 scores 0.63 vs 0.37 for Keep Camry\nNet economic cost over 60 months: Keep Camry $38,949, Replace with RAV4 $43,369\nFuel spend over 60 months: Keep Camry $14,063, Replace with RAV4 $12,001\nLongevity (miles left of 250,000): Keep Camry 0.21, Replace with RAV4 0.37\nFamily fit: Keep Camry 0.18, Replace with RAV4 1.00\nComfort: Keep Camry 0.50, Replace with RAV4 0.50\nWeights: cost 0.20, family 0.20, longevity 0.20, fuel 0.20, comfort 0.20\nKeep Camry score 0.37 = cost 0.20 + family 0.00 + longevity 0.04 + fuel 0.03 + comfort 0.10\nReplace with RAV4 score 0.63 = cost 0.00 + family 0.20 + longevity 0.16 + fuel 0.17 + comfort 0.10\nHeld in 9 of 9 tested cases\n\nkeep: Cargo volume is well below the stated need.\n\nkeep: Packing fit still needs verification.\n\nkeep/replace-rav4-2024-hybrid-xle-12: Packing fit still needs verification.\n\nThese demo results are not a financial quote.",
+      "usedFallback": true
+    }
+  ]
+}

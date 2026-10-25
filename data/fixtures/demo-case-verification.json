@@ -1,0 +1,591 @@
+{
+  "base": "e4e386a",
+  "disclosure": "Synthetic regression evidence only; never used by runtime verdict selection. Computed by real sim and decision modules with fresh Alex twins, fixed demo date and equal priorities.",
+  "cases": [
+    {
+      "id": "close-call",
+      "text": "I'm moving to Denver next year, driving 20,000 miles annually, and expecting my second child in 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5040600427350428,
+        0.4959399572649573
+      ],
+      "costs": [
+        31286.999999999956,
+        35862.222336575316
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 20000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I will relocate to Denver in 12 months; my annual mileage is 20k; I am expecting my second child in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5040600427350428,
+        0.4959399572649573
+      ],
+      "costs": [
+        31286.999999999956,
+        35862.222336575316
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 20000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I drive 20000 miles per year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5040600427350428,
+        0.4959399572649573
+      ],
+      "costs": [
+        31286.999999999956,
+        35862.222336575316
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 20000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I'm moving to Denver next year and driving 20k miles annually and expecting my second child in 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5040600427350428,
+        0.4959399572649573
+      ],
+      "costs": [
+        31286.999999999956,
+        35862.222336575316
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 20000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I drive 18000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5115740384615383,
+        0.48842596153846185
+      ],
+      "costs": [
+        29966.499999999953,
+        34468.787875036825
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 18000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I drive 19000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5078170405982908,
+        0.4921829594017093
+      ],
+      "costs": [
+        30674.249999999953,
+        35245.50510580609
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 19000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I drive 20000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5040600427350428,
+        0.4959399572649573
+      ],
+      "costs": [
+        31286.999999999956,
+        35862.222336575316
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 20000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I drive 21000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5003030448717951,
+        0.499696955128205
+      ],
+      "costs": [
+        32174.749999999956,
+        37243.93956734447
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 21000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "close-call",
+      "text": "I drive 22000 miles a year. I'm moving to Denver next year. My second child is due in June 2029.",
+      "verdict": "inconclusive",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.49654604700854654,
+        0.5034539529914537
+      ],
+      "costs": [
+        32787.499999999956,
+        37795.65679811373
+      ],
+      "breakEven": {
+        "found": true,
+        "parameter": "annualMiles",
+        "threshold": 14433.59375,
+        "unit": "mi/yr",
+        "direction": "below",
+        "currentValue": 22000,
+        "testedBounds": [
+          5000,
+          40000
+        ]
+      }
+    },
+    {
+      "id": "camry-win",
+      "text": "I drive 8,000 miles a year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5491440170940167,
+        0.4508559829059833
+      ],
+      "costs": [
+        22303.99999999995,
+        26781.615567344557
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "My annual mileage is 8k.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5491440170940167,
+        0.4508559829059833
+      ],
+      "costs": [
+        22303.99999999995,
+        26781.615567344557
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "I am driving about 8000 miles per year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5491440170940167,
+        0.4508559829059833
+      ],
+      "costs": [
+        22303.99999999995,
+        26781.615567344557
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "MY YEARLY MILEAGE IS 8000.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5491440170940167,
+        0.4508559829059833
+      ],
+      "costs": [
+        22303.99999999995,
+        26781.615567344557
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "I drive 6000 miles a year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.556658012820513,
+        0.44334198717948714
+      ],
+      "costs": [
+        20983.49999999995,
+        24723.181105806034
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "I drive 7000 miles a year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5529010149572653,
+        0.4470989850427347
+      ],
+      "costs": [
+        21691.249999999945,
+        26104.89833657531
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "I drive 8000 miles a year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5491440170940167,
+        0.4508559829059833
+      ],
+      "costs": [
+        22303.99999999995,
+        26781.615567344557
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "I drive 9000 miles a year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5453870192307692,
+        0.45461298076923085
+      ],
+      "costs": [
+        23441.74999999995,
+        27498.33279811374
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "camry-win",
+      "text": "I drive 10000 miles a year.",
+      "verdict": "keep",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.5416300213675216,
+        0.4583699786324785
+      ],
+      "costs": [
+        24054.49999999995,
+        28115.050028882968
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I drive 30,000 miles a year, and I will have high cargo needs next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3664900641025636,
+        0.6335099358974365
+      ],
+      "costs": [
+        38949.49999999995,
+        43369.39464426761
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "My annual mileage is 30k; my cargo needs will be high in 12 months.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3664900641025636,
+        0.6335099358974365
+      ],
+      "costs": [
+        38949.49999999995,
+        43369.39464426761
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I am driving about 30000 miles per year. I need high cargo capacity next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3664900641025636,
+        0.6335099358974365
+      ],
+      "costs": [
+        38949.49999999995,
+        43369.39464426761
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "MY YEARLY MILEAGE IS 30000. MY CARGO NEEDS WILL BE HIGH NEXT YEAR.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3664900641025636,
+        0.6335099358974365
+      ],
+      "costs": [
+        38949.49999999995,
+        43369.39464426761
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I drive 25000 miles a year. I need high cargo capacity next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.38527505341880286,
+        0.614724946581197
+      ],
+      "costs": [
+        34815.749999999956,
+        39900.8084904215
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I drive 27500 miles a year. I need high cargo capacity next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3758825587606832,
+        0.6241174412393166
+      ],
+      "costs": [
+        37352.624999999956,
+        41510.10156734456
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I drive 30000 miles a year. I need high cargo capacity next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3664900641025636,
+        0.6335099358974365
+      ],
+      "costs": [
+        38949.49999999995,
+        43369.39464426761
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I drive 32500 miles a year. I need high cargo capacity next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.3570975694444446,
+        0.6429024305555555
+      ],
+      "costs": [
+        40881.374999999956,
+        44978.68772119068
+      ],
+      "breakEven": null
+    },
+    {
+      "id": "rav4-win",
+      "text": "I drive 35000 miles a year. I need high cargo capacity next year.",
+      "verdict": "replace",
+      "stability": {
+        "heldCount": 9,
+        "totalCount": 9
+      },
+      "scores": [
+        0.34770507478632545,
+        0.6522949252136747
+      ],
+      "costs": [
+        42478.24999999994,
+        46742.98079811374
+      ],
+      "breakEven": null
+    }
+  ]
+}

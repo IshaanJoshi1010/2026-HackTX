@@ -2,7 +2,7 @@ import type { EventType, InterpretContext, InterpretResult, LifeEvent, ProfilePa
 import { FieldKeySchema, InterpretContextSchema, InterpretResultSchema } from "../contracts/schemas";
 import { normalizeProfile } from "../data/normalize";
 import { ExtractionSchema, type Extraction, type ExtractionItem } from "./schema";
-import { resolveEventMonth, hasTimingLanguage } from "./dates";
+import { resolveEventMonth, hasTimingLanguage, splitClauses } from "./dates";
 import { ambiguousStatement, hasNumericEvidence, isQuestion } from "./evidence";
 
 export interface MappedExtraction { result: InterpretResult; unresolved: ExtractionItem[]; clarification?: Extraction["clarifyingQuestion"] }
@@ -21,7 +21,7 @@ function pregnancyMention(quote: string): boolean { return /\bpregnant\b/i.test(
 /** A value-only quote must not silently erase a date in its source clause. Never invent the missing date. */
 function missingQuotedTiming(item: ExtractionItem, prompt: string): boolean {
   if (item.month) return false;
-  const clauses = prompt.split(/[!?;\n]|[.,](?!\d)/);
+  const clauses = splitClauses(prompt);
   return hasTimingLanguage(item.quote) || clauses.some(clause => clause.includes(item.quote) && hasTimingLanguage(clause));
 }
 

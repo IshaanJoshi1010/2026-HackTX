@@ -1,5 +1,5 @@
 import type { Intent, LifeEvent } from "../contracts";
-import { hasTimingLanguage } from "./dates";
+import { hasTimingLanguage, splitClauses } from "./dates";
 import { ambiguousStatement, isQuestion, quantityPattern, readQuantity } from "./evidence";
 import { mapExtraction } from "./mapper";
 import type { ExtractionItem } from "./schema";
@@ -23,9 +23,10 @@ export function interpretOffline(text: string, todayISO: string): OfflineReading
     return empty("That sounds like a question. Describe a definite change to create a proposal.");
   }
   if (ambiguousStatement(text)) return empty("Please confirm the intended change; negatives, corrections and hypotheticals are not applied automatically.");
+  const conflictingCargo = text.match(/\b(?:cargo|luggage|storage)\b[^.;!?]*?\b(low|medium|high)\b\s*(?:and|or|\/)\s*(low|medium|high)\b/i);
+  if (conflictingCargo && conflictingCargo[1].toLowerCase() !== conflictingCargo[2].toLowerCase()) return empty("Choose one cargo tier for that change.");
   const items: ExtractionItem[] = [];
-  const clauses = text.replace(/(\d),(?=\d)/g, "$1\u0001").split(/[;!?]|[.](?!\d)|,|\s+and\s+/i)
-    .map(s => s.replaceAll("\u0001", ",").trim()).filter(Boolean);
+  const clauses = splitClauses(text);
   for (const quote of clauses) {
     // Preserve the raw time phrase. Unsupported timing is sent to validation, never clamped or erased.
     const timing = quote.match(/\b(?:next|this)\s+(?:month|year|week|spring|summer|fall|autumn|winter|january|february|march|april|may|june|july|august|september|october|november|december)\b|\bin\s+[^,;]*?\b(?:months?|years?|weeks?|days?)\b|\b(?:in\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d{2}\b|\b(?:in\s+)?20\d{2}\b/i)?.[0];
@@ -33,8 +34,12 @@ export function interpretOffline(text: string, todayISO: string): OfflineReading
     const city = quote.match(/\b(?:moving|move|relocating|relocate)\s+to\s+(.+?)(?=\s+(?:next|in|this|by|after|before|soon)\b|$)/i);
     if (city) add("location", city[1].trim());
     const q = `(${quantityPattern})`;
-    const annual = quote.match(new RegExp(`${q}\\s*(?:annual\\s+)?(?:miles|mi)\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))|${q}\\s*(?:a\\s+year|per\\s+year|annual\\s+miles)`, "i"));
-    if (annual) add("annualMiles", readQuantity(annual[1] ?? annual[2]));
+    const annual = quote.match(new RegExp(`${q}\\s*(?:annual\\s+)?(?:miles|mi)\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))|${q}\\s*annual\\s+(?:miles|mi)|(?:drive|drives|driving|drove)\\s+(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+|nearly\\s+)?${q}\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))`, "i"));
+    const namedAnnual = quote.match(new RegExp(`(?:annual|yearly)\\s+(?:mileage|miles)\\s*(?:is|of|:|=)?\\s*${q}`, "i"));
+    if (annual) add("annualMiles", readQuantity(annual[1] ?? annual[2] ?? annual[3]));
+    else if (namedAnnual) add("annualMiles", readQuantity(namedAnnual[1]));
+    const cargoLevels = [...new Set(quote.toLowerCase().match(/\b(?:low|medium|high)\b/g) ?? [])];
+    if (/\b(?:cargo|luggage|storage)\b/i.test(quote) && cargoLevels.length === 1) add("cargoNeed", cargoLevels[0]);
     const commute = quote.match(new RegExp(`${q}\\s*(?:miles|mi)\\s*(?:each|one)\\s*way`, "i"));
     if (commute) add("commuteMilesOneWay", readQuantity(commute[1]));
     const days = quote.match(new RegExp(`${q}\\s*days?\\s*(?:a|per|/)\\s*week`, "i"));
