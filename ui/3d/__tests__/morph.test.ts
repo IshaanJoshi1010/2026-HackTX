@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Points, ShaderMaterial } from "three";
+import { BoxGeometry, Group, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Points, ShaderMaterial } from "three";
 import type { VehicleConfig } from "@/contracts";
 import { createParticleMorph, mortonSort } from "../ParticleMorph";
 import { disposeObject } from "../dispose";
@@ -10,6 +10,28 @@ const b = { ...a, id: "rav4-2024-hybrid-xle", paint: "#aaaaaa" };
 const points = new Float32Array(32768 * 3);
 const source = () => { const group = new Group(); group.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial({ name: "Body" }))); return group; };
 const controller = () => new VehicleController(async () => source(), async () => points);
+
+it("restores opaque glass depth after morph so cabin faces cannot draw over the windows", async () => {
+  const load = async () => {
+    const root = source();
+    root.add(new Mesh(new BoxGeometry(), new MeshPhysicalMaterial({
+      name: "2021_Toyota_RAV4_Adventure_Windows", transparent: true,
+      opacity: 0.35, depthWrite: false, transmission: 0.8,
+    })));
+    return root;
+  };
+  const c = new VehicleController(load, async () => points);
+  await c.select(a, 0, vi.fn(), vi.fn(), vi.fn());
+  await c.select(b, 1.8, vi.fn(), vi.fn(), vi.fn(), { quality: "high", transition: true });
+  c.update(0.2, "solid"); c.update(1.7, "solid");
+  const glass = (c.group.children[0].children[1] as Mesh<BoxGeometry, MeshPhysicalMaterial>).material;
+  expect(glass.transparent).toBe(false);
+  expect(glass.opacity).toBe(1);
+  expect(glass.depthWrite).toBe(true);
+  expect(glass.alphaHash).toBe(false);
+  expect(glass.transmission).toBe(0);
+  c.dispose();
+});
 
 it("Morton pairing preserves all input points without mutating cached arrays", () => {
   const input = new Float32Array([2,1,0, -2,0,-1, 0,0.5,0]);

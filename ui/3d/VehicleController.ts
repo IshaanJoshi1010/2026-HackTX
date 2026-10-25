@@ -57,6 +57,9 @@ export class VehicleController {
           if (/^GLASS(?:1)?\.001$/i.test(material.name) || material.name.endsWith("_Windows")) {
             pbr.color.set("#151b22"); pbr.roughness = 0.12; pbr.metalness = 0.05;
             pbr.transparent = false; pbr.opacity = 1; pbr.transmission = 0; pbr.clearcoat = 1;
+            // Opaque showroom glass must occlude the cabin. Imported transparent
+            // glass can retain depthWrite=false and let interior faces draw over it.
+            pbr.depthWrite = true;
           }
           // Lamp glass uses alpha instead of a second full-scene transmission target.
           if (pbr.transmission > 0) { pbr.transmission = 0; pbr.transparent = true; pbr.opacity = 0.35; pbr.depthWrite = false; }
