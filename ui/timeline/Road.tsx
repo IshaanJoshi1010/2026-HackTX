@@ -311,6 +311,9 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
       {showAll &&
         ends.map(({ s, delta: end }, i) => {
           const isActive = s.id === active.id;
+          // The number is that future's own, so it carries the label of that future's own car and inputs.
+          const endPoint = pointAt(results[s.id], MONTH_MAX);
+          const endSource = metricSource("netEconomicCost", profile, endPoint ? specsFor(endPoint.vehicleId) : null);
           return (
             <button
               key={s.id}
@@ -326,6 +329,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
             >
               <span className={cn("block truncate text-[15px]", isActive && "font-medium")}>{s.name}</span>
               <span className="block text-xs tabular-nums text-ink/50">{s.id === BASE_ID ? "if nothing changes" : `${signedUsd(end)} by 5 yr`}</span>
+              {s.id !== BASE_ID && <SourceBadge compact source={endSource} className="mt-0.5" />}
             </button>
           );
         })}

@@ -326,6 +326,19 @@ describe("other futures, only when asked", () => {
     expect(names[1].textContent).toMatch(/by 5 yr/);
   });
 
+  it("every dollar figure at the end of a road carries a source label; the baseline has no figure to label", async () => {
+    await enterWorkspace();
+    branch(MILES);
+    branch(KID);
+    act(() => actions().setFutureCompare(true));
+    render(<Road />);
+    for (const label of screen.getAllByTestId("road-future")) {
+      const isBaseline = label.textContent!.includes("if nothing changes");
+      expect(label.querySelectorAll("[data-source]").length).toBe(isBaseline ? 0 : 1);
+      expect(label.querySelector('[data-source="none"]')).toBeNull(); // never an unlabeled number
+    }
+  });
+
   it("their names never overlap, even when the roads end close together", async () => {
     await enterWorkspace();
     branch(MOVE); // no cost change: ends on the same line as the baseline
