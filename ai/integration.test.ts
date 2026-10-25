@@ -169,13 +169,14 @@ describe("manual path, return visit and route handlers", () => {
 });
 
 describe("AI integration transport metadata", () => {
-  it("uses the tested fallback model and forwards request cancellation and remaining timeout", async () => {
+  it("uses the tested fallback model with independent provider and local deadlines", async () => {
     vi.stubEnv("GEMINI_API_KEY", "test-only-not-a-credential"); vi.stubEnv("GEMINI_MODEL", "");
     sdk.generateContent.mockResolvedValue({ text: "ok" });
     const controller = new AbortController();
     await generateWithGemini({ system: "rules", input: {}, signal: controller.signal, timeoutMs: 2345 });
-    expect(sdk.constructor).toHaveBeenCalledWith(expect.objectContaining({ httpOptions: { timeout: 2345, retryOptions: { attempts: 1 } } }));
-    expect(sdk.generateContent.mock.calls[0][0]).toMatchObject({ model: "gemini-3.1-flash-lite", config: { abortSignal: controller.signal } });
+    expect(sdk.constructor).toHaveBeenCalledWith(expect.objectContaining({ httpOptions: { timeout: 10000, retryOptions: { attempts: 1 } } }));
+    expect(sdk.generateContent.mock.calls[0][0]).toMatchObject({ model: "gemini-3.1-flash-lite", config: { abortSignal: expect.any(AbortSignal) } });
+    expect(sdk.generateContent.mock.calls[0][0].config.abortSignal.aborted).toBe(false);
   });
   it("distinguishes busy from validation failure without changing the frozen response body", async () => {
     vi.spyOn(interpreterModule, "interpret").mockImplementation(async (_prompt, _context, options) => {
