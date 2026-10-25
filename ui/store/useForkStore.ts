@@ -34,6 +34,7 @@ import type { CarStageProps } from "@/ui/3d/types";
 import { carryOver } from "./carryOver";
 import { eventTitle } from "./eventLabels";
 import { MONTH_MAX, clampMonth } from "./months";
+import { vinFailureMessage, vinReason } from "./vinMessages";
 import {
   DEFAULT_PREFS,
   loadPersisted,
@@ -315,13 +316,6 @@ function initialData(): DataFields {
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
-
-const VIN_MESSAGE: Record<string, string> = {
-  length: "A VIN has 17 characters.",
-  chars: "VINs only use letters and numbers.",
-  forbidden_letter: "VINs never use the letters I, O, or Q.",
-  check_digit: "That VIN's check digit does not add up.",
-};
 
 export function scenarioName(events: LifeEvent[]): string {
   const titles = [...new Set(events.map(eventTitle))];
@@ -704,7 +698,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       setBusy("simulating");
       try {
         const id = await data.identifyVehicle(check.vin);
-        if (id.status !== "ok") return fail(new Error(id.reason));
+        if (id.status !== "ok") return fail(new Error(vinFailureMessage(id)));
         // The sample VINs are fictional demo cars saved in the registry, so they open the demo.
         // A VIN decoded from NHTSA is a real car and gets an ordinary twin.
         await begin(id.vehicle, id.decodeState === "registry" ? "demo" : "ordinary");
@@ -1262,10 +1256,6 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
   return { ...initialData(), hydrated: false, actions };
 });
-
-function vinReason(reason: string): string {
-  return VIN_MESSAGE[reason] ?? "That doesn't look like a valid VIN.";
-}
 
 function pickPrefs(ui: UiState) {
   return { lowPerformance: ui.lowPerformance };
