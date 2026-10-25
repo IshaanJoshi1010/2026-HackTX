@@ -75,6 +75,9 @@ export class VehicleController {
       this.layers.forEach((layer) => { layer.startOpacity = layer.opacity; });
       const outgoing = this.layers.at(-1);
       const layer: Layer = { root, data, hex: spec.hex, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
+      // Do not flash a fully opaque destination between async load and first frame.
+      root.visible = layer.opacity > 0;
+      layer.materials.update("solid", layer.opacity);
       this.layers.push(layer);
       this.group.add(root);
       this.duration = this.skipped ? 0 : duration;
@@ -179,6 +182,10 @@ export class VehicleController {
     this.clearMorph();
     while (this.layers.length > 1) this.disposeLayer(this.layers.shift()!);
     if (this.layers[0]) this.layers[0].opacity = 1;
+    if (this.layers[0]) {
+      this.layers[0].root.visible = true;
+      this.layers[0].materials.update("solid", 1);
+    }
     const callback = this.complete;
     this.complete = undefined;
     callback?.();

@@ -16,6 +16,25 @@ function source() {
 }
 
 describe("viewer resource ownership", () => {
+  it("dissolves opaque paint with depth coverage and preserves transparent glass", () => {
+    const root = source();
+    const glass = new MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false });
+    root.add(new Mesh(new BoxGeometry(), glass));
+    const body = (root.children[0] as Mesh<BoxGeometry, MeshStandardMaterial>).material;
+    const modes = new ViewMaterials(root);
+    modes.update("solid", 0.5);
+    expect(body.alphaHash).toBe(true);
+    expect(body.transparent).toBe(false);
+    expect(body.depthWrite).toBe(true);
+    expect(glass.alphaHash).toBe(false);
+    expect(glass.transparent).toBe(true);
+    expect(glass.opacity).toBeCloseTo(0.175);
+    modes.update("solid", 1);
+    expect(body.alphaHash).toBe(false);
+    expect(body.opacity).toBe(1);
+    expect(glass.opacity).toBe(0.35);
+    disposeObject(root);
+  });
   it("clones shared resources once per instance, preserves cache, and disposes owned resources once", () => {
     const original = source();
     const owned = cloneOwnedObject(original);

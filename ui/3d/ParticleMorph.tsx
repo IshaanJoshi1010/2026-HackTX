@@ -30,13 +30,17 @@ export function createParticleMorph(from: Float32Array, to: Float32Array, low: b
     uniforms: { uMorph: { value: 0 }, uOpacity: { value: 0 }, uColor: { value: new Color("#27E1FF") }, uPixelRatio: { value: 1 } },
     vertexShader: `attribute vec3 aFrom; attribute vec3 aTo; uniform float uMorph; uniform float uPixelRatio;
       void main() {
-      float delay = clamp((aFrom.x+2.3)/4.6,0.0,1.0)*0.14;
-      float local = clamp((uMorph-delay)/0.86,0.0,1.0);
+      float delay = clamp((aFrom.x+2.3)/4.6,0.0,1.0)*0.22;
+      float local = clamp((uMorph-delay)/0.78,0.0,1.0);
       float t = local*local*local*(local*(local*6.0-15.0)+10.0);
       vec3 p = mix(aFrom,aTo,t);
       float arc = 16.0*t*t*(1.0-t)*(1.0-t);
-      // A restrained outward ribbon replaces the uniform vertical hop.
-      p += vec3(0.0,0.18,0.13*sin(aFrom.x*1.35+aFrom.z))*arc;
+      // Coherent ribbons follow the car's flanks. Larger shape changes travel
+      // on wider curves, while nearby surface matches stay close to the body.
+      float distanceToTarget = min(length(aTo-aFrom),1.5);
+      float side = aFrom.z / max(abs(aFrom.z),0.15);
+      float ribbon = sin(aFrom.x*1.1+aFrom.y*0.8);
+      p += vec3(0.08*ribbon,0.12+0.13*distanceToTarget,side*(0.12+0.16*distanceToTarget))*arc;
       vec4 mv = modelViewMatrix*vec4(p,1.0); gl_Position = projectionMatrix*mv;
       gl_PointSize = (1.65+0.5*arc)*uPixelRatio*clamp(7.0/max(1.0,-mv.z),0.65,1.6); }`,
     fragmentShader: particleFragment(low),

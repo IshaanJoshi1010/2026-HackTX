@@ -22,6 +22,8 @@ it("morph lasts 1.8s, has immutable attributes, and completes once with destinat
   await c.select(a, 0, vi.fn(), vi.fn(), vi.fn());
   await c.select(b, 1.8, vi.fn(), vi.fn(), done, { quality: "high", transition: true });
   expect(c.isMorphing).toBe(true);
+  expect(c.group.children[0].visible).toBe(true);
+  expect(c.group.children[1].visible).toBe(false);
   const cloud = c.group.children.find(child => child instanceof Points) as Points;
   const original = cloud.geometry.getAttribute("aFrom").array.slice();
   c.update(0.9, "solid"); expect(done).not.toHaveBeenCalled();
