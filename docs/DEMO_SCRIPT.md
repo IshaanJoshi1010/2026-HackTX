@@ -6,7 +6,7 @@ Story A: after Alex's brain dump, keeping the Camry vs a RAV4 Hybrid is a **clos
 
 - Build and run: `npm run build && npm start`, then open `http://localhost:3000` in Chrome on a machine with a real GPU, at 1440x900 or bigger.
 - No key and no network needed. With no `GEMINI_API_KEY` the app reads your sentence with plain rules that only extract what you wrote. With a key the AI reads it instead. The events are the same.
-- Start clean: header icon (top right), "Your details", "Start over". Or use a private window.
+- Start clean: header icon (top right), "Edit assumptions", "Start over". Or use a private window.
 - Use the sample car or the sample VIN. Both open the Alex demo. The model picker does not.
 - Do not tap the "Who rides with you most?" chips during the reveal. Press Skip. Alex is already "Kids", and a different pick changes the household and the story.
 - Do not change priorities. Alex's equal priorities are part of the story.
@@ -47,7 +47,7 @@ Story A: after Alex's brain dump, keeping the Camry vs a RAV4 Hybrid is a **clos
 - **Different numbers or a clear RAV4 win:** Alex's cargo need is probably not "low". You may have used the model picker, or answered a question. Use "Start over" and the sample car.
 - **No explanation text under "Why":** with no AI it shows the engine's own lines. That is expected.
 - **The car area says "Model unavailable":** the app keeps going on its own. The numbers do not need the model.
-- **It feels slow:** it is the 3D scene on a weak GPU. Turn on "Low performance mode" in "Your details".
+- **It feels slow:** it is the 3D scene on a weak GPU. Turn on "Low performance mode" in "Edit assumptions".
 - **Anything stuck:** "Start over" resets it. Nothing is saved except the performance setting and your session.
 
 ## Offline check

@@ -77,7 +77,7 @@ describe("a customer never reads the words demo or data", () => {
     sweep("car page, with the specs up");
 
     // the details sheet: profile, finance, priorities, and the ownership history (written by another module)
-    fireEvent.click(screen.getByRole("button", { name: "Your details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit assumptions" }));
     expect(screen.getByTestId("vehicle-history-list").querySelectorAll("li").length).toBeGreaterThan(0); // so this sweep means something
     sweep("your details, with the history");
     fireEvent.click(screen.getByRole("button", { name: "Close details" }));

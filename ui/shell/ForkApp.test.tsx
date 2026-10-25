@@ -30,7 +30,7 @@ async function enterWorkspace() {
 
 const goFuture = () => fireEvent.click(screen.getByRole("tab", { name: "Future" }));
 const goCar = () => fireEvent.click(screen.getByRole("tab", { name: "Car" }));
-const openDetails = () => fireEvent.click(screen.getByRole("button", { name: "Your details" }));
+const openDetails = () => fireEvent.click(screen.getByRole("button", { name: "Edit assumptions" }));
 const scrubTo = (month: number) =>
   fireEvent.change(screen.getByRole("slider", { name: "Month" }), { target: { value: String(month) } });
 const stats = () => [...document.querySelectorAll('[data-slot="stat"]')];
@@ -66,7 +66,7 @@ describe("flow", () => {
     expect(screen.getByTestId("mock-banner")).not.toHaveTextContent(/\b(data|sim|decision|ai)\b/);
     expect(screen.getByPlaceholderText("Enter your VIN")).toBeInTheDocument(); // the first screen is your VIN
     // nothing to open before there is a car
-    expect(screen.queryByRole("button", { name: "Your details" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit assumptions" })).toBeNull();
   });
 
   it("runs the reveal and lands on the car page", async () => {
@@ -104,7 +104,7 @@ describe("flow", () => {
   it("switching the sample car restarts the stage on the new car", async () => {
     await enterWorkspace();
     openDetails();
-    fireEvent.click(within(screen.getByRole("dialog", { name: "Your details" })).getByRole("button", { name: /2024 RAV4/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Edit assumptions" })).getByRole("button", { name: /2024 RAV4/ }));
     await advance(0);
     const stage = screen.getByTestId("car-stage-stub");
     expect(stage).toHaveAttribute("data-vehicle-id", "rav4-2024-hybrid-xle");
@@ -134,7 +134,7 @@ describe("the car page", () => {
     await enterWorkspace();
     const header = screen.getByRole("banner");
     expect(within(header).getAllByRole("button")).toHaveLength(1);
-    expect(within(header).getByRole("button", { name: "Your details" })).toBeInTheDocument();
+    expect(within(header).getByRole("button", { name: "Edit assumptions" })).toBeInTheDocument();
   });
 
   it("shows the name of the branch you are looking at, only when it is not the baseline", async () => {
@@ -478,14 +478,14 @@ describe("two pages, one stage", () => {
 describe("the details sheet", () => {
   it("is closed until you ask, and shows the profile, priorities and display options", async () => {
     await enterWorkspace();
-    const dialog = screen.getByRole("dialog", { name: "Your details" });
+    const dialog = screen.getByRole("dialog", { name: "Edit assumptions" });
     expect(dialog).toHaveAttribute("data-open", "false");
 
     openDetails();
     expect(dialog).toHaveAttribute("data-open", "true");
     expect(state().ui.detailsOpen).toBe(true);
     expect(within(dialog).getByTestId("profile-confirm-card")).toBeInTheDocument();
-    expect(within(dialog).getByText("What matters to you")).toBeInTheDocument();
+    expect(within(dialog).getByText("Priorities")).toBeInTheDocument();
     expect(within(dialog).getByText("History")).toBeInTheDocument();
     expect(within(dialog).getByRole("switch", { name: /low performance/i })).toBeInTheDocument();
   });
@@ -493,14 +493,14 @@ describe("the details sheet", () => {
   it("every number in it has a source label", async () => {
     await enterWorkspace();
     openDetails();
-    const rows = screen.getByRole("dialog", { name: "Your details" }).querySelectorAll('[data-slot="data-row"]');
+    const rows = screen.getByRole("dialog", { name: "Edit assumptions" }).querySelectorAll('[data-slot="data-row"]');
     expect(rows.length).toBeGreaterThan(5);
     rows.forEach((row) => expect(row.querySelector("[data-source]")).not.toBeNull());
   });
 
   it("closes with the close button, with Escape, and by tapping outside", async () => {
     await enterWorkspace();
-    const dialog = screen.getByRole("dialog", { name: "Your details" });
+    const dialog = screen.getByRole("dialog", { name: "Edit assumptions" });
 
     openDetails();
     fireEvent.click(screen.getByRole("button", { name: "Close details" }));

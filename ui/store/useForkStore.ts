@@ -122,7 +122,7 @@ export interface UiState {
   aiAvailable: boolean;
   /** Which of the two pages is showing. Not saved: every session starts on the car. */
   view: View;
-  /** The "Your details" sheet (profile, priorities, history, display). Not saved. */
+  /** The "Edit assumptions" sheet (profile, priorities, history, display). Not saved. */
   detailsOpen: boolean;
   /** Future page: show what each decision changed, and the supporting numbers. Off by default. Not saved. */
   futureDetails: boolean;
