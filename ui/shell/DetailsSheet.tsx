@@ -16,6 +16,9 @@ import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { specsFor } from "@/ui/store/selectors";
 import { useForkStore, type ViewMode } from "@/ui/store/useForkStore";
 
+/** What is open when the drawer first opens: the short groups. */
+export const OPEN_AT_FIRST = ["vehicle", "household", "financing", "priorities"] as const;
+
 const VIEW_MODES: Array<{ mode: ViewMode; label: string }> = [
   { mode: "solid", label: "Solid" },
   { mode: "wireframe", label: "Wireframe" },
@@ -23,9 +26,10 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string }> = [
 ];
 
 /**
- * One group of controls, named by what it edits, as a small dropdown header: a row with a chevron that opens it. Only one
- * is open at a time, so the drawer stays short however many groups there are. Closed content stays mounted (just hidden), so
- * a half typed number in a form is still there when you come back to it.
+ * One group of controls, named by what it edits, as a small dropdown header: a row with a chevron that opens it. The short
+ * groups start open and the long ones (History, Display, Session, the replacement terms) start closed, so the drawer is
+ * small however much it holds. Closed content stays mounted (just hidden), so a half typed number in a form is still there
+ * when you come back to it.
  */
 function Section({ title, open, onToggle, children }: { title: string; open: boolean; onToggle(): void; children: ReactNode }) {
   const headingId = useId();
@@ -38,13 +42,13 @@ function Section({ title, open, onToggle, children }: { title: string; open: boo
           aria-expanded={open}
           aria-controls={panelId}
           onClick={onToggle}
-          className="flex h-14 w-full cursor-pointer items-center justify-between gap-4 text-left text-base font-medium text-ink transition-colors hover:text-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="flex h-12 w-full cursor-pointer items-center justify-between gap-4 text-left text-base font-medium text-ink transition-colors hover:text-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {title}
           <ChevronDown aria-hidden="true" className={cn("size-5 shrink-0 text-ink/60 transition-transform duration-200", open && "rotate-180")} />
         </button>
       </h3>
-      <div id={panelId} hidden={!open} className="pb-6">
+      <div id={panelId} hidden={!open} className="pb-5">
         {children}
       </div>
     </section>
@@ -58,7 +62,7 @@ const pill =
  * The "Edit assumptions" drawer. Everything that is not the car or the timeline lives here, behind one
  * header button, grouped by what it edits: the vehicle, the household, financing, priorities, the
  * replacement terms (once you compare), history, display, and the session.
- * It slides in from the right, is 560px wide (less on a narrow screen), and closes with Escape,
+ * It slides in from the right, is 420px wide (less on a narrow screen), and closes with Escape,
  * the close button, or a tap on the dim layer.
  */
 export function DetailsSheet() {
@@ -72,9 +76,18 @@ export function DetailsSheet() {
     useForkStore((s) => s.actions);
   const samples = useMemo(() => data.listSampleVehicles(), []);
   const closeRef = useRef<HTMLButtonElement>(null);
-  // Which group is open. None to start: the drawer opens as a short list of headers.
-  const [openId, setOpenId] = useState<string | null>(null);
-  const group = (id: string) => ({ open: openId === id, onToggle: () => setOpenId((cur) => (cur === id ? null : id)) });
+  // Which groups are open. The short ones to start; History and the other long ones are dropdowns you open when you want them.
+  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(() => new Set(OPEN_AT_FIRST));
+  const group = (id: string) => ({
+    open: openIds.has(id),
+    onToggle: () =>
+      setOpenIds((cur) => {
+        const next = new Set(cur);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -108,13 +121,13 @@ export function DetailsSheet() {
         data-open={open}
         inert={!open}
         className={cn(
-          "fork-glass absolute inset-y-0 right-0 z-40 flex w-[min(560px,100vw)] flex-col",
+          "fork-glass absolute inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col",
           "transition-transform duration-300 ease-out",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-5 sm:px-8">
-          <h2 className="text-2xl font-medium text-ink">Edit assumptions</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4 sm:px-6">
+          <h2 className="text-xl font-medium text-ink">Edit assumptions</h2>
           <button
             ref={closeRef}
             type="button"
@@ -126,7 +139,7 @@ export function DetailsSheet() {
           </button>
         </div>
 
-        <div data-testid="assumptions-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 pt-2 text-base sm:px-8">
+        <div data-testid="assumptions-scroll" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8 pt-1 text-base sm:px-6">
           {vehicle && twin && (
             <>
               <Section title="Vehicle" {...group("vehicle")}>

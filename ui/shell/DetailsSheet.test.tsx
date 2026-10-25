@@ -122,10 +122,10 @@ describe("opening and closing", () => {
 });
 
 describe("size", () => {
-  it("is 560px wide (less on a narrow screen), up from 440px, and slides in from the right", async () => {
+  it("is a small panel: 420px wide (less on a narrow screen), and slides in from the right", async () => {
     await enterWorkspace();
     const cls = dialog().className;
-    expect(cls).toContain("w-[min(560px,100vw)]");
+    expect(cls).toContain("w-[min(420px,100vw)]");
     expect(cls).not.toContain("440px");
     expect(cls).toContain("right-0");
     expect(cls).toContain("translate-x-full"); // parked off to the right while closed
@@ -310,44 +310,57 @@ describe("words and numbers", () => {
 describe("the sections are dropdown headers", () => {
   const headers = () => within(dialog()).getAllByRole("heading", { level: 3 }).map((h) => within(h).getByRole("button"));
   const expanded = () => headers().filter((b) => b.getAttribute("aria-expanded") === "true").map((b) => b.textContent);
+  const panelOf = (button: HTMLElement) => dialog().querySelector(`#${CSS.escape(button.getAttribute("aria-controls")!)}`) as HTMLElement;
+  const SHORT = ["Vehicle", "Household", "Financing", "Priorities"];
+  const LONG = ["History", "Display", "Session"];
 
-  it("start closed: the drawer opens as a short list of headers, with nothing inside any of them showing", async () => {
+  it("opens with the short groups showing and the long ones, History first, as dropdowns", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
     expect(headers().map((b) => b.textContent)).toEqual(BASE_HEADINGS);
-    expect(expanded()).toEqual([]);
-    for (const button of headers()) expect(dialog().querySelector(`#${CSS.escape(button.getAttribute("aria-controls")!)}`)).toHaveAttribute("hidden");
-    // a short drawer: the close button and one header per group, and nothing else to scroll past
-    expect(within(dialog()).getAllByRole("button")).toHaveLength(1 + BASE_HEADINGS.length);
+    expect(expanded()).toEqual(SHORT);
+    for (const name of LONG) expect(panelOf(within(dialog()).getByRole("button", { name }))).toHaveAttribute("hidden");
+    for (const name of SHORT) expect(panelOf(within(dialog()).getByRole("button", { name }))).not.toHaveAttribute("hidden");
+  });
+
+  it("History is a dropdown: its list is hidden until you open it", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    const history = within(dialog()).getByRole("button", { name: "History" });
+    expect(history).toHaveAttribute("aria-expanded", "false");
+    expect(panelOf(history)).toHaveAttribute("hidden");
+    fireEvent.click(history);
+    expect(history).toHaveAttribute("aria-expanded", "true");
+    expect(panelOf(history)).not.toHaveAttribute("hidden");
+    expect(within(panelOf(history)).getByTestId("vehicle-history-list")).toBeInTheDocument();
   });
 
   it("each header is a compact row with a chevron that turns when it opens", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
-    const vehicle = within(dialog()).getByRole("button", { name: "Vehicle" });
-    expect(vehicle.className).toContain("h-14");
-    const chevron = vehicle.querySelector("svg")!;
-    expect(chevron.getAttribute("class")).not.toContain("rotate-180");
-    fireEvent.click(vehicle);
-    expect(vehicle.querySelector("svg")!.getAttribute("class")).toContain("rotate-180");
+    const history = within(dialog()).getByRole("button", { name: "History" });
+    expect(history.className).toContain("h-12");
+    expect(history.querySelector("svg")!.getAttribute("class")).not.toContain("rotate-180");
+    fireEvent.click(history);
+    expect(history.querySelector("svg")!.getAttribute("class")).toContain("rotate-180");
+    // and one that starts open already has it turned
+    expect(within(dialog()).getByRole("button", { name: "Vehicle" }).querySelector("svg")!.getAttribute("class")).toContain("rotate-180");
   });
 
-  it("opening one closes the one that was open, and tapping the open one closes it", async () => {
+  it("opening one does not close the others, and tapping an open one closes just that one", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
-    group("Household");
-    expect(expanded()).toEqual(["Household"]);
-    group("Financing");
-    expect(expanded()).toEqual(["Financing"]);
+    group("History");
+    expect(expanded()).toEqual([...SHORT, "History"]);
     fireEvent.click(within(dialog()).getByRole("button", { name: "Financing" }));
-    expect(expanded()).toEqual([]);
+    expect(expanded()).toEqual(["Vehicle", "Household", "Priorities", "History"]);
   });
 
   it("each header controls its own panel, inside a section the header names", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
     for (const button of headers()) {
-      const panel = dialog().querySelector(`#${CSS.escape(button.getAttribute("aria-controls")!)}`)!;
+      const panel = panelOf(button);
       expect(panel).not.toBeNull();
       const section = button.closest("section")!;
       expect(section.contains(panel)).toBe(true);
@@ -355,36 +368,44 @@ describe("the sections are dropdown headers", () => {
     }
   });
 
-  it("a closed group keeps what you typed, so switching groups does not lose a form", async () => {
+  it("a closed group keeps what you typed, so closing and reopening a form does not lose it", async () => {
     await enterWorkspace();
     await compare();
     fireEvent.click(openButton());
     const terms = group("Replacement terms");
     const field = terms.getAllByRole("textbox")[0] as HTMLInputElement;
     fireEvent.change(field, { target: { value: "123" } });
-    group("History"); // opens another, which closes the terms
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Replacement terms" })); // close it
     expect(within(dialog()).getByRole("button", { name: "Replacement terms" })).toHaveAttribute("aria-expanded", "false");
     const again = group("Replacement terms").getAllByRole("textbox")[0] as HTMLInputElement;
     expect(again.value).toBe("123");
   });
 
-  it("works from the keyboard: Enter and Space on a header are the button's own click", async () => {
+  it("works from the keyboard: each header is a native button, so Enter and Space open it", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
-    const header = within(dialog()).getByRole("button", { name: "Priorities" });
-    expect(header.tagName).toBe("BUTTON"); // a native button, so Enter and Space open it
+    const header = within(dialog()).getByRole("button", { name: "Session" });
+    expect(header.tagName).toBe("BUTTON");
     header.focus();
     expect(header).toHaveFocus();
     fireEvent.click(header);
     expect(header).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("the Replacement terms header joins only once there is a comparison", async () => {
+  it("Replacement terms joins as a dropdown, closed, only once there is a comparison", async () => {
     await enterWorkspace();
     fireEvent.click(openButton());
     expect(headers().map((b) => b.textContent)).not.toContain("Replacement terms");
     await compare();
     expect(headers().map((b) => b.textContent)).toEqual(COMPARING_HEADINGS);
+    expect(within(dialog()).getByRole("button", { name: "Replacement terms" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("stays short: the headers plus the open groups, not every control at once", async () => {
+    await enterWorkspace();
+    fireEvent.click(openButton());
+    // History, Display, Session are closed, so their buttons and the history list are not reachable
+    expect(within(dialog()).queryByRole("switch", { name: /low performance/i })).toBeNull();
+    expect(within(dialog()).queryByRole("button", { name: "Start over" })).toBeNull();
   });
 });
-
