@@ -54,6 +54,19 @@ export function pointAt(result: SimulationResult | undefined, month: number): Pr
 }
 
 /**
+ * A per-month amount added up from month 1 through `month`. The sim reports fuel and
+ * upkeep for each month, not as running totals. Undefined when there is nothing to add.
+ */
+export function totalThrough(
+  result: SimulationResult | undefined,
+  month: number,
+  key: "fuelSpend" | "maintenanceSpend",
+): number | undefined {
+  const upTo = result?.points.filter((p) => p.month >= 1 && p.month <= month) ?? [];
+  return upTo.length === 0 ? undefined : upTo.reduce((sum, p) => sum + p[key], 0);
+}
+
+/**
  * Decisions in the same month would sit on top of each other. Spread them side by
  * side, centered on the month. Returns a pixel offset by decision id.
  */

@@ -44,6 +44,12 @@ import { getSpecs as realGetSpecs } from "@/data/specs";
 import { mapTradeoffs as realMapTradeoffs } from "@/data/tradeoffs";
 import { buildTwin as realBuildTwin } from "@/data/twin";
 import { validateVin as realValidateVin } from "@/data/vin";
+import {
+  fork as realFork,
+  makeReplaceScenario as realMakeReplaceScenario,
+  moveEvent as realMoveEvent,
+  simulate as realSimulate,
+} from "@/sim";
 import { CarStageStub, preloadCarsStub, type CarStageProps } from "./CarStageStub";
 import * as local from "./local";
 import type { VinCheck } from "./local";
@@ -54,7 +60,7 @@ export const USE_MOCKS: Record<ModuleName, boolean> = {
   car: true, // Kareem: real CarStage reveal h14 to 18
   data: false, // Paarth: real since the first integration merge (e935e1f)
   ai: true, // Paarth: interpret and explain h13
-  sim: true, // Anirudh: simulate h5, fork h8
+  sim: false, // Anirudh: real since the first integration merge (e935e1f)
   decision: true, // Anirudh: evaluate h11, findBreakEven h14, nextAction h15
 };
 
@@ -226,7 +232,12 @@ const realData: DataApi = {
   demo: { brainDump: demoBrainDump, todayISO: demoTodayISO },
 };
 const realAi = notLanded<AiApi>("ai");
-const realSim = notLanded<SimApi>("sim");
+const realSim: SimApi = {
+  simulate: realSimulate,
+  fork: realFork,
+  moveEvent: realMoveEvent,
+  makeReplaceScenario: realMakeReplaceScenario,
+};
 const realDecision = notLanded<DecisionApi>("decision");
 const realCar = notLanded<CarApi>("car");
 

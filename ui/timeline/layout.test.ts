@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LifeEvent, ProjectionPoint, Scenario, SimulationResult } from "@/contracts";
-import { YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, milestonesOf, monthToPct, pointAt, xToMonth, yearLabel } from "./layout";
+import { YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, milestonesOf, monthToPct, pointAt, totalThrough, xToMonth, yearLabel } from "./layout";
 
 const ev = (id: string, month: number, status: LifeEvent["status"] = "confirmed"): LifeEvent => ({
   id,
@@ -112,6 +112,46 @@ describe("milestonesOf and pointAt", () => {
     expect(pointAt(from0, 0)?.month).toBe(0);
     expect(pointAt(from0, 60)?.month).toBe(60);
     expect(pointAt(undefined, 5)).toBeUndefined();
+  });
+});
+
+describe("totalThrough", () => {
+  const withSpend = (): SimulationResult => ({
+    scenarioId: "s",
+    // 100 of fuel and 7 of upkeep in every month
+    points: Array.from({ length: 60 }, (_, i) => ({
+      month: i + 1,
+      vehicleId: "v",
+      mileage: 0,
+      fuelSpend: 100,
+      maintenanceSpend: 7,
+      vehicleValue: 0,
+      loanBalance: 0,
+      cumulativeCash: 0,
+      netEconomicCost: 0,
+      suitability: { passengerFit: "good", cargoFit: "good", tradeoffs: [], constraints: [], notes: [] },
+    })),
+    milestones: [],
+    warnings: [],
+    summary: { totalCash: 0, netCost: 0 },
+  });
+
+  it("adds the months so far: the sim gives each month, not a running total", () => {
+    expect(totalThrough(withSpend(), 1, "fuelSpend")).toBe(100);
+    expect(totalThrough(withSpend(), 12, "fuelSpend")).toBe(1200);
+    expect(totalThrough(withSpend(), 60, "maintenanceSpend")).toBe(420);
+  });
+
+  it("has nothing to add at month 0, with no result, or past nothing", () => {
+    expect(totalThrough(withSpend(), 0, "fuelSpend")).toBeUndefined();
+    expect(totalThrough(undefined, 12, "fuelSpend")).toBeUndefined();
+  });
+
+  it("does not change the result it reads", () => {
+    const r = withSpend();
+    const before = JSON.stringify(r);
+    totalThrough(r, 30, "fuelSpend");
+    expect(JSON.stringify(r)).toBe(before);
   });
 });
 

@@ -70,9 +70,10 @@ describe("start", () => {
     expect(state().stage.phase).toBe("interactive");
     expect(state().explore.scenarios.map((s) => s.id)).toEqual([BASE_ID]);
     const result = state().results[BASE_ID];
-    expect(result.points).toHaveLength(61);
-    expect(result.points[0].mileage).toBe(state().twin!.mileage);
-    expect(result.points[60].mileage).toBeGreaterThan(result.points[0].mileage);
+    // The real projection is end-of-month, months 1 to 60. Month 0 is "now" and has no point.
+    expect(result.points.map((p) => p.month)).toEqual(Array.from({ length: 60 }, (_, i) => i + 1));
+    expect(result.points[0].mileage).toBeGreaterThan(state().twin!.mileage);
+    expect(result.points[59].mileage).toBeGreaterThan(result.points[0].mileage);
   });
 
   it("ignores late reveal callbacks once the reveal is over", async () => {
@@ -230,7 +231,7 @@ describe("dump and confirm", () => {
     expect(child.forkMonth).toBe(12);
     expect(child.name).toBe("Move to Denver + 1 more");
     expect(child.events.every((e) => e.status === "confirmed")).toBe(true);
-    expect(state().results[child.id].points).toHaveLength(61);
+    expect(state().results[child.id].points).toHaveLength(60);
     expect(state().activeScenarioId).toBe(child.id);
     expect(state().explore.draftChanges).toEqual([]);
 
@@ -302,11 +303,12 @@ describe("questions and profile answers", () => {
 
   it("a real answer is stored as the user's and moves the projection", async () => {
     await enterWorkspace();
-    const fuelBefore = state().results[BASE_ID].points[60].fuelSpend;
+    const fuelAt60 = () => state().results[BASE_ID].points.find((p) => p.month === 60)!.fuelSpend;
+    const fuelBefore = fuelAt60();
     actions().answerQuestion("annualMiles", 24000);
     expect(state().explore.confirmedProfile.annualMiles).toBe(24000);
     expect(state().explore.confirmedProfile.provenance.annualMiles).toBe("user");
-    expect(state().results[BASE_ID].points[60].fuelSpend).toBeCloseTo(fuelBefore * 2, 5);
+    expect(fuelAt60()).toBeCloseTo(fuelBefore * 2, 5);
   });
 
   it("rejects unusable answers without changing anything", async () => {
@@ -366,9 +368,10 @@ describe("replace comparison", () => {
     const { keepId, replaceId } = state().comparison!;
     expect(keepId).toBe(BASE_ID);
     expect(state().explore.scenarios.map((s) => s.id)).toContain(replaceId);
-    expect(state().results[replaceId].points[11].vehicleId).toBe(CAMRY);
-    expect(state().results[replaceId].points[12].vehicleId).toBe(RAV4);
-    expect(state().evaluation?.preferredScenarioId).toBe("inconclusive");
+    const carAt = (m: number) => state().results[replaceId].points.find((p) => p.month === m)!.vehicleId;
+    expect(carAt(11)).toBe(CAMRY);
+    expect(carAt(12)).toBe(RAV4);
+    expect(state().evaluation?.scenarioIds).toEqual([keepId, replaceId]);
     expect(state().activeScenarioId).toBe(replaceId);
 
     // morph in flight: still showing the Camry, heading to the RAV4

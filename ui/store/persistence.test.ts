@@ -110,7 +110,7 @@ describe("store hydration", () => {
     expect(state().ui.lowPerformance).toBe(true);
     expect(state().ui.detailsOpen).toBe(false); // the sheet and the page are never saved
     expect(state().ui.view).toBe("car");
-    expect(state().results[BASE_ID].points).toHaveLength(61);
+    expect(state().results[BASE_ID].points).toHaveLength(60);
   });
 
   it("never saves the road options: every session starts minimal", async () => {

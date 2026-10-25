@@ -243,6 +243,7 @@ export function Road() {
               x={x}
               y={y}
               locked={inherited.has(e.id)}
+              minMonth={active.parentId ? active.forkMonth : 0}
               getAxis={getAxis}
               onMove={moveEvent}
               onSelect={setActiveMonth}

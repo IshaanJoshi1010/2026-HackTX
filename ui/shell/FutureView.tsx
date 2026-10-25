@@ -77,7 +77,7 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
                 source={metricSource("netEconomicCost", profile, spec)}
               />
             ) : (
-              <p className="text-lg text-ink/50">No projection for this month</p>
+              <p className="text-lg text-ink/50">{month === 0 ? "Today. Net cost counts from here." : "No projection for this month"}</p>
             )}
           </header>
 
