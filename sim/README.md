@@ -48,6 +48,8 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 
 **Event payload keys** (any event type; absolute unless named `*Delta`): `annualMiles`, `commuteMilesOneWay`, `commuteDaysPerWeek`, `householdSize`, `children`, `childrenDelta`, `carSeats`, `fuelPricePerGal`, `monthlyBudget`, `cargoNeed`, `location`. `vehicle_replacement` only: `vehicleId`, `price`, `mileage`. `children` and `childrenDelta` also move `householdSize` by the same amount unless the event states it; car seats are never inferred. Unknown keys and bad values are ignored, with a warning.
 
+**Events that change no number.** `location` is recorded and passed along but nothing reads it, so a relocation that only names a place changes no dollar and no fit check (add `annualMiles` or `fuelPricePerGal` to model what the move does). `maintenance_decision` has no handler. `monthlyBudget` never changes a dollar either: it only flags months that go over it (a warning, and a hard constraint in `evaluate`). An event with an empty payload does nothing. Each of these adds `Event <id>: no modeled effect, <why>` (or the budget line) to `warnings`, once per event, so the UI can say it instead of showing an unexplained flat line. Whether an event moves cost is for the UI to measure by simulating with and without it (`ui/timeline/effects.ts`), not to guess from the type.
+
 **Scenario assumption keys** (all optional): `insurancePerMonth`, `loanApr`, `startYear`, `replacementPrice`, `salesTaxRate`, `purchaseFees`, `downPayment`, `newLoanApr`, `newLoanTermMonths`. What-if keys used by break-even and sensitivity: `annualMilesOverride`, `fuelPricePerGalOverride`, `fuelPriceScale`, `depreciationScale`.
 
 ## `/decision` exports

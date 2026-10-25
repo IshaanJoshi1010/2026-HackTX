@@ -7,7 +7,7 @@ import { commuteAnnualMiles } from "./mileage";
  *   annualMiles, commuteMilesOneWay, commuteDaysPerWeek, householdSize, children, carSeats,
  *   childrenDelta, fuelPricePerGal, monthlyBudget,
  *   (children and childrenDelta also move householdSize by the change, unless the event sets householdSize),
- *   cargoNeed ("low" | "medium" | "high"), location,
+ *   cargoNeed ("low" | "medium" | "high"), location (recorded, never read: see noEffectNote),
  *   vehicleId, price, mileage (vehicle_replacement only: the car bought, its price and its odometer).
  * A commute change without annualMiles shifts annualMiles by the change in round-trip commute miles.
  * Unknown keys and wrongly typed values are ignored with a warning.
@@ -113,6 +113,29 @@ function applyPayload(prev: SimState, e: LifeEvent, warnings: string[]): { next:
 }
 
 /**
+ * Says so when a confirmed event moves nothing the simulation reads, instead of leaving the person to wonder why a
+ * decision on the road changed no number. Notes read "Event <id>: <text>", like the other event warnings.
+ *  - location is stored and handed to suitability, but nothing reads it (no cost of living, no insurance by city);
+ *  - maintenance_decision has no handler;
+ *  - a budget change only flags months that go over it and can rule a car out; it never changes a dollar;
+ *  - an empty payload does nothing.
+ */
+function noEffectNote(e: LifeEvent, touched: string[]): string | null {
+  if (e.type === "vehicle_replacement") return null; // has its own warnings (no vehicleId, car not in context)
+  const modeled = touched.filter(k => k !== "location");
+  if (modeled.length > 0) {
+    return modeled.every(k => k === "monthlyBudget")
+      ? "a budget change does not change cost. It only flags months that go over it and can rule a car out"
+      : null;
+  }
+  const reason = Object.keys(e.payload).length === 0 ? "it has nothing in it"
+    : e.type === "maintenance_decision" ? "maintenance decisions are not modeled"
+    : touched.includes("location") ? "the new place is recorded, but the simulation does not use location"
+    : "nothing in it is something the simulation reads";
+  return `no modeled effect, ${reason}`;
+}
+
+/**
  * What-if overrides from scenario.assumptions, used by break-even and sensitivity:
  * annualMilesOverride / fuelPricePerGalOverride hold the value constant for every month (events cannot change it);
  * fuelPriceScale multiplies whatever fuel price applies that month.
@@ -148,6 +171,8 @@ export function resolveStates(twin: VehicleTwin, scenario: Scenario): { states: 
       while (cursor < events.length && events[cursor].month === groupMonth) {
         const e = events[cursor++];
         const { next, touched } = applyPayload(state, e, warnings);
+        const note = noEffectNote(e, touched);
+        if (note) warnings.push(`Event ${e.id}: ${note}`);
         for (const key of touched) {
           const earlier = setBy.get(key);
           if (earlier) warnings.push(`Month ${groupMonth}: ${key} set by both ${earlier} and ${e.id}; using ${e.id}`);
