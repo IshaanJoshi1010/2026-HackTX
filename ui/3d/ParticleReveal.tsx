@@ -24,29 +24,34 @@ export function createParticleReveal(target: Float32Array, low: boolean) {
   let seed = 2026;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   for (let i = 0; i < delay.length; i++) {
-    // A shallow orbital ribbon keeps the action around the vehicle, inside the framing.
-    const angle = random() * Math.PI * 2, radius = 2.8 + random() * 1.2;
-    start.set([radius * Math.cos(angle), 0.25 + random() * 1.8, radius * Math.sin(angle) * 0.65], i * 3);
-    // A coherent front-to-back wave with small deterministic variation.
-    delay[i] = Math.max(0, Math.min(0.2, (target[i * 3] + 2.3) / 4.6 * 0.16 + random() * 0.04));
+    // Expand each surface region locally instead of sending unrelated particles
+    // across the whole car. The silhouette stays coherent as the shell gathers.
+    const x = target[i * 3], y = target[i * 3 + 1], z = target[i * 3 + 2];
+    const side = z / Math.max(0.2, Math.abs(z));
+    const spread = 0.35 + random() * 0.25;
+    start.set([x * 1.22 + (random() - 0.5) * 0.15,
+      Math.max(0.25, Math.min(2.05, y * 1.12 + 0.25 + random() * 0.15)),
+      z * 1.2 + side * spread], i * 3);
+    // A narrow stagger avoids a late tail of particles snapping into place.
+    delay[i] = Math.max(0, Math.min(0.08, (x + 2.3) / 4.6 * 0.06 + random() * 0.02));
   }
+  const targetAttribute = new Float32BufferAttribute(target, 3);
   const geometry = new BufferGeometry()
-    .setAttribute("position", new Float32BufferAttribute(target.slice(), 3))
-    .setAttribute("aTarget", new Float32BufferAttribute(target.slice(), 3))
+    .setAttribute("position", targetAttribute)
+    .setAttribute("aTarget", targetAttribute)
     .setAttribute("aStart", new Float32BufferAttribute(start, 3))
     .setAttribute("aDelay", new Float32BufferAttribute(delay, 1));
   const material = new ShaderMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending,
     uniforms: { uProgress: { value: 0 }, uTime: { value: 0 }, uOpacity: { value: 1 }, uColor: { value: [0.48, 0.78, 1] }, uPixelRatio: { value: 1 } },
     vertexShader: `attribute vec3 aStart; attribute vec3 aTarget; attribute float aDelay;
       uniform float uProgress; uniform float uTime; uniform float uPixelRatio;
-      void main() { float t = clamp((uProgress-aDelay)/(1.0-aDelay), 0.0, 1.0); t = t*t*t*(t*(t*6.0-15.0)+10.0);
-      float turn = (1.0-t)*0.75;
-      vec3 orbit = vec3(aStart.x*cos(turn)-aStart.z*sin(turn), aStart.y, aStart.x*sin(turn)+aStart.z*cos(turn));
-      vec3 p = mix(orbit, aTarget, t);
+      void main() { float t = clamp((uProgress-aDelay)/(0.88-aDelay), 0.0, 1.0); t = t*t*t*(t*(t*6.0-15.0)+10.0);
+      vec3 p = mix(aStart, aTarget, t);
       float arc = 16.0*t*t*(1.0-t)*(1.0-t);
-      p.y += 0.3*arc;
+      // Subtle directional flow without an orbit, overshoot or endpoint drift.
+      p += vec3(0.06*sin(aTarget.x),0.07,0.04*sin(aTarget.x*1.4))*arc;
       vec4 mv = modelViewMatrix * vec4(p,1.0); gl_Position = projectionMatrix * mv;
-      gl_PointSize = mix(2.6,1.65,t)*uPixelRatio*clamp(7.0/max(1.0,-mv.z),0.65,1.6); }`,
+      gl_PointSize = mix(2.15,1.65,t)*uPixelRatio*clamp(7.0/max(1.0,-mv.z),0.65,1.6); }`,
     fragmentShader: particleFragment(low),
   });
   const cloud = new Points(geometry, material);

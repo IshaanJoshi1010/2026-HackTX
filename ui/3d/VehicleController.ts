@@ -129,7 +129,7 @@ export class VehicleController {
           this.reveal = { clock, cloud, wire, materials }; clock.advance(0);
         }
       }
-      if (!this.duration) this.finish();
+      if (!this.duration && !this.reveal) this.finish();
     } catch (error) {
       if (generation !== this.generation) return;
       status({ vehicleId: vehicle.id, ready: false, error: error instanceof Error ? error.message : String(error) });
@@ -144,11 +144,15 @@ export class VehicleController {
       cloud.material.uniforms.uProgress.value = Math.min(1, time / 2);
       cloud.material.uniforms.uTime.value = time;
       cloud.material.uniforms.uPixelRatio.value = pixelRatio;
-      cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.45) * (1 - smootherStep((time - 2.65) / 1.05));
-      wire.visible = time >= 2.5 && time < 4;
-      materials.update("wireframe", 0.35 * smootherStep((time - 2.5) / 0.5) * (1 - smootherStep((time - 3) / 0.65)));
+      // A complementary handoff keeps the silhouette continuous. Finish the
+      // visual materialization early, leaving a settled beat before "done".
+      const solid = smootherStep((time - 3) / 0.5);
+      cloud.material.uniforms.uOpacity.value = 0.8 * smootherStep(time / 0.25) * (1 - solid);
+      cloud.visible = solid < 1;
+      wire.visible = time >= 2.5 && solid < 1;
+      materials.update("wireframe", 0.18 * smootherStep((time - 2.5) / 0.35) * (1 - solid));
       layer.root.visible = time >= 3;
-      layer.materials.update("solid", smootherStep(time - 3));
+      layer.materials.update("solid", solid);
       if (time < 4) return;
       this.clearReveal();
     }
