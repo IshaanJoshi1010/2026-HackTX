@@ -7,6 +7,7 @@ import { RevealOverlay } from "@/ui/reveal/RevealOverlay";
 import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { CarView } from "./CarView";
+import { Credits } from "./Credits";
 import { DetailsSheet } from "./DetailsSheet";
 import { ErrorNotice } from "./ErrorNotice";
 import { FutureView } from "./FutureView";
@@ -86,6 +87,7 @@ export function Workspace() {
             <ErrorNotice />
             <CommandBox />
             <ViewSwitch />
+            <Credits className="-mt-2" />
           </div>
           <DetailsSheet />
         </>

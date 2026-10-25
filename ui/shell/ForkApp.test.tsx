@@ -138,7 +138,8 @@ describe("the car page", () => {
       state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
     });
     goCar();
-    expect(screen.getByText(/Representative 3D model/)).toHaveTextContent("Move to Denver");
+    // the identity line under the car (the credits footer says "Representative 3D models" too)
+    expect(screen.getAllByText(/Representative 3D model/).some((el) => el.textContent?.includes("Move to Denver"))).toBe(true);
   });
 
   it("never prints placeholder paint text from the fixtures", async () => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Credits } from "@/ui/shell/Credits";
 import { StageBackdrop } from "@/ui/shell/StageBackdrop";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { ModelYearPicker } from "./ModelYearPicker";
@@ -64,6 +65,8 @@ export function Landing() {
           </p>
         )}
       </div>
+
+      <Credits defaultOpen className="relative z-10 mt-12 w-full" />
 
     </main>
   );
