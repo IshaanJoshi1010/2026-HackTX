@@ -100,6 +100,8 @@ const ACTS: Act[] = [
   { name: "runBreakEven", weight: 2, when: () => inWork() && state().comparison !== null, run: (r) => actions().runBreakEven(pick(r, ["annualMiles", "fuelPricePerGal"] as const)) },
   { name: "moveEvent", weight: 4, when: () => inWork() && state().explore.scenarios.some((s) => s.events.length > 0), run: (r) => { const sc = pick(r, state().explore.scenarios.filter((s) => s.events.length > 0)); const ev = pick(r, sc.events); actions().moveEvent(sc.id, ev.id, Math.floor(r() * 61)); return `${ev.type}`; } },
   { name: "setActiveScenario", weight: 5, when: inWork, run: (r) => actions().setActiveScenario(pick(r, state().explore.scenarios).id) },
+  { name: "selectFuture", weight: 5, when: inWork, run: (r) => { const lives = state().explore.scenarios; actions().selectFuture(pick(r, lives).id); } },
+  { name: "setFuturePanel", weight: 4, when: inWork, run: (r) => { const p = pick(r, ["costs", "why", "change", null] as const); actions().setFuturePanel(p); return String(p); } },
   { name: "setActiveMonth", weight: 3, when: inWork, run: (r) => actions().setActiveMonth(Math.floor(r() * 80) - 10) },
   { name: "setView", weight: 6, when: inWork, run: (r) => actions().setView(pick(r, ["car", "future"] as const)) },
   { name: "flags", weight: 4, when: inWork, run: (r) => { const a = actions(); const on = r() < 0.6; pick(r, [() => a.setFutureDetails(on), () => a.setFutureCompare(on), () => a.setFutureExpanded(on), () => a.setFutureWhy(on), () => a.setFutureTerms(on), () => a.setFutureBreakEven(on), () => a.setDetailsOpen(on)])(); } },

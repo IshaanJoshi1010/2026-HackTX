@@ -139,6 +139,13 @@ export interface UiState {
   busy: "idle" | "interpreting" | "simulating";
 }
 
+/** The deeper panels under the timeline. They map onto the older flags (futureDetails, futureWhy, futureBreakEven). */
+export type FuturePanel = "costs" | "why" | "change";
+
+/** Which panel is open, from the flags. At most one; none when all are off. */
+export const openFuturePanel = (ui: Pick<UiState, "futureDetails" | "futureWhy" | "futureBreakEven">): FuturePanel | null =>
+  ui.futureDetails ? "costs" : ui.futureWhy ? "why" : ui.futureBreakEven ? "change" : null;
+
 export interface ForkActions {
   startFromVin(vin: string): Promise<void>;
   startFromSample(vehicleId: string): Promise<void>;
@@ -182,6 +189,8 @@ export interface ForkActions {
   setDetailsOpen(open: boolean): void;
   setFutureDetails(on: boolean): void;
   setFutureCompare(on: boolean): void;
+  /** One deeper panel at a time under the timeline (Costs, Why this result, What could change), or none. */
+  setFuturePanel(panel: FuturePanel | null): void;
   setFutureExpanded(on: boolean): void;
   setFutureWhy(on: boolean): void;
   setFutureTerms(on: boolean): void;
@@ -526,7 +535,7 @@ function reachDescendants(all: Scenario[], source: Scenario, eventId: string, mo
 }
 
 /** The future with no swap in it that this one is built on: itself, or the nearest one it came from. */
-function lifeOf(s: Pick<ForkState, "explore">, scenario: Scenario): Scenario {
+export function lifeOf(s: Pick<ForkState, "explore">, scenario: Scenario): Scenario {
   let cur = scenario;
   for (let guard = 0; guard < 50 && cur.events.some((e) => e.type === "vehicle_replacement"); guard++) {
     const parent = cur.parentId ? s.explore.scenarios.find((x) => x.id === cur.parentId) : undefined;
@@ -1336,6 +1345,12 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     setFutureBreakEven(on) {
       if (on && !get().breakEven) return actions.runBreakEven("annualMiles"); // it turns the view on itself
       set((s) => ({ ui: { ...s.ui, futureBreakEven: on } }));
+    },
+
+    setFuturePanel(panel) {
+      // Only one is open: the others close first. "What could change" runs the break-even the first time it opens.
+      set((s) => ({ ui: { ...s.ui, futureDetails: panel === "costs", futureWhy: panel === "why", futureBreakEven: false } }));
+      if (panel === "change") actions.setFutureBreakEven(true);
     },
 
     setLowPerformance(on) {
