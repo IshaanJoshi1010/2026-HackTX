@@ -13,7 +13,7 @@ export function loadPointsFile(url: string, quality: Quality): Promise<Float32Ar
   const existing = cache.get(key);
   if (existing) return existing;
   const task = (async () => {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error(`Point file unavailable (${response.status}).`);
     const buffer = await response.arrayBuffer();
     const count = quality === "high" ? 32768 : 8192;

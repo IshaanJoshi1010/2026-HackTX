@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "inspect": "node inspect-glb.mjs",
-    "test": "node --test inspect-glb.test.mjs prep-glb.test.mjs assets.test.mjs"
+    "test": "node --test inspect-glb.test.mjs prep-glb.test.mjs assets.test.mjs",
+    "sample": "node sample-points.mjs ../.."
   },
   "dependencies": {
     "@gltf-transform/core": "4.5.1",

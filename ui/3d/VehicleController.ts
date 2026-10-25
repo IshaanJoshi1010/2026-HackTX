@@ -1,4 +1,4 @@
-import { Group, Mesh, MeshPhysicalMaterial, Object3D } from "three";
+import { Color, DoubleSide, Group, Mesh, MeshPhysicalMaterial, Object3D } from "three";
 import type { VehicleConfig } from "@/contracts";
 import { assetSpec, loadAsset } from "./assets";
 import { cloneOwnedObject, disposeObject } from "./dispose";
@@ -6,10 +6,11 @@ import { applyPaint } from "./paint";
 import { createPointsView, ViewMaterials } from "./viewModes";
 import { loadPointsFile, pointsUrl, type Quality } from "./usePointsFile";
 import { createParticleReveal, RevealClock } from "./ParticleReveal";
+import { createParticleMorph, createScanLine, forceFallback } from "./ParticleMorph";
 import type { CarStageProps } from "./types";
 
-type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number; data?: Float32Array; cloud?: ReturnType<typeof createPointsView> };
-export type AnimationOptions = { quality: Quality; reveal?: boolean; reducedMotion?: boolean; onStage?: CarStageProps["onRevealStage"] };
+type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number; data?: Float32Array; cloud?: ReturnType<typeof createPointsView>; hex?: string };
+export type AnimationOptions = { quality: Quality; reveal?: boolean; transition?: boolean; reducedMotion?: boolean; fallback?: boolean; onStage?: CarStageProps["onRevealStage"] };
 export class VehicleController {
   readonly group = new Group();
   private layers: Layer[] = [];
@@ -20,6 +21,13 @@ export class VehicleController {
   private fading = false;
   private complete: (() => void) | undefined;
   private reveal?: { clock: RevealClock; cloud: ReturnType<typeof createParticleReveal>; wire: Object3D; materials: ViewMaterials };
+  private morph?: ReturnType<typeof createParticleMorph>;
+  private scan?: Mesh;
+  private paints: MeshPhysicalMaterial[] = [];
+  private fromColor = new Color();
+  private toColor = new Color();
+  private readonly cyan = new Color("#27E1FF");
+  get isMorphing() { return !!this.morph; }
   constructor(private readonly load = loadAsset, private readonly loadPoints = loadPointsFile) {}
 
   async select(vehicle: VehicleConfig, duration: number, status: CarStageProps["onModelStatus"], ready: () => void, complete: () => void, options?: AnimationOptions) {
@@ -56,13 +64,33 @@ export class VehicleController {
       });
       applyPaint(root, spec.body, spec.hex);
       this.layers.forEach((layer) => { layer.startOpacity = layer.opacity; });
-      const layer: Layer = { root, data, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
+      const outgoing = this.layers.at(-1);
+      const layer: Layer = { root, data, hex: spec.hex, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
       this.layers.push(layer);
       this.group.add(root);
       this.duration = this.skipped ? 0 : duration;
       this.elapsed = 0;
       this.fading = true;
       this.complete = complete;
+      if (options?.transition && outgoing && !this.skipped) {
+        // Missing samples and the explicit demo switch both preserve the solid fallback.
+        if (!options.reducedMotion && !options.fallback && !forceFallback && outgoing.data && data && outgoing.data.length === data.length) {
+          this.morph = createParticleMorph(outgoing.data, data, options.quality === "low");
+          this.group.add(this.morph); this.duration = 1.8;
+          this.fromColor.set(outgoing.hex || "#888888"); this.toColor.set(spec.hex || "#888888");
+          root.traverse(object => {
+            if (!(object instanceof Mesh)) return;
+            for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+              if (material instanceof MeshPhysicalMaterial && (material.name === spec.body || /body|paint|carpaint|exterior/i.test(material.name))) this.paints.push(material);
+            }
+          });
+        } else if (!options.reducedMotion) {
+          this.duration = 1;
+          const scan = createScanLine(); scan.material.side = DoubleSide;
+          this.scan = new Mesh(scan.geometry, scan.material); this.scan.userData.contactIgnore = true; this.scan.renderOrder = 20;
+          this.group.add(this.scan);
+        } else this.duration = 0.3;
+      }
       status({ vehicleId: vehicle.id, ready: true, ...(pointError ? { error: pointError } : {}) });
       ready();
       if (options?.reveal) {
@@ -103,20 +131,30 @@ export class VehicleController {
       this.elapsed += delta;
       const progress = Math.min(1, this.elapsed / Math.max(this.duration, 0.001));
       const t = progress * progress * (3 - 2 * progress);
-      this.layers.forEach((layer, index) => {
-        layer.opacity = index === this.layers.length - 1 ? Math.max(layer.opacity, t) : layer.startOpacity * (1 - t);
-      });
+      if (this.morph) {
+        const morph = Math.max(0, Math.min(1, (this.elapsed - 0.3) / 1.2));
+        const eased = morph * morph * (3 - 2 * morph);
+        this.morph.material.uniforms.uMorph.value = morph;
+        this.morph.material.uniforms.uOpacity.value = Math.min(1, this.elapsed / 0.3, Math.max(0, (1.8 - this.elapsed) / 0.3));
+        this.morph.material.uniforms.uPixelRatio.value = pixelRatio;
+        this.morph.material.uniforms.uColor.value.copy(this.fromColor).lerp(this.toColor, eased).lerp(this.cyan, 0.7);
+        this.paints.forEach(material => material.color.lerpColors(this.fromColor, this.toColor, eased));
+        this.layers.forEach((layer, index) => { layer.opacity = index === this.layers.length - 1 ? Math.max(0, Math.min(1, (this.elapsed - 1.5) / 0.3)) : Math.max(0, 1 - this.elapsed / 0.3); });
+      } else {
+        this.layers.forEach((layer, index) => { layer.opacity = index === this.layers.length - 1 ? Math.max(layer.opacity, t) : layer.startOpacity * (1 - t); });
+        if (this.scan) (this.scan.material as ReturnType<typeof createScanLine>["material"]).uniforms.uProgress.value = progress;
+      }
       if (progress === 1) this.finish();
     }
     this.layers.forEach((layer) => {
-      if (mode === "points" && layer.data) {
+      if (!this.fading && mode === "points" && layer.data) {
         if (!layer.cloud) { layer.cloud = createPointsView(layer.data); this.group.add(layer.cloud); }
         layer.cloud.material.opacity = layer.opacity; layer.root.visible = false;
       } else {
         if (layer.cloud) { disposeObject(layer.cloud); layer.cloud = undefined; }
-        layer.root.visible = true;
+        layer.root.visible = layer.opacity > 0;
       }
-      layer.materials.update(mode, layer.opacity);
+      layer.materials.update(this.fading ? "solid" : mode, layer.opacity);
     });
   }
 
@@ -129,16 +167,23 @@ export class VehicleController {
   private disposeLayer(layer: Layer) { disposeObject(layer.root); if (layer.cloud) disposeObject(layer.cloud); }
   private finish() {
     this.fading = false;
+    this.clearMorph();
     while (this.layers.length > 1) this.disposeLayer(this.layers.shift()!);
     if (this.layers[0]) this.layers[0].opacity = 1;
     const callback = this.complete;
     this.complete = undefined;
     callback?.();
   }
+  private clearMorph() {
+    if (this.morph) { disposeObject(this.morph); this.morph = undefined; }
+    if (this.scan) { disposeObject(this.scan); this.scan = undefined; }
+    this.paints.forEach(material => material.color.copy(this.toColor)); this.paints = [];
+  }
   dispose() {
     ++this.generation;
     this.complete = undefined;
     this.clearReveal();
+    this.clearMorph();
     this.layers.forEach((layer) => this.disposeLayer(layer));
     this.layers = [];
     this.group.removeFromParent();

@@ -1,0 +1,10 @@
+These sampled point clouds are derived from the representative GLBs in public/models.
+License: CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
+
+Camry: toyota camry v80 by sultan (https://sketchfab.com/s122)
+https://sketchfab.com/3d-models/toyota-camry-v80-98c70e5aa53446728fea4d8f448bbf33
+
+RAV4: 2021+Toyota+RAV4+Adventure by luisandradeandrade762
+https://sketchfab.com/3d-models/2021toyotarav4adventure-366c46f72db64da2ac09777458506092
+
+Fork modifications: mesh preparation, orientation, normalization, seeded area-weighted surface sampling, and stratification into high/low point sets. Refer to public/models/manifest.json and public/models/CREDITS.txt for full model details. These are representative visual assets, not verified matches to the configured vehicle year or trim.

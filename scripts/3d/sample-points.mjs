@@ -58,4 +58,4 @@ export async function generate(root = process.cwd()) {
     console.log(`${entry.vehicleId}: 32768 high / 8192 low`);
   }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await generate();
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await generate(process.argv[2] ?? process.cwd());

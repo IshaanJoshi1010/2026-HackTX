@@ -2,7 +2,7 @@
 
 import { OrbitControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useRef, type ComponentRef } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import type { CarStageProps } from "./types";
 import { VehicleModel } from "./VehicleModel";
 import { RendererDiagnostics } from "./diagnostics";
@@ -11,6 +11,7 @@ import { StudioEnvironment } from "./StudioEnvironment";
 
 export function Scene({ props, onReady }: { props: CarStageProps; onReady: () => void }) {
   const camera = useThree((state) => state.camera);
+  const [busy, setBusy] = useState(false);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   useEffect(() => {
     camera.position.set(4.8, 1.6, 5.6);
@@ -28,8 +29,8 @@ export function Scene({ props, onReady }: { props: CarStageProps; onReady: () =>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.006, 0]} receiveShadow userData={{ contactIgnore: true }}>
       <planeGeometry args={[200, 200]} /><meshStandardMaterial color="#101114" roughness={0.9} envMapIntensity={0.25} />
     </mesh>
-    <VehicleModel props={props} onReady={onReady} />
+    <VehicleModel props={props} onReady={onReady} onBusy={setBusy} />
     <ContactShadows low={props.quality === "low"} />
-    <OrbitControls ref={controls} target={[0, 0.7, 0]} enableDamping dampingFactor={0.08} minDistance={3.5} maxDistance={9} maxPolarAngle={1.5} />
+    <OrbitControls ref={controls} enabled={!busy} target={[0, 0.7, 0]} enableDamping dampingFactor={0.08} minDistance={3.5} maxDistance={9} maxPolarAngle={1.5} />
   </>;
 }
