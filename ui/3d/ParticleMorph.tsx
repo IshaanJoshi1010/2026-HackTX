@@ -3,8 +3,11 @@ import { particleFragment } from "./ParticleReveal";
 
 // Demo cut switch: use the 1-second scan-line crossfade if GPU morph misbehaves.
 export const forceFallback = false;
+const ordered = new WeakMap<Float32Array, Float32Array>();
 
 export function mortonSort(points: Float32Array): Float32Array {
+  const existing = ordered.get(points);
+  if (existing) return existing;
   const spread = (value: number) => { let x = Math.max(0, Math.min(1023, value)); x = (x | x << 16) & 0x030000ff; x = (x | x << 8) & 0x0300f00f; x = (x | x << 4) & 0x030c30c3; x = (x | x << 2) & 0x09249249; return x; };
   // Shared world-space domain for both cars, so the pairing is stable.
   const order = Array.from({ length: points.length / 3 }, (_, i) => ({ i, code:
@@ -14,6 +17,7 @@ export function mortonSort(points: Float32Array): Float32Array {
   })).sort((a, b) => a.code - b.code || a.i - b.i);
   const sorted = new Float32Array(points.length);
   order.forEach(({ i }, index) => sorted.set(points.subarray(i * 3, i * 3 + 3), index * 3));
+  ordered.set(points, sorted);
   return sorted;
 }
 
@@ -25,8 +29,10 @@ export function createParticleMorph(from: Float32Array, to: Float32Array, low: b
   const material = new ShaderMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending,
     uniforms: { uMorph: { value: 0 }, uOpacity: { value: 0 }, uColor: { value: new Color("#27E1FF") }, uPixelRatio: { value: 1 } },
     vertexShader: `attribute vec3 aFrom; attribute vec3 aTo; uniform float uMorph; uniform float uPixelRatio;
-      void main() { float t = uMorph*uMorph*(3.0-2.0*uMorph);
-      vec4 mv = modelViewMatrix*vec4(mix(aFrom,aTo,t),1.0); gl_Position = projectionMatrix*mv;
+      void main() { float t = uMorph*uMorph*uMorph*(uMorph*(uMorph*6.0-15.0)+10.0);
+      vec3 p = mix(aFrom,aTo,t);
+      p.y += 0.12*16.0*t*t*(1.0-t)*(1.0-t);
+      vec4 mv = modelViewMatrix*vec4(p,1.0); gl_Position = projectionMatrix*mv;
       gl_PointSize = 2.0*uPixelRatio*clamp(7.0/max(1.0,-mv.z),0.65,1.6); }`,
     fragmentShader: particleFragment(low),
   });

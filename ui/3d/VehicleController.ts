@@ -8,6 +8,7 @@ import { loadPointsFile, pointsUrl, type Quality } from "./usePointsFile";
 import { createParticleReveal, RevealClock } from "./ParticleReveal";
 import { createParticleMorph, createScanLine, forceFallback } from "./ParticleMorph";
 import type { CarStageProps } from "./types";
+import { smootherStep } from "./animationMath";
 
 type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number; data?: Float32Array; cloud?: ReturnType<typeof createPointsView>; hex?: string };
 export type AnimationOptions = { quality: Quality; reveal?: boolean; transition?: boolean; reducedMotion?: boolean; fallback?: boolean; onStage?: CarStageProps["onRevealStage"] };
@@ -127,27 +128,27 @@ export class VehicleController {
       cloud.material.uniforms.uProgress.value = Math.min(1, time / 2);
       cloud.material.uniforms.uTime.value = time;
       cloud.material.uniforms.uPixelRatio.value = pixelRatio;
-      cloud.material.uniforms.uOpacity.value = time < 3 ? 1 : 4 - time;
+      cloud.material.uniforms.uOpacity.value = time < 3 ? smootherStep(time / 0.22) : 1 - smootherStep(time - 3);
       wire.visible = time >= 2.5 && time < 4;
-      materials.update("wireframe", time < 3 ? (time - 2.5) * 2 : 4 - time);
+      materials.update("wireframe", time < 3 ? smootherStep((time - 2.5) * 2) : 1 - smootherStep(time - 3));
       layer.root.visible = time >= 3;
-      layer.materials.update("solid", Math.max(0, time - 3));
+      layer.materials.update("solid", smootherStep(time - 3));
       if (time < 4) return;
       this.clearReveal();
     }
     if (this.fading) {
       this.elapsed += delta;
       const progress = Math.min(1, this.elapsed / Math.max(this.duration, 0.001));
-      const t = progress * progress * (3 - 2 * progress);
+      const t = smootherStep(progress);
       if (this.morph) {
         const morph = Math.max(0, Math.min(1, (this.elapsed - 0.3) / 1.2));
-        const eased = morph * morph * (3 - 2 * morph);
+        const eased = smootherStep(morph);
         this.morph.material.uniforms.uMorph.value = morph;
-        this.morph.material.uniforms.uOpacity.value = Math.min(1, this.elapsed / 0.3, Math.max(0, (1.8 - this.elapsed) / 0.3));
+        this.morph.material.uniforms.uOpacity.value = Math.min(smootherStep(this.elapsed / 0.3), smootherStep((1.8 - this.elapsed) / 0.3));
         this.morph.material.uniforms.uPixelRatio.value = pixelRatio;
         this.morph.material.uniforms.uColor.value.copy(this.fromColor).lerp(this.toColor, eased).lerp(this.cyan, 0.7);
         this.paints.forEach(material => material.color.lerpColors(this.fromColor, this.toColor, eased));
-        this.layers.forEach((layer, index) => { layer.opacity = index === this.layers.length - 1 ? Math.max(0, Math.min(1, (this.elapsed - 1.5) / 0.3)) : Math.max(0, 1 - this.elapsed / 0.3); });
+        this.layers.forEach((layer, index) => { layer.opacity = index === this.layers.length - 1 ? smootherStep((this.elapsed - 1.5) / 0.3) : 1 - smootherStep(this.elapsed / 0.3); });
       } else {
         this.layers.forEach((layer, index) => { layer.opacity = index === this.layers.length - 1 ? Math.max(layer.opacity, t) : layer.startOpacity * (1 - t); });
         if (this.scan) (this.scan.material as ReturnType<typeof createScanLine>["material"]).uniforms.uProgress.value = progress;

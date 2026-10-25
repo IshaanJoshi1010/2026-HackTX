@@ -6,6 +6,7 @@ import { ACESFilmicToneMapping } from "three";
 import type { CarStageProps } from "./types";
 import { Scene } from "./Scene";
 import { stagePixelRatio } from "./pixelBudget";
+import styles from "./StageToolbar.module.css";
 
 class CanvasErrorBoundary extends Component<{ children: ReactNode; onError: (message: string) => void }, { error: string | null }> {
   state = { error: null as string | null };
@@ -17,6 +18,26 @@ class CanvasErrorBoundary extends Component<{ children: ReactNode; onError: (mes
 export function CarStage(props: CarStageProps): JSX.Element {
   const host = useRef<HTMLElement>(null);
   const [highDpr, setHighDpr] = useState(1);
+  const [spin, setSpin] = useState(false);
+  const [morphBusy, setMorphBusy] = useState(false);
+  const [cameraView, setCameraView] = useState<"threeQuarter" | "front" | "side">("threeQuarter");
+  const [viewSignal, setViewSignal] = useState(0);
+  const [notice, setNotice] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const changed = () => setIsFullscreen(document.fullscreenElement === host.current);
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
+  const chooseView = (view: typeof cameraView) => { setSpin(false); setCameraView(view); setViewSignal(value => value + 1); };
+  const fullscreen = async () => {
+    setNotice("");
+    try {
+      if (document.fullscreenElement === host.current) await document.exitFullscreen();
+      else if (host.current?.requestFullscreen) await host.current.requestFullscreen();
+      else setNotice("Fullscreen is unavailable in this browser.");
+    } catch { setNotice("Fullscreen is unavailable in this browser."); }
+  };
   useEffect(() => {
     if (!host.current || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(entries => {
@@ -47,13 +68,21 @@ export function CarStage(props: CarStageProps): JSX.Element {
   return <section ref={host} aria-label="Vehicle 3D preview" style={{ position: "relative", width: "100%", height: "100%", minHeight: 320, background: "#101114", color: "#eee" }}>
     <CanvasErrorBoundary onError={(error) => report({ vehicleId: target.id, ready: false, error })}>
       <Canvas camera={{ position: [4.8, 1.6, 5.6], fov: 35, near: 0.1, far: 50 }} dpr={props.quality === "low" ? 1 : highDpr} shadows="percentage" gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }} fallback={fallback}>
-        <Scene props={{ ...props, phase: missingTarget ? "interactive" : props.phase, onModelStatus: report }} onReady={ready} />
+        <Scene props={{ ...props, phase: missingTarget ? "interactive" : props.phase, onModelStatus: report }} onReady={ready} spin={spin} cameraView={cameraView} viewSignal={viewSignal} onBusyChange={setMorphBusy} />
       </Canvas>
     </CanvasErrorBoundary>
     <div style={{ position: "absolute", top: 16, left: 16, right: 16, pointerEvents: "none", font: "12px system-ui" }}>
       <strong>{displayedVehicle.model}</strong>
       <div>{displayedVehicle.matchStatus === "exact" ? "" : displayedVehicle.matchStatus === "unsupported" ? "Unsupported model" : "Representative model"}</div>
       <div role="status">{missingTarget ? "Transition target is missing." : modelStatus.error ? modelStatus.ready ? modelStatus.error : `Model unavailable: ${modelStatus.error}` : !modelStatus.ready ? "Loading model..." : ""}</div>
+      {notice && <div>{notice}</div>}
+    </div>
+    <div className={styles.toolbar} role="group" aria-label="Presentation controls">
+      <button type="button" onClick={() => chooseView("threeQuarter")} disabled={morphBusy}>3/4 view</button>
+      <button type="button" onClick={() => chooseView("front")} disabled={morphBusy}>Front</button>
+      <button type="button" onClick={() => chooseView("side")} disabled={morphBusy}>Side</button>
+      <button type="button" aria-pressed={spin && !props.reducedMotion} disabled={props.reducedMotion} onClick={() => setSpin(value => !value)}>Auto-rotate</button>
+      <button type="button" onClick={() => void fullscreen()}>{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</button>
     </div>
   </section>;
 }

@@ -1,11 +1,11 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { CarStageProps } from "../types";
 
-const bridge = vi.hoisted(() => ({ props: undefined as CarStageProps | undefined, ready: undefined as (() => void) | undefined }));
+const bridge = vi.hoisted(() => ({ busy: undefined as ((busy: boolean) => void) | undefined, props: undefined as CarStageProps | undefined, ready: undefined as (() => void) | undefined }));
 vi.mock("@react-three/fiber", () => ({ Canvas: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
-vi.mock("../Scene", () => ({ Scene: ({ props, onReady }: { props: CarStageProps; onReady: () => void }) => { bridge.props = props; bridge.ready = onReady; return null; } }));
+vi.mock("../Scene", () => ({ Scene: ({ props, onReady, onBusyChange }: { props: CarStageProps; onReady: () => void; onBusyChange: (busy: boolean) => void }) => { bridge.busy = onBusyChange; bridge.props = props; bridge.ready = onReady; return null; } }));
 vi.mock("../CarStageStub", () => ({ CarStageStub: () => null }));
 import { CarStage } from "../CarStage";
 
@@ -18,6 +18,22 @@ function props(): CarStageProps {
 }
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+it("presentation controls honor reduced motion and retain skip/reveal callbacks", () => {
+  const config = props(); const view = render(<CarStage {...config} />);
+  const spin = screen.getByRole("button", { name: "Auto-rotate" });
+  fireEvent.click(spin); expect(spin).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Side" }));
+  expect(spin).toHaveAttribute("aria-pressed", "false");
+  view.rerender(<CarStage {...config} reducedMotion />);
+  expect(spin).toBeDisabled();
+  expect(config.onRevealStage).not.toHaveBeenCalled();
+  view.rerender(<CarStage {...config} phase="transition" transitionTo={config.vehicle} />);
+  act(() => bridge.busy!(true));
+  expect(screen.getByRole("button", { name: "Front" })).toBeDisabled();
+  act(() => bridge.busy!(false));
+  expect(screen.getByRole("button", { name: "Front" })).toBeEnabled();
+});
 
 it("passes reveal lifecycle to the loaded scene, without a competing DOM timer", () => {
   const config = props(); render(<CarStage {...config} />);

@@ -1,3 +1,4 @@
+import "./showroom.css";
 import { StrictMode, useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { CarStage, preloadCars, type CarStageProps } from "../../ui/3d/CarStage";
@@ -99,34 +100,37 @@ function Preview() {
   const [reset, setReset] = useState(0);
   const [reducedMotion, setReduced] = useState(false);
   const [low, setLow] = useState(false);
+  const [revealStage, setRevealStage] = useState("Ready");
   const [events, setEvents] = useState<string[]>([]);
   const append = (event: string) => setEvents((previous) => [...previous.slice(-11), event]);
-  return <main style={{ padding: 24 }}>
-    <h1>CarStage integration check</h1><p>Representative models / synthetic paint / sampled points and shader reveal.</p>
-    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-      <button onClick={() => {void preloadCars([camry,rav4]).then(()=>append("Both model assets preloaded"),error=>append(String(error)));}}>Preload both cars</button>
-      <button onClick={() => { setEvents([]); setPhase("reveal"); setReplay(replay + 1); }}>Replay reveal</button>
-      <button onClick={() => setSkip(skip + 1)}>Skip</button>
-      <button onClick={() => { setTarget(vehicle.id === camry.id ? rav4 : camry); setPhase("transition"); setReplay(replay + 1); }}>Morph to other car</button>
-      <button onClick={() => {setPhase("interactive");setVehicle(camry);}}>Camry</button>
-      <button onClick={() => {setPhase("interactive");setVehicle(rav4);}}>RAV4</button>
-      <button onClick={() => setVehicle({...vehicle,paint:vehicle.paint==="#cc2222"?"#535862":"#cc2222"})}>Toggle red paint</button>
-      <button onClick={() => setVehicle({...vehicle,modelAsset:"/models/not-found.glb"})}>Test missing model</button>
-      <button onClick={() => setMounted(!mounted)}>Mount / unmount</button>
-      <button onClick={runAudit}>Run 10-cycle memory audit</button>
-      <button onClick={() => void runAnimationAudit("reveal")}>Audit 10 reveals</button>
-      <button onClick={() => void runAnimationAudit("morph")}>Audit 10 morphs</button>
-      <button onClick={() => void runSwitchAudit()}>Audit 20 switches</button>
-      <button onClick={() => setReset(reset + 1)}>Reset camera</button>
-      <label>View <select value={viewMode} onChange={(event) => setView(event.target.value as CarStageProps["viewMode"])}><option>solid</option><option>wireframe</option><option>points</option></select></label>
-      <label><input type="checkbox" checked={reducedMotion} onChange={(event) => setReduced(event.target.checked)} />Reduced motion</label>
-      <label><input type="checkbox" checked={low} onChange={(event) => setLow(event.target.checked)} />Low quality</label>
-      <label>Stage size <select aria-label="Stage size" value={resolution} onChange={event => setResolution(event.target.value)}><option>responsive</option><option>1024x768</option><option>1280x720</option><option>1920x1080</option></select></label>
+  return <main className="showroom">
+    <header className="showroom-header"><a className="wordmark" href="#">F<span>O</span>RK<span className="brand-dot">.</span></a><div className="header-note">A NEW PERSPECTIVE ON WHAT&apos;S NEXT</div><span className="live-badge"><i /> INTERACTIVE STUDIO</span></header>
+    <section className="intro"><div><p className="eyebrow">THE NEXT CHAPTER</p><h1>See the possibilities<span>.</span></h1><p className="subtitle">Two Toyotas. A different point of view. Explore the details, then watch one future become another.</p></div><div className="edition"><span>{vehicle.id === camry.id ? "01 / 02" : "02 / 02"}</span><p>THE TOYOTA COLLECTION</p></div></section>
+    <div className="showroom-controls">
+      <div className="vehicle-tabs" role="group" aria-label="Choose vehicle">
+        <button aria-pressed={vehicle.id === camry.id} onClick={() => {setPhase("interactive");setVehicle(camry);setRevealStage("Ready");}}>Camry <span>SEDAN</span></button>
+        <button aria-pressed={vehicle.id === rav4.id} onClick={() => {setPhase("interactive");setVehicle(rav4);setRevealStage("Ready");}}>RAV4 <span>HYBRID SUV</span></button>
+      </div>
+      <div className="view-tabs" role="group" aria-label="View mode">{(["solid","wireframe","points"] as const).map(mode => <button key={mode} aria-pressed={viewMode === mode} onClick={() => setView(mode)}>{mode === "solid" ? "Studio" : mode === "wireframe" ? "Structure" : "Particles"}</button>)}</div>
+      <button className="reveal-button" onClick={() => {setEvents([]);setPhase("reveal");setReplay(value => value + 1);}}>Replay reveal <span aria-hidden="true">↻</span></button>
     </div>
-    <div style={{ height: resolution === "responsive" ? "55vh" : Number(resolution.split("x")[1]), width: resolution === "responsive" ? "100%" : Number(resolution.split("x")[0]), minHeight: 320 }}>{mounted && <CarStage vehicle={vehicle} transitionTo={target} phase={phase} viewMode={viewMode} quality={low ? "low" : "high"} reducedMotion={reducedMotion} skipSignal={skip} replaySignal={replay} resetCameraSignal={reset} onRevealStage={(stage) => { append(stage); if (stage === "done") animationDone.current?.(); }} onTransitionComplete={() => { append("transition complete"); setVehicle(target); setPhase("interactive"); animationDone.current?.(); }} onModelStatus={(status) => append(`${status.vehicleId}: ${status.ready ? "ready" : status.error || "loading"}`)} />}</div>
-    <p style={{ position: "fixed", bottom: 0, left: 0, zIndex: 10, margin: 0, padding: 8, background: "#101114ee", pointerEvents: "none", fontSize: 11 }}>{memory} / {performanceText}</p><pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{audit}</pre>
-    <p role="status">{events.join(" / ") || "Waiting for callbacks"}</p>
+    <div className="stage-frame" style={{ height: resolution === "responsive" ? "min(66vh, 720px)" : Number(resolution.split("x")[1]), width: resolution === "responsive" ? "100%" : Number(resolution.split("x")[0]), minHeight: 360 }}>{mounted && <CarStage vehicle={vehicle} transitionTo={target} phase={phase} viewMode={viewMode} quality={low ? "low" : "high"} reducedMotion={reducedMotion} skipSignal={skip} replaySignal={replay} resetCameraSignal={reset} onRevealStage={(stage) => {setRevealStage(stage);append(stage);if(stage === "done") animationDone.current?.();}} onTransitionComplete={() => {append("transition complete");setVehicle(target);setPhase("interactive");setRevealStage("Ready");animationDone.current?.();}} onModelStatus={(status) => append(`${status.vehicleId}: ${status.ready ? "ready" : status.error || "loading"}`)} />}</div>
+    <div className="stage-footer"><span><i className="status-dot" />{phase === "transition" ? "Transforming your perspective" : revealStage === "done" || revealStage === "Ready" ? "Drag to explore · Scroll to zoom" : `${revealStage} · Building your perspective`}</span><button className="text-button" onClick={() => setSkip(value => value + 1)}>Skip animation →</button></div>
+    <section className="experience-bar">
+      <div className="paint-picker"><p className="eyebrow">EXPLORE A FINISH <span>ILLUSTRATIVE</span></p><div className="swatches">{[{name:"Graphite",hex:"#535862"},{name:"Pearl",hex:"#d5d8dc"},{name:"Crimson",hex:"#8f1523"},{name:"Midnight",hex:"#151a21"}].map(paint => <button key={paint.hex} aria-label={`${paint.name} paint`} aria-pressed={vehicle.paint === paint.hex} title={paint.name} style={{"--swatch":paint.hex} as React.CSSProperties} onClick={() => {setPhase("interactive");setVehicle({...vehicle,paint:paint.hex});}} />)}<span>{vehicle.paint === "#535862" ? "Graphite" : vehicle.paint === "#d5d8dc" ? "Pearl" : vehicle.paint === "#8f1523" ? "Crimson" : "Midnight"}</span></div></div>
+      <div className="motion-options"><label><input type="checkbox" checked={reducedMotion} onChange={event => setReduced(event.target.checked)} />Reduced motion</label><label><input type="checkbox" checked={low} onChange={event => setLow(event.target.checked)} />Performance mode</label></div>
+      <button className="morph-button" onClick={() => {setTarget(vehicle.id === camry.id ? rav4 : camry);setPhase("transition");setReplay(value => value + 1);}}>Explore {vehicle.id === camry.id ? "RAV4" : "Camry"}<span aria-hidden="true">↗</span></button>
+    </section>
+    <div className="disclosure"><span>REPRESENTATIVE MODELS</span><p>Visual explorations, not verified matches to a specific year or trim. Paint previews are illustrative.</p></div>
+    <details className="lab"><summary>Studio diagnostics <span>Tools & performance</span></summary><div className="lab-controls">
+      <button onClick={() => void preloadCars([camry,rav4]).then(()=>append("Both assets preloaded"),error=>append(String(error)))}>Preload both cars</button>
+      <button onClick={() => setVehicle({...vehicle,modelAsset:"/models/not-found.glb"})}>Test missing model</button><button onClick={() => setMounted(!mounted)}>Mount / unmount</button>
+      <button onClick={runAudit}>Run 10-cycle memory audit</button><button onClick={() => void runAnimationAudit("reveal")}>Audit 10 reveals</button><button onClick={() => void runAnimationAudit("morph")}>Audit 10 morphs</button><button onClick={() => void runSwitchAudit()}>Audit 20 switches</button><button onClick={() => setReset(value => value + 1)}>Reset camera</button>
+      <label>Stage size <select aria-label="Stage size" value={resolution} onChange={event => setResolution(event.target.value)}><option>responsive</option><option>1024x768</option><option>1280x720</option><option>1920x1080</option></select></label></div>
+      <p className="telemetry">{memory} / {performanceText}</p><pre>{audit}</pre><p role="status">{events.join(" / ") || "Waiting for callbacks"}</p></details>
+    <footer className="page-footer"><span>FORK / HACKTX 2026</span><span>THE FUTURE BRANCHES. EXPLORE YOURS.</span></footer>
   </main>;
+
 }
 
 const previewRoot = createRoot(document.getElementById("root")!);
