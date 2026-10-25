@@ -5,7 +5,7 @@ import type { WebGLRenderer } from "three";
 import type { VehicleConfig } from "../../contracts";
 
 const camry: VehicleConfig = { id: "camry-2022-se", make: "Toyota", model: "Camry", year: 2022, trim: "SE", powertrain: "gas", paint: "#535862", mpg: 32, seats: 5, cargoCuFt: 15.1, msrp: 26000, modelAsset: "/models/camry-v80.glb", matchStatus: "representative", specSources: [] };
-const rav4: VehicleConfig = { ...camry, id: "rav4-hybrid-2024-xle", model: "RAV4", year: 2024, trim: "Hybrid XLE", powertrain: "hybrid", modelAsset: "/models/rav4-hybrid-2024-xle.glb" };
+const rav4: VehicleConfig = { ...camry, id: "rav4-2024-hybrid-xle", model: "RAV4", year: 2024, trim: "Hybrid XLE", powertrain: "hybrid", modelAsset: "/models/rav4-hybrid-2024-xle.glb" };
 
 function Preview() {
   const [mounted, setMounted] = useState(true);
@@ -52,7 +52,7 @@ function Preview() {
   const [events, setEvents] = useState<string[]>([]);
   const append = (event: string) => setEvents((previous) => [...previous.slice(-11), event]);
   return <main style={{ padding: 24 }}>
-    <h1>CarStage integration check</h1><p>Real optimized models / illustrative graphite paint / A2 crossfade. Particle reveal and morph are still pending.</p>
+    <h1>CarStage integration check</h1><p>Representative models / synthetic paint / sampled points and shader reveal.</p>
     <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
       <button onClick={() => {void preloadCars([camry,rav4]).then(()=>append("Both model assets preloaded"),error=>append(String(error)));}}>Preload both cars</button>
       <button onClick={() => { setEvents([]); setPhase("reveal"); setReplay(replay + 1); }}>Replay reveal</button>

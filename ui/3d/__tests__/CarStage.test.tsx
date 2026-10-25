@@ -19,36 +19,19 @@ function props(): CarStageProps {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-it("waits for real asset readiness before starting the reveal callback clock", () => {
-  const config = props();
-  render(<CarStage {...config} />);
+it("passes reveal lifecycle to the loaded scene, without a competing DOM timer", () => {
+  const config = props(); render(<CarStage {...config} />);
   act(() => vi.advanceTimersByTime(5000));
   expect(config.onRevealStage).not.toHaveBeenCalled();
-  act(() => { bridge.props!.onModelStatus({ vehicleId: "camry", ready: true }); bridge.ready!(); });
-  expect(config.onRevealStage).toHaveBeenLastCalledWith("converge");
-  act(() => vi.advanceTimersByTime(4000));
-  expect(vi.mocked(config.onRevealStage).mock.calls.map(([stage]) => stage)).toEqual(["converge", "pointcloud", "wireframe", "solid", "done"]);
+  act(() => bridge.props!.onRevealStage("converge"));
+  expect(config.onRevealStage).toHaveBeenCalledWith("converge");
+  expect(vi.getTimerCount()).toBe(0);
 });
-
-it("remembers skip while loading and reports load failure without claiming readiness", () => {
-  const config = props();
-  const { rerender } = render(<CarStage {...config} />);
+it("passes skip and reports a failed asset without claiming readiness", () => {
+  const config = props(); const { rerender } = render(<CarStage {...config} />);
   rerender(<CarStage {...config} skipSignal={1} />);
+  expect(bridge.props!.skipSignal).toBe(1);
   act(() => bridge.props!.onModelStatus({ vehicleId: "camry", ready: false, error: "Fetch failed" }));
   expect(screen.getByRole("status").textContent).toContain("Fetch failed");
   expect(config.onRevealStage).not.toHaveBeenCalled();
-  act(() => { bridge.props!.onModelStatus({ vehicleId: "camry", ready: true }); bridge.ready!(); });
-  expect(config.onRevealStage).toHaveBeenCalledTimes(5);
-  act(() => vi.advanceTimersByTime(5000));
-  expect(config.onRevealStage).toHaveBeenCalledTimes(5);
-});
-
-it("cleans up reveal callbacks on unmount", () => {
-  const config = props();
-  const { unmount } = render(<CarStage {...config} />);
-  act(() => bridge.ready!());
-  unmount();
-  act(() => vi.advanceTimersByTime(5000));
-  expect(config.onRevealStage).toHaveBeenCalledTimes(1);
-  expect(vi.getTimerCount()).toBe(0);
 });

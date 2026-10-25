@@ -3,10 +3,13 @@ import type { VehicleConfig } from "@/contracts";
 import { assetSpec, loadAsset } from "./assets";
 import { cloneOwnedObject, disposeObject } from "./dispose";
 import { applyPaint } from "./paint";
-import { ViewMaterials } from "./viewModes";
+import { createPointsView, ViewMaterials } from "./viewModes";
+import { loadPointsFile, pointsUrl, type Quality } from "./usePointsFile";
+import { createParticleReveal, RevealClock } from "./ParticleReveal";
 import type { CarStageProps } from "./types";
 
-type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number };
+type Layer = { root: Object3D; materials: ViewMaterials; opacity: number; startOpacity: number; data?: Float32Array; cloud?: ReturnType<typeof createPointsView> };
+export type AnimationOptions = { quality: Quality; reveal?: boolean; reducedMotion?: boolean; onStage?: CarStageProps["onRevealStage"] };
 export class VehicleController {
   readonly group = new Group();
   private layers: Layer[] = [];
@@ -16,18 +19,22 @@ export class VehicleController {
   private skipped = false;
   private fading = false;
   private complete: (() => void) | undefined;
-  constructor(private readonly load = loadAsset) {}
+  private reveal?: { clock: RevealClock; cloud: ReturnType<typeof createParticleReveal>; wire: Object3D; materials: ViewMaterials };
+  constructor(private readonly load = loadAsset, private readonly loadPoints = loadPointsFile) {}
 
-  async select(vehicle: VehicleConfig, duration: number, status: CarStageProps["onModelStatus"], ready: () => void, complete: () => void) {
+  async select(vehicle: VehicleConfig, duration: number, status: CarStageProps["onModelStatus"], ready: () => void, complete: () => void, options?: AnimationOptions) {
     const generation = ++this.generation;
     this.skipped = false;
     // Finish the visual blend already in flight; never complete a superseded request.
     this.complete = undefined;
+    this.clearReveal();
     if (this.fading) this.finish();
     status({ vehicleId: vehicle.id, ready: false });
     const spec = assetSpec(vehicle);
     try {
-      const source = await this.load(spec.url);
+      const url = pointsUrl(vehicle.id, options?.quality ?? "high");
+      let pointError: string | undefined;
+      const [source, data] = await Promise.all([this.load(spec.url), url ? this.loadPoints(url, options?.quality ?? "high").catch(() => { pointError = "Particles unavailable; solid preview is active."; return undefined; }) : undefined]);
       if (generation !== this.generation) return;
       const root = cloneOwnedObject(source);
       // XV80 source faces -X. Align it to the frozen +X camera convention.
@@ -49,15 +56,26 @@ export class VehicleController {
       });
       applyPaint(root, spec.body, spec.hex);
       this.layers.forEach((layer) => { layer.startOpacity = layer.opacity; });
-      const layer = { root, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
+      const layer: Layer = { root, data, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };
       this.layers.push(layer);
       this.group.add(root);
       this.duration = this.skipped ? 0 : duration;
       this.elapsed = 0;
       this.fading = true;
       this.complete = complete;
-      status({ vehicleId: vehicle.id, ready: true });
+      status({ vehicleId: vehicle.id, ready: true, ...(pointError ? { error: pointError } : {}) });
       ready();
+      if (options?.reveal) {
+        this.finish();
+        const clock = new RevealClock(options.onStage ?? (() => {}));
+        if (options.reducedMotion || this.skipped || !data) clock.skip();
+        else {
+          const cloud = createParticleReveal(data, options.quality === "low");
+          const wire = cloneOwnedObject(root), materials = new ViewMaterials(wire);
+          this.group.add(cloud, wire); wire.visible = false; root.visible = false;
+          this.reveal = { clock, cloud, wire, materials }; clock.advance(0);
+        }
+      }
       if (!this.duration) this.finish();
     } catch (error) {
       if (generation !== this.generation) return;
@@ -65,7 +83,22 @@ export class VehicleController {
     }
   }
 
-  update(delta: number, mode: CarStageProps["viewMode"]) {
+  update(delta: number, mode: CarStageProps["viewMode"], pixelRatio = 1) {
+    if (this.reveal) {
+      const { clock, cloud, wire, materials } = this.reveal;
+      clock.advance(delta);
+      const time = clock.elapsed, layer = this.layers.at(-1)!;
+      cloud.material.uniforms.uProgress.value = Math.min(1, time / 2);
+      cloud.material.uniforms.uTime.value = time;
+      cloud.material.uniforms.uPixelRatio.value = pixelRatio;
+      cloud.material.uniforms.uOpacity.value = time < 3 ? 1 : 4 - time;
+      wire.visible = time >= 2.5 && time < 4;
+      materials.update("wireframe", time < 3 ? (time - 2.5) * 2 : 4 - time);
+      layer.root.visible = time >= 3;
+      layer.materials.update("solid", Math.max(0, time - 3));
+      if (time < 4) return;
+      this.clearReveal();
+    }
     if (this.fading) {
       this.elapsed += delta;
       const progress = Math.min(1, this.elapsed / Math.max(this.duration, 0.001));
@@ -75,13 +108,28 @@ export class VehicleController {
       });
       if (progress === 1) this.finish();
     }
-    this.layers.forEach((layer) => layer.materials.update(mode, layer.opacity));
+    this.layers.forEach((layer) => {
+      if (mode === "points" && layer.data) {
+        if (!layer.cloud) { layer.cloud = createPointsView(layer.data); this.group.add(layer.cloud); }
+        layer.cloud.material.opacity = layer.opacity; layer.root.visible = false;
+      } else {
+        if (layer.cloud) { disposeObject(layer.cloud); layer.cloud = undefined; }
+        layer.root.visible = true;
+      }
+      layer.materials.update(mode, layer.opacity);
+    });
   }
 
-  skip() { this.skipped = true; if (this.fading) this.finish(); }
+  skip() { this.skipped = true; if (this.reveal) { this.reveal.clock.skip(); this.clearReveal(); } if (this.fading) this.finish(); }
+  private clearReveal() {
+    if (!this.reveal) return;
+    disposeObject(this.reveal.cloud); disposeObject(this.reveal.wire); this.reveal = undefined;
+    this.layers.forEach(layer => { layer.root.visible = true; layer.materials.update("solid", 1); });
+  }
+  private disposeLayer(layer: Layer) { disposeObject(layer.root); if (layer.cloud) disposeObject(layer.cloud); }
   private finish() {
     this.fading = false;
-    while (this.layers.length > 1) disposeObject(this.layers.shift()!.root);
+    while (this.layers.length > 1) this.disposeLayer(this.layers.shift()!);
     if (this.layers[0]) this.layers[0].opacity = 1;
     const callback = this.complete;
     this.complete = undefined;
@@ -90,7 +138,8 @@ export class VehicleController {
   dispose() {
     ++this.generation;
     this.complete = undefined;
-    this.layers.forEach((layer) => disposeObject(layer.root));
+    this.clearReveal();
+    this.layers.forEach((layer) => this.disposeLayer(layer));
     this.layers = [];
     this.group.removeFromParent();
   }

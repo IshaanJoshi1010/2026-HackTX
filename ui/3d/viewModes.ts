@@ -1,4 +1,4 @@
-import { Material, Mesh, Object3D } from "three";
+import { BufferGeometry, Float32BufferAttribute, Material, Mesh, Object3D, Points, PointsMaterial } from "three";
 import type { CarStageProps } from "./types";
 
 export class ViewMaterials {
@@ -14,7 +14,6 @@ export class ViewMaterials {
   }
   update(mode: CarStageProps["viewMode"], opacity: number) {
     for (const [material, original] of this.originals) {
-      // Points deliberately uses solid until A3 supplies sampled surfaces.
       const wire = material as Material & { wireframe?: boolean };
       const wireframe = mode === "wireframe";
       const transparent = original.transparent || opacity < 1;
@@ -25,4 +24,11 @@ export class ViewMaterials {
       material.depthWrite = opacity < 1 ? false : original.depthWrite;
     }
   }
+}
+
+export function createPointsView(data: Float32Array) {
+  const geometry = new BufferGeometry().setAttribute("position", new Float32BufferAttribute(data.slice(), 3));
+  const cloud = new Points(geometry, new PointsMaterial({ color: "#27E1FF", size: 2, sizeAttenuation: false, transparent: true, depthWrite: false }));
+  cloud.userData.contactIgnore = true;
+  return cloud;
 }

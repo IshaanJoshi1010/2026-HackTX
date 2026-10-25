@@ -18,37 +18,7 @@ export function CarStage(props: CarStageProps): JSX.Element {
   useLayoutEffect(() => { callbacks.current = props; });
   const [modelStatus, setModelStatus] = useState<{ vehicleId: string; ready: boolean; error?: string }>({ vehicleId: props.vehicle.id, ready: false });
   const [displayedVehicle, setDisplayedVehicle] = useState(props.vehicle);
-  const stages = useRef({ timers: [] as ReturnType<typeof setTimeout>[], next: 0, ready: false, skip: false });
-  const previousSkip = useRef(props.skipSignal);
-  const stopTimers = useCallback(() => { stages.current.timers.forEach(clearTimeout); stages.current.timers = []; }, []);
-  const finishReveal = useCallback((through: number) => {
-    const names = ["converge", "pointcloud", "wireframe", "solid", "done"] as const;
-    while (stages.current.next <= through) callbacks.current.onRevealStage(names[stages.current.next++]);
-  }, []);
-  useEffect(() => {
-    stopTimers();
-    stages.current.next = 0; stages.current.ready = false; stages.current.skip = false;
-    return stopTimers;
-  }, [props.phase, props.vehicle.id, props.replaySignal, stopTimers]);
-  useEffect(() => {
-    if (props.skipSignal > previousSkip.current) {
-      stages.current.skip = true;
-      if (stages.current.ready && props.phase === "reveal") { stopTimers(); finishReveal(4); }
-    }
-    previousSkip.current = props.skipSignal;
-  }, [props.skipSignal, props.phase, stopTimers, finishReveal]);
-
-  const ready = useCallback(() => {
-    stages.current.ready = true;
-    if (callbacks.current.phase !== "reveal") return;
-    stopTimers(); stages.current.next = 0;
-    // A2 keeps integration callbacks; A4 will replace this with the particle reveal.
-    if (callbacks.current.reducedMotion || stages.current.skip) { finishReveal(4); return; }
-    finishReveal(0);
-    [2000, 2500, 3000, 4000].forEach((time, index) => {
-      stages.current.timers.push(setTimeout(() => finishReveal(index + 1), time));
-    });
-  }, [finishReveal, stopTimers]);
+  const ready = useCallback(() => {}, []);
   const report = useCallback((status: { vehicleId: string; ready: boolean; error?: string }) => {
     if (status.ready) {
       const active = callbacks.current;
@@ -71,8 +41,7 @@ export function CarStage(props: CarStageProps): JSX.Element {
     <div style={{ position: "absolute", top: 16, left: 16, right: 16, pointerEvents: "none", font: "12px system-ui" }}>
       <strong>{displayedVehicle.model}</strong>
       <div>{displayedVehicle.matchStatus === "exact" ? "" : displayedVehicle.matchStatus === "unsupported" ? "Unsupported model" : "Representative model"}</div>
-      <div role="status">{missingTarget ? "Transition target is missing." : modelStatus.error ? `Model unavailable: ${modelStatus.error}` : !modelStatus.ready ? "Loading model..." : ""}</div>
-      {props.viewMode === "points" && <small>Solid preview. Sampled points arrive in A3.</small>}
+      <div role="status">{missingTarget ? "Transition target is missing." : modelStatus.error ? modelStatus.ready ? modelStatus.error : `Model unavailable: ${modelStatus.error}` : !modelStatus.ready ? "Loading model..." : ""}</div>
     </div>
   </section>;
 }
