@@ -18,7 +18,7 @@ describe("explicit Alex demo preset", () => {
     if (!result.ok) throw new Error(result.error);
     expect(VehicleTwinSchema.safeParse(result.twin).success).toBe(true);
     expect(result.twin.vehicle.id).toBe(vehicleId);
-    expect(result.twin.driver).toEqual(alexProfile);
+    expect(result.twin.driver).toEqual({ ...alexProfile, provenance: { ...alexProfile.provenance, mileage: "synthetic" } });
     expect(result.twin.driver).toMatchObject({ householdSize: 3, children: 1, carSeats: 0, cargoNeed: "low",
       priorities: { cost: 0.2, family: 0.2, longevity: 0.2, fuel: 0.2, comfort: 0.2 } });
     expect(result.twin.mileage).toBe(vehicleId === "camry-2022-se" ? 48000 : 24000);

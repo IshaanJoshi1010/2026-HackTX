@@ -1,0 +1,323 @@
+{
+  "date": "2026-10-24",
+  "model": "gemini-3.1-flash-lite",
+  "scope": "Three synthetic demo phrasings through actual Gemini + interpreter with source-quote enum schema. Bounded full attempt plus targeted transport retry. No key included.",
+  "allThreeMatchedAcrossAttempts": true,
+  "singleCleanPass": false,
+  "profilesUnchanged": true,
+  "runs": [
+    {
+      "name": "source-grounded-schema pass",
+      "date": "2026-10-25T00:02:55.829Z",
+      "cases": [
+        {
+          "variant": 1,
+          "matched": true,
+          "calls": 1,
+          "elapsedMs": 2752,
+          "error": null,
+          "result": {
+            "aiAvailable": true,
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "id": "ai-e80bc29f",
+                "type": "relocation",
+                "month": 12,
+                "payload": {
+                  "location": "Denver"
+                },
+                "source": "ai",
+                "assumptions": [],
+                "quote": "I'm moving to Denver next year",
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "id": "ai-5f0f3e4",
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "source": "ai",
+                "assumptions": [
+                  "No future timing stated; proposal starts in the current month."
+                ],
+                "quote": "driving 20,000 miles annually",
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "id": "ai-a51ae6d5",
+                "type": "family_change",
+                "month": 32,
+                "payload": {
+                  "children": 2
+                },
+                "source": "ai",
+                "assumptions": [
+                  "A bare year is mapped to June of that year; confirm the assumed month."
+                ],
+                "quote": "expecting my second child in 2029",
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "profilePatches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear",
+                "quote": "driving 20,000 miles annually"
+              }
+            ]
+          },
+          "raw": [
+            {
+              "intent": "CREATE_SCENARIO",
+              "items": [
+                {
+                  "field": "location",
+                  "value": "Denver",
+                  "certainty": "clear",
+                  "quote": "I'm moving to Denver next year",
+                  "month": "next year",
+                  "assumptions": []
+                },
+                {
+                  "field": "annualMiles",
+                  "value": 20000,
+                  "certainty": "clear",
+                  "quote": "driving 20,000 miles annually",
+                  "assumptions": []
+                },
+                {
+                  "field": "children",
+                  "value": 2,
+                  "certainty": "clear",
+                  "quote": "expecting my second child in 2029",
+                  "month": "in 2029",
+                  "assumptions": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "variant": 2,
+          "matched": false,
+          "calls": 1,
+          "elapsedMs": 14629,
+          "error": {
+            "status": 504,
+            "name": "ApiError"
+          },
+          "result": {
+            "aiAvailable": false
+          },
+          "raw": []
+        },
+        {
+          "variant": 3,
+          "matched": true,
+          "calls": 1,
+          "elapsedMs": 14376,
+          "error": null,
+          "result": {
+            "aiAvailable": true,
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "id": "ai-b8afd707",
+                "type": "relocation",
+                "month": 12,
+                "payload": {
+                  "location": "Denver"
+                },
+                "source": "ai",
+                "assumptions": [],
+                "quote": "next year I'm moving to Denver",
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "id": "ai-cfcd68ef",
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "source": "ai",
+                "assumptions": [
+                  "No future timing stated; proposal starts in the current month."
+                ],
+                "quote": "Driving 20k mi/yr",
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "id": "ai-762e90db",
+                "type": "family_change",
+                "month": 32,
+                "payload": {
+                  "children": 2
+                },
+                "source": "ai",
+                "assumptions": [
+                  "A bare year is mapped to June of that year; confirm the assumed month."
+                ],
+                "quote": "In 2029 we expect our second child",
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "profilePatches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear",
+                "quote": "Driving 20k mi/yr"
+              }
+            ]
+          },
+          "raw": [
+            {
+              "intent": "CREATE_SCENARIO",
+              "items": [
+                {
+                  "field": "location",
+                  "value": "Denver",
+                  "certainty": "clear",
+                  "quote": "next year I'm moving to Denver",
+                  "month": "next year",
+                  "assumptions": []
+                },
+                {
+                  "field": "annualMiles",
+                  "value": 20000,
+                  "certainty": "clear",
+                  "quote": "Driving 20k mi/yr",
+                  "assumptions": []
+                },
+                {
+                  "field": "children",
+                  "value": 2,
+                  "certainty": "clear",
+                  "quote": "In 2029 we expect our second child",
+                  "month": "in 2029",
+                  "assumptions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "targeted variant2 service-timeout retry",
+      "date": "2026-10-25T00:04:13.599Z",
+      "cases": [
+        {
+          "variant": 2,
+          "matched": true,
+          "calls": 1,
+          "elapsedMs": 12858,
+          "error": null,
+          "result": {
+            "aiAvailable": true,
+            "intent": "CREATE_SCENARIO",
+            "proposals": [
+              {
+                "id": "ai-b6c66a7d",
+                "type": "relocation",
+                "month": 12,
+                "payload": {
+                  "location": "Denver"
+                },
+                "source": "ai",
+                "assumptions": [],
+                "quote": "Move to Denver next year",
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "id": "ai-45c5894c",
+                "type": "mileage_change",
+                "month": 0,
+                "payload": {
+                  "annualMiles": 20000
+                },
+                "source": "ai",
+                "assumptions": [
+                  "No future timing stated; proposal starts in the current month."
+                ],
+                "quote": "20,000 annual miles",
+                "certainty": "clear",
+                "status": "proposed"
+              },
+              {
+                "id": "ai-d02976c2",
+                "type": "family_change",
+                "month": 32,
+                "payload": {
+                  "children": 2
+                },
+                "source": "ai",
+                "assumptions": [
+                  "A bare year is mapped to June of that year; confirm the assumed month."
+                ],
+                "quote": "second child in 2029",
+                "certainty": "inferred",
+                "status": "proposed"
+              }
+            ],
+            "profilePatches": [
+              {
+                "field": "annualMiles",
+                "value": 20000,
+                "certainty": "clear",
+                "quote": "20,000 annual miles"
+              }
+            ]
+          },
+          "raw": [
+            {
+              "intent": "CREATE_SCENARIO",
+              "items": [
+                {
+                  "field": "location",
+                  "value": "Denver",
+                  "certainty": "clear",
+                  "quote": "Move to Denver next year",
+                  "month": "next year",
+                  "assumptions": []
+                },
+                {
+                  "field": "annualMiles",
+                  "value": 20000,
+                  "certainty": "clear",
+                  "quote": "20,000 annual miles",
+                  "assumptions": []
+                },
+                {
+                  "field": "children",
+                  "value": 2,
+                  "certainty": "clear",
+                  "quote": "second child in 2029",
+                  "month": "in 2029",
+                  "assumptions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "successfulVariants": [
+    1,
+    2,
+    3
+  ]
+}

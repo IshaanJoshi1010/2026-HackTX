@@ -22,7 +22,8 @@ export function auditTwinSources(twin: VehicleTwin, metadata: Pick<TwinMetadata,
     const source = saved && saved[key as keyof typeof saved] === value ? saved.fieldSources[key] : undefined;
     label(leaves(value, `vehicle.${key}`), source);
   }
-  label(["mileage"], metadata.mileage.source);
+  const mileageSource = twin.driver.provenance.mileage;
+  label(["mileage"], mileageSource === metadata.mileage.source ? mileageSource : undefined);
   for (const [key, value] of Object.entries(twin.driver)) {
     if (key !== "provenance") label(leaves(value, `driver.${key}`), twin.driver.provenance[key]);
   }

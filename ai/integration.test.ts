@@ -159,9 +159,10 @@ describe("manual path, return visit and route handlers", () => {
     expect(bad.status).toBe(400);
   });
   it("validates explain requests and returns deterministic fallback data", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.spyOn(explainerModule, "explain").mockResolvedValue({ text: "Review comparison.", usedFallback: true });
     const good = await explainRoute(new Request("http://localhost/api/explain", { method: "POST", body: JSON.stringify({ evaluation, results }) }));
-    expect(good.status).toBe(200); expect(await good.json()).toEqual({ text: "Review comparison.", usedFallback: true });
+    expect(good.status).toBe(200); expect(await good.json()).toEqual({ text: "Review comparison.", usedFallback: true, aiAvailable: false });
     const bad = await explainRoute(new Request("http://localhost/api/explain", { method: "POST", body: JSON.stringify({ evaluation: {} }) }));
     expect(bad.status).toBe(400);
   });

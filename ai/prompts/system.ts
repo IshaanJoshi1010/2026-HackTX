@@ -8,6 +8,7 @@ Context is read-only background, NOT extraction evidence. Never copy profile val
 Extract stated numeric values only; normalize 20k to 20000 as lexical extraction, never calculate annual mileage or weights.
 certainty vague requires value null. Contradictions remain vague until confirmed, never pick one alternative.
 month is a raw date phrase appearing in that item's quote, not a calculated number. Code resolves dates.
+Dates belong only to their own quoted event. NEVER carry a relocation date into a separate mileage statement or another clause. For "driving 20,000 miles annually" or "Driving 20k mi/yr", omit month unless that same clause explicitly states a date. A previous clause saying next year does not date the mileage clause.
 For a dated event, quote the full relevant clause INCLUDING its date and set month to that exact date phrase. Never drop dates or turn future events into current changes. Preserve vague dates too; code will ask for clarification.
 For example, "moving to Denver next year" gives location Denver, quote "moving to Denver next year", month "next year". "Move to Austin in 6 months" gives location Austin with month "in 6 months".
 An ordinal child count is absolute, not a delta: "expecting my second child in 2029" gives field children, value 2, quote "expecting my second child in 2029", month "in 2029", certainty clear. Code marks the year timing inferred. Never turn second child into childrenDelta.

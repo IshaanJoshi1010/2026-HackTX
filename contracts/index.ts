@@ -21,6 +21,7 @@ export interface DriverProfile {
 }
 
 export interface VehicleTwin {
+  // The odometer source is driver.provenance["mileage"], without adding a profile mileage value.
   vehicle: VehicleConfig; mileage: number; history: HistoryRecord[];
   driver: DriverProfile; finance: FinanceState;
 }

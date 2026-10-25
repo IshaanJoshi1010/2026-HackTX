@@ -22,6 +22,7 @@ describe("Dev 4 explanation compatibility", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.usedFallback).toBe(true);
+    expect(body.aiAvailable).toBe(false);
     expect(body.text.startsWith("No option clearly leads on your priorities yet.")).toBe(true);
     expect(body.text).toContain(`Next step: ${e.nextAction.label}\n${e.nextAction.detail}`);
     expect(body.text.indexOf(e.nextAction.label)).toBeLessThan(body.text.indexOf(e.rationale[0]));
