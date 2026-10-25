@@ -33,17 +33,3 @@ export function eventTitle(e: Pick<LifeEvent, "type" | "payload">): string {
   if (e.type === "fuel_price_change" && typeof p.fuelPricePerGal === "number") return `Fuel $${p.fuelPricePerGal.toFixed(2)} a gallon`;
   return EVENT_LABEL[e.type];
 }
-
-/**
- * What an event sets, when its title does not already say it: "$900 a month", "High cargo need". Read from the payload and
- * nothing else; null when the title is the whole story.
- */
-export function eventDetail(e: Pick<LifeEvent, "type" | "payload">): string | null {
-  const p = e.payload;
-  if (e.type === "budget_change" && typeof p.monthlyBudget === "number") return `$${whole.format(p.monthlyBudget)} a month`;
-  if (e.type === "cargo_change" && typeof p.cargoNeed === "string") return `${p.cargoNeed.charAt(0).toUpperCase()}${p.cargoNeed.slice(1)} cargo need`;
-  const parts: string[] = [];
-  if (typeof p.commuteMilesOneWay === "number") parts.push(`${whole.format(p.commuteMilesOneWay)} miles each way`);
-  if (typeof p.commuteDaysPerWeek === "number") parts.push(`${p.commuteDaysPerWeek} days a week`);
-  return parts.length > 0 ? parts.join(", ") : null;
-}

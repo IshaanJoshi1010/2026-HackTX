@@ -36,7 +36,7 @@ export function ProfileConfirmCard({ className, compact = false }: ProfileConfir
           <h4 className="text-sm font-medium text-ink">Confirmed Driver Profile</h4>
           <p className="text-xs text-ink/50">Baseline inputs feeding all scenario projections</p>
         </div>
-        <span className="flex items-center gap-1 rounded bg-ink/15 px-2 py-0.5 text-xs font-medium text-ink">
+        <span className="flex items-center gap-1 rounded bg-ink/15 px-2 py-0.5 text-[11px] font-medium text-ink">
           <Check className="size-3 text-ink" />
           <span>Active</span>
         </span>

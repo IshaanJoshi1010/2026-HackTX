@@ -46,8 +46,8 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
   return (
     <form onSubmit={handleSubmit} className={cn("flex flex-col gap-4 text-left", className)}>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={selectId} className="text-sm font-medium text-ink/70">
-          Select vehicle model
+        <label htmlFor={selectId} className="text-xs font-medium tracking-wide uppercase text-ink/60">
+          Select Vehicle Model
         </label>
         <select
           id={selectId}
@@ -56,7 +56,7 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
           disabled={isBusy}
           className={cn(
             "h-12 w-full appearance-none rounded border border-line bg-ink/5 px-4 text-sm text-ink",
-            "transition-colors focus:border-ink focus:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer",
+            "transition-colors focus:border-ink focus:bg-ink/10 focus:outline-none cursor-pointer",
           )}
         >
           {SUPPORTED_OPTIONS.map((opt, idx) => (

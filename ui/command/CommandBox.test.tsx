@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifeEvent } from "@/contracts";
 import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
@@ -145,13 +145,13 @@ describe("CommandBox", () => {
     expect(useForkStore.getState().ui.view).toBe("future");
   });
 
-  it("keeps the suggestion once there is more than the baseline, and moves on to the next question", () => {
+  it("hides the suggestion once there is more than the baseline", () => {
     act(() => {
       useForkStore.getState().actions.addDraft(sampleProposal);
       useForkStore.getState().actions.confirmDrafts(["test-prop-1"]);
     });
     render(<CommandBox />);
-    expect(screen.getByRole("button", { name: /try:/i })).toHaveTextContent("Would switching to a RAV4 Hybrid make more sense?");
+    expect(screen.queryByRole("button", { name: /try:/i })).toBeNull();
   });
 });
 
@@ -346,49 +346,5 @@ describe("CommandBox when the AI is not available", () => {
     expect(box()).toBeDisabled();
     expect(screen.getByRole("button", { name: /submit changes/i })).toBeDisabled();
     vi.restoreAllMocks();
-  });
-});
-
-describe("ConfirmProposalCard, quietly", () => {
-  const withAssumptions: LifeEvent = {
-    id: "daily",
-    type: "mileage_change",
-    month: 12,
-    payload: { annualMiles: 36500 },
-    source: "ai",
-    assumptions: ["Assumes you drive every day of the year"],
-    quote: "100 miles a day",
-    certainty: "inferred",
-    status: "proposed",
-  };
-
-  it("shows what Fork assumed, in the open, before you confirm", () => {
-    act(() => useForkStore.getState().actions.addDraft(withAssumptions));
-    render(<ConfirmProposalCard />);
-    const row = screen.getByTestId("draft-row-daily");
-    expect(row).toHaveTextContent("Assumes you drive every day of the year");
-    expect(row).toHaveTextContent("inferred");
-    expect(row).toHaveTextContent("\u201c100 miles a day\u201d");
-    expect(screen.getByTestId("draft-assumptions").querySelectorAll("li")).toHaveLength(1);
-  });
-
-  it("shows a value the title does not carry, and says nothing extra when there is nothing to say", () => {
-    act(() => {
-      useForkStore.getState().actions.addDraft({ ...withAssumptions, id: "budget", type: "budget_change", payload: { monthlyBudget: 900 }, assumptions: [], certainty: "clear", quote: undefined });
-    });
-    render(<ConfirmProposalCard />);
-    const row = screen.getByTestId("draft-row-budget");
-    expect(row).toHaveTextContent("$900 a month");
-    expect(within(row).queryByTestId("draft-assumptions")).toBeNull();
-    expect(row.textContent).not.toContain("inferred");
-  });
-
-  it("is one plain heading and no decoration: no pulsing dot, no all-caps, no status text", () => {
-    act(() => useForkStore.getState().actions.addDraft(withAssumptions));
-    const { container } = render(<ConfirmProposalCard />);
-    expect(screen.getByRole("heading")).toHaveTextContent("1 change to confirm");
-    expect(container.querySelector(".animate-pulse")).toBeNull();
-    expect(container.querySelector(".uppercase")).toBeNull();
-    expect(container.textContent).not.toContain("Ready to simulate");
   });
 });

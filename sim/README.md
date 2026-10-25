@@ -9,14 +9,11 @@ Accounting rules and replacement mechanics: [ECONOMICS.md](ECONOMICS.md). Defaul
 ## How Dev 2 wires it
 
 ```ts
-import { simulate, fork, makeReplaceScenario, editEvent } from "@/sim";
-import { evaluate, findBreakEven, sensitivity, withSensitivity, nextAction, withParameter } from "@/decision";
+import { simulate, fork, makeReplaceScenario, editEvent, withParameter } from "@/sim";
+import { evaluate, findBreakEven, sensitivity, withSensitivity, nextAction } from "@/decision";
 
 const ctx = { vehicles: { [camry.id]: camry, [rav4.id]: rav4 }, specs: { [camry.id]: getSpecs(camry.id), [rav4.id]: getSpecs(rav4.id) } };
-// Fork at the earliest event month, as the store does. A fork month later than an event moves that event up to it
-// (a month-0 annualMiles event would silently land at month 12).
-const forkMonth = Math.min(...confirmedEvents.map(e => e.month));
-const denver = fork(baseline, forkMonth, confirmedEvents, "Denver move");
+const denver = fork(baseline, 12, confirmedEvents, "Denver move");
 const replace = makeReplaceScenario(denver, rav4);               // optional: editEvent to add payload.price / mileage
 const scenarios = [denver, replace];
 const results = scenarios.map(s => simulate(twin, s, ctx));
@@ -37,9 +34,9 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 | `simulate(twin, scenario, ctx)` | `VehicleTwin`, `Scenario`, `SimContext` (vehicles and specs by id) | `SimulationResult`: 60 points (months 1..60, end of month), milestones, warnings, summary |
 | `simulateDetailed(twin, scenario, ctx)` | same | `{ result, assumptions: SimAssumption[], timeline: MonthState[] }`. Every input used, each with a `Source` label |
 | `applyEvents(twin, scenario)` | twin, scenario | `{ timeline: MonthState[]; warnings }`. Only confirmed events apply; on a same-month conflict the later one wins, with a warning |
-| `fork(parent, month, newEvents, name)` | scenario, month, events, name | New `Scenario`, id `parentId/month-slug`. Keeps parent events before the fork month and drops the parent's own events at or after it, so a caller that wants them (a second brain dump) passes them in `newEvents`; the store does, see `ui/store/carryOver.ts`. New events dated before the fork month move to it, with a note on the event. Never mutates the parent |
+| `fork(parent, month, newEvents, name)` | scenario, month, events, name | New `Scenario`, id `parentId/month-slug`. Keeps parent events before the fork; never mutates the parent |
 | `makeReplaceScenario(parent, vehicle, month?)` | scenario, `VehicleConfig`, month | New `Scenario` with a confirmed `vehicle_replacement`. Default month: first relocation or family change, else 12 |
-| `moveEvent(s, id, month)`, `editEvent(s, id, patch)`, `deleteEvent(s, id)` | scenario, event id | New `Scenario`. `editEvent` merges a patch payload into the event's payload key by key (editing `price` keeps `vehicleId`). Throw `InheritedEventError` on events a branch inherited |
+| `moveEvent(s, id, month)`, `editEvent(s, id, patch)`, `deleteEvent(s, id)` | scenario, event id | New `Scenario`. Throw `InheritedEventError` on events a branch inherited |
 | `canEditEvent(s, id)`, `isInherited(s, e)` | scenario, event | `boolean`. Use to disable controls |
 | `affectedFromMonth(before, after)` | two scenarios | First month that can differ, or `null` |
 | `purchaseTerms`, `taxAndFees`, `financedAmount`, `newLoanPayment` | assumptions, price | Replacement purchase math |
@@ -47,8 +44,6 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 | `fuelCost`, `loanPayment`, `impliedApr`, `amortizeStep`, `retainedFraction`, `mileageFactor`, `vehicleValue`, `dueBetween`, `occurrencesUpTo` | numbers | Building blocks, each unit tested |
 
 **Event payload keys** (any event type; absolute unless named `*Delta`): `annualMiles`, `commuteMilesOneWay`, `commuteDaysPerWeek`, `householdSize`, `children`, `childrenDelta`, `carSeats`, `fuelPricePerGal`, `monthlyBudget`, `cargoNeed`, `location`. `vehicle_replacement` only: `vehicleId`, `price`, `mileage`. `children` and `childrenDelta` also move `householdSize` by the same amount unless the event states it; car seats are never inferred. Unknown keys and bad values are ignored, with a warning.
-
-**Events that change no number.** `location` is recorded and passed along but nothing reads it, so a relocation that only names a place changes no dollar and no fit check (add `annualMiles` or `fuelPricePerGal` to model what the move does). `maintenance_decision` has no handler. `monthlyBudget` never changes a dollar either: it only flags months that go over it (a warning, and a hard constraint in `evaluate`). An event with an empty payload does nothing. Each of these adds `Event <id>: no modeled effect, <why>` (or the budget line) to `warnings`, once per event, so the UI can say it instead of showing an unexplained flat line. Whether an event moves cost is for the UI to measure by simulating with and without it (`ui/timeline/effects.ts`), not to guess from the type.
 
 **Scenario assumption keys** (all optional): `insurancePerMonth`, `loanApr`, `startYear`, `replacementPrice`, `salesTaxRate`, `purchaseFees`, `downPayment`, `newLoanApr`, `newLoanTermMonths`. What-if keys used by break-even and sensitivity: `annualMilesOverride`, `fuelPricePerGalOverride`, `fuelPriceScale`, `depreciationScale`.
 
@@ -66,7 +61,7 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 | `withParameter(scenario, parameter, value)` | | Scenario with the value held for all 60 months (the same what-if break-even uses) |
 | `sensitivity({ twin, scenarios, ctx, priorities })` | | `SensitivityResult`: low/base/high runs and "held in X of 9" |
 | `withSensitivity(evaluation, s)`, `robustnessLine(s)` | | Evaluation with `sensitivity` filled and the robustness line added |
-| `nextAction(evaluation, twin, be?, results?)` | Pass `results`: rules 2 to 4 need them | `NextAction` with `factors`. First match wins: current car breaks a hard constraint, keep, replace with unknown finance, replace, inconclusive (a lease ending inside the projection asks for lease-end terms first) |
+| `nextAction(evaluation, twin, be?, results?)` | Pass `results`: rules 2 to 4 need them | `NextAction` with `factors`. First match wins: current car breaks a hard constraint, keep, replace with unknown finance, replace, inconclusive |
 | `metricsOf(result)`, `keepsCurrentCar(result, id)` | | Scoring inputs |
 
 ## Decision rules
@@ -76,8 +71,7 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 3. Normalize: min-max across the compared scenarios, with a floor on the spread ($3,000 for net cost and fuel, 0.25 for longevity, 0.5 for family, 0.25 for comfort). When the spread is at least the floor, it's exactly min-max. Below the floor, scores shrink toward 0.5, so a tiny gap can't swing a whole weight. All equal gives 0.5 each.
 4. Score: weighted sum with the user's priorities, returned per factor. If the top two are within 0.05, the verdict is `inconclusive`.
 5. Break-even: one parameter, bisection between 5,000 and 40,000 mi/yr or $2 and $8/gal, stopping at 0.5% of the range or after 40 steps. If today's verdict is keep, it finds where replacing would win; otherwise where keeping would.
-6. Lease: when a lease ends inside the 60 months, the simulation models no cost for that car afterwards (no renewal or buyout), which would make keeping look nearly free. A keep verdict in that case becomes `inconclusive` with a lease-end line in the rationale, and the next action asks for the buyout or renewal terms. A verdict for replacing is left alone.
-7. Robustness: every combination of depreciation x0.8/1/1.2 and fuel x0.8/1/1.2, reported as "held in X of 9 tested cases". Never a probability.
+6. Robustness: every combination of depreciation x0.8/1/1.2 and fuel x0.8/1/1.2, reported as "held in X of 9 tested cases". Never a probability.
 
 ## Disclose in the pitch as illustrative
 

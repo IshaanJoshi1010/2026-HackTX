@@ -1,7 +1,7 @@
 import type { Intent, LifeEvent } from "../contracts";
-import { hasOrphanTiming, hasTimingLanguage, splitClauses } from "./dates";
-import { ambiguousStatement, commuteContext, isQuestion, quantityPattern, readQuantity } from "./evidence";
-import { mapExtraction, pregnancyMention } from "./mapper";
+import { hasTimingLanguage } from "./dates";
+import { ambiguousStatement, isQuestion, quantityPattern, readQuantity } from "./evidence";
+import { mapExtraction } from "./mapper";
 import type { ExtractionItem } from "./schema";
 
 export interface OfflineReading {
@@ -24,7 +24,8 @@ export function interpretOffline(text: string, todayISO: string): OfflineReading
   }
   if (ambiguousStatement(text)) return empty("Please confirm the intended change; negatives, corrections and hypotheticals are not applied automatically.");
   const items: ExtractionItem[] = [];
-  const clauses = splitClauses(text);
+  const clauses = text.replace(/(\d),(?=\d)/g, "$1\u0001").split(/[;!?]|[.](?!\d)|,|\s+and\s+/i)
+    .map(s => s.replaceAll("\u0001", ",").trim()).filter(Boolean);
   for (const quote of clauses) {
     // Preserve the raw time phrase. Unsupported timing is sent to validation, never clamped or erased.
     const timing = quote.match(/\b(?:next|this)\s+(?:month|year|week|spring|summer|fall|autumn|winter|january|february|march|april|may|june|july|august|september|october|november|december)\b|\bin\s+[^,;]*?\b(?:months?|years?|weeks?|days?)\b|\b(?:in\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d{2}\b|\b(?:in\s+)?20\d{2}\b/i)?.[0];
@@ -32,29 +33,20 @@ export function interpretOffline(text: string, todayISO: string): OfflineReading
     const city = quote.match(/\b(?:moving|move|relocating|relocate)\s+to\s+(.+?)(?=\s+(?:next|in|this|by|after|before|soon)\b|$)/i);
     if (city) add("location", city[1].trim());
     const q = `(${quantityPattern})`;
-    // The units (miles, mi) or a driving verb in front of the amount have to be there: "I make 90k a year" is not driving.
-    const annual = quote.match(new RegExp(`${q}\\s*(?:annual\\s+)?(?:miles|mi)\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))|${q}\\s*annual\\s+(?:miles|mi)|(?:drive|drives|driving|drove)\\s+(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+|nearly\\s+)?${q}\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))`, "i"));
-    if (annual) add("annualMiles", readQuantity(annual[1] ?? annual[2] ?? annual[3]));
+    const annual = quote.match(new RegExp(`${q}\\s*(?:annual\\s+)?(?:miles|mi)\\s*(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))|${q}\\s*(?:a\\s+year|per\\s+year|annual\\s+miles)`, "i"));
+    if (annual) add("annualMiles", readQuantity(annual[1] ?? annual[2]));
     const commute = quote.match(new RegExp(`${q}\\s*(?:miles|mi)\\s*(?:each|one)\\s*way`, "i"));
     if (commute) add("commuteMilesOneWay", readQuantity(commute[1]));
     const days = quote.match(new RegExp(`${q}\\s*days?\\s*(?:a|per|/)\\s*week`, "i"));
-    // Days a week is only a commute when the sentence is about one ("I work 5 days a week" is not).
-    if (days && commuteContext.test(text)) add("commuteDaysPerWeek", readQuantity(days[1]));
+    if (days) add("commuteDaysPerWeek", readQuantity(days[1]));
     const children = quote.match(new RegExp(`${q}\\s+(?:children|child|kids?|bab(?:y|ies))`, "i"));
-    // A pregnancy is a child that has not arrived: about nine months out and inferred, never now. If the person also
-    // said which child ("our second"), that count is kept.
-    const pregnant = pregnancyMention(quote);
-    if (children) add("children", readQuantity(children[1]), pregnant);
-    else if (pregnant) add("childrenDelta", 1, true);
+    if (children) add("children", readQuantity(children[1]));
+    else if (/\bpregnant\b/i.test(quote)) add("childrenDelta", 1, true);
     const budget = quote.match(new RegExp(`budget\\s*(?:is|of|:|=)?\\s*\\$?\\s*${q}`, "i"));
     if (budget) add("monthlyBudget", readQuantity(budget[1]));
     const fuel = quote.match(new RegExp(`\\$?\\s*${q}\\s*(?:per|a|/)\\s*(?:gal|gallon)`, "i"));
     if (fuel) add("fuelPricePerGal", readQuantity(fuel[1]));
     if (!timing && hasTimingLanguage(quote) && items.some(item => item.quote === quote)) return empty("Please specify a calendar month and year for that change.");
-  }
-  // A date in a clause that no change comes from would be dropped and the change would land on today.
-  if (items.length && hasOrphanTiming(text, items.map(item => item.quote))) {
-    return empty("I can't tell which change that date belongs to. Put the date next to the change, for example \"moving to Denver next year\", or use the manual form.");
   }
   const mapped = mapExtraction({ intent: "CREATE_SCENARIO", items }, {
     vehicle: { make: "Toyota", model: "Camry", year: 2022, trim: "SE" }, profile: {}, existingEvents: [], todayISO,

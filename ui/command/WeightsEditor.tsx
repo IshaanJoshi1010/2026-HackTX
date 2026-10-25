@@ -39,7 +39,7 @@ export function WeightsEditor({ className }: WeightsEditorProps) {
               className="flex flex-col items-center rounded border border-line bg-ink/[0.02] p-2 text-center"
             >
               <span className="text-sm font-medium tabular-nums text-ink">{val}%</span>
-              <span className="text-xs text-ink/50 truncate max-w-full">{label}</span>
+              <span className="text-[10px] text-ink/50 truncate max-w-full">{label}</span>
             </div>
           );
         })}

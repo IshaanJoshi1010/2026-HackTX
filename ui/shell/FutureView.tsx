@@ -1,26 +1,38 @@
 "use client";
 
-import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict, TermsToggle } from "@/ui/compare/ComparisonSection";
-import { Toggle } from "@/ui/compare/Toggle";
-import { FutureField } from "@/ui/future/FutureField";
+import { useMemo } from "react";
+import { data } from "@/ui/mocks";
+import { monthLabel, usd } from "@/ui/profile/format";
+import { metricSource } from "@/ui/profile/metricSources";
+import { Stat } from "@/ui/profile/Stat";
+import { selectActivePoint, selectActiveResult, selectActiveScenario, specsFor } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { Road } from "@/ui/timeline/Road";
-import { DecisionList } from "./DecisionList";
+import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict } from "@/ui/compare/ComparisonSection";
+import { Toggle } from "@/ui/compare/Toggle";
 import { FutureDetails } from "./FutureDetails";
-import { YourOptions } from "./YourOptions";
 
 /**
- * The second page: your future, as particles. Each stream is a possible future; it splits where something you told
- * Fork pulls it away. The verdict and the one next step sit with it. The numbers are one button away: what you told
- * Fork, your options side by side, and the road month by month.
+ * The second page: your road. One headline number, the road itself, and three quiet
+ * options. Details and the other futures are there when you want them, not before.
  */
 export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
+  const twin = useForkStore((s) => s.twin);
+  const month = useForkStore((s) => s.activeMonth);
+  const profile = useForkStore((s) => s.explore.confirmedProfile);
   const scenarios = useForkStore((s) => s.explore.scenarios);
   const evaluation = useForkStore((s) => s.evaluation);
-  const numbers = useForkStore((s) => s.ui.futureDetails);
-  const showAll = useForkStore((s) => s.ui.futureCompare);
-  const { setFutureDetails, setFutureCompare } = useForkStore((s) => s.actions);
+  const busy = useForkStore((s) => s.ui.busy);
+  const details = useForkStore((s) => s.ui.futureDetails);
+  const compare = useForkStore((s) => s.ui.futureCompare);
+  const scenario = useForkStore(selectActiveScenario);
+  const result = useForkStore(selectActiveResult);
+  const point = useForkStore(selectActivePoint);
+  const { openReplaceComparison, setFutureDetails, setFutureCompare } = useForkStore((s) => s.actions);
+  const samples = useMemo(() => data.listSampleVehicles(), []);
 
+  const other = twin ? samples.find((v) => v.id !== twin.vehicle.id) : undefined;
+  const spec = point ? specsFor(point.vehicleId) : null;
   const futuresCount = scenarios.length - 1;
 
   return (
@@ -32,59 +44,56 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
         style={{ bottom: bottomInset }}
         className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(3.5rem,8vh,6rem)]"
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1.25rem,3vh,2.25rem)]">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1rem,3vh,2.5rem)]">
           <header className="text-center">
+            {/* Once you compare, the road names each future itself, so the name is not said twice. */}
+            {!evaluation && (
+              <p data-testid="future-name" className="mb-2 text-base text-ink/60">
+                {scenario?.name}
+              </p>
+            )}
             {evaluation ? (
-              // Once you compare, the answer is the headline.
+              // Once you compare, the answer is the headline. The road still carries the cost at the playhead.
               <ComparisonVerdict />
+            ) : point ? (
+              <Stat
+                size="lg"
+                label={`Net cost, ${monthLabel(month)}`}
+                value={usd(point.netEconomicCost)}
+                source={metricSource("netEconomicCost", profile, spec)}
+              />
             ) : (
-              <>
-                <h1 data-testid="future-heading" className="text-[clamp(30px,5vh,44px)] leading-tight font-medium tracking-tight text-ink">
-                  Your next 5 years
-                </h1>
-                <p data-testid="future-subline" className="mt-2 text-base text-ink/60">
-                  {futuresCount > 0 ? "Tap a name to look at that future." : "This is where you are headed if nothing changes."}
-                </p>
-              </>
+              <p className="text-lg text-ink/50">{month === 0 ? "Today. Net cost counts from here." : "No projection for this month"}</p>
             )}
           </header>
 
-          <FutureField />
+          <Road compact={evaluation !== null} />
 
           <ComparisonNextStep />
 
           <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
-            <Toggle pressed={numbers} onClick={() => setFutureDetails(!numbers)}>
-              See the numbers
+            <Toggle pressed={details} onClick={() => setFutureDetails(!details)}>
+              Details
             </Toggle>
-            <ComparisonToggles terms={false} />
+            {futuresCount > 0 && (
+              <Toggle pressed={compare} onClick={() => setFutureCompare(!compare)}>
+                Other futures ({futuresCount})
+              </Toggle>
+            )}
+            {!evaluation && other && (
+              <button
+                type="button"
+                onClick={() => void openReplaceComparison()}
+                disabled={busy !== "idle" || !result}
+                className="border-b border-transparent pb-0.5 text-sm text-ink/55 transition-colors hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+              >
+                Compare with a {other.year} {other.model}
+              </button>
+            )}
+            <ComparisonToggles />
           </div>
 
-          {numbers && (
-            <div data-testid="the-numbers" className="fork-page flex flex-col gap-[clamp(1.75rem,4vh,3rem)]">
-              <DecisionList />
-              <YourOptions />
-              <div className="flex justify-center">
-                <TermsToggle />
-              </div>
-              <FutureDetails />
-              <section aria-label="Over time" data-testid="over-time">
-                <h2 className="text-base font-medium text-ink">Over time</h2>
-                <p className="mb-2 max-w-2xl text-sm leading-5 text-ink/60">
-                  Your cost month by month. The straight line is what happens if nothing changes. Your road bends away from it by how much your
-                  changes moved your cost: lower costs more, higher saves.
-                </p>
-                {futuresCount > 0 && (
-                  <div className="mb-2 flex justify-start">
-                    <Toggle pressed={showAll} onClick={() => setFutureCompare(!showAll)}>
-                      Other futures ({futuresCount})
-                    </Toggle>
-                  </div>
-                )}
-                <Road compact={evaluation !== null} />
-              </section>
-            </div>
-          )}
+          {details && <FutureDetails />}
 
           <ComparisonMore />
         </div>

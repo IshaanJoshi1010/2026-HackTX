@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifeEvent } from "@/contracts";
-import { ai, data, sim } from "@/ui/mocks";
+import { ai, data } from "@/ui/mocks";
 import { BASE_ID, breakEvenParameterFor, resetForkStoreForTests, simulationInputs, useForkStore } from "./useForkStore";
 
 const CAMRY = "camry-2022-se";
@@ -253,35 +253,6 @@ describe("dump and confirm", () => {
     expect(state().explore.scenarios[0]).toBe(base);
     expect(state().results[BASE_ID]).toBe(baseResult);
     expect(state().explore.confirmedProfile).toEqual(profileBefore);
-  });
-
-  it("a second dump keeps the later events the first one set (nothing is dropped silently)", async () => {
-    const kid: LifeEvent = { ...denver, id: "e-kid", type: "family_change", month: 32, payload: { children: 2 }, quote: "second child in 2029" };
-    const milesNow: LifeEvent = { ...miles20k, id: "e-miles-now", month: 0 };
-    const fuel: LifeEvent = { ...denver, id: "e-fuel", type: "fuel_price_change", month: 24, payload: { fuelPricePerGal: 6 }, quote: "gas hits $6 in two years" };
-    const milesSix: LifeEvent = { ...miles20k, id: "e-miles-six", month: 6, payload: { annualMiles: 15000 } };
-    await enterWorkspace();
-    interpretReturning([denver, kid, milesNow, fuel]);
-    await actions().submitDump("first");
-    actions().confirmDrafts(["e-denver", "e-kid", "e-miles-now", "e-fuel"]);
-    const first = state().explore.scenarios[1];
-
-    interpretReturning([milesSix]);
-    await actions().submitDump("second");
-    actions().confirmDrafts(["e-miles-six"]);
-
-    const second = state().explore.scenarios[2];
-    expect(second.parentId).toBe(first.id);
-    expect(second.forkMonth).toBe(6);
-    expect(second.events.map((e) => e.id).sort()).toEqual(["e-denver", "e-fuel", "e-kid", "e-miles-now", "e-miles-six"]);
-
-    // Replay: the same events on a plain scenario give the same projection, and losing the later ones does not.
-    const inputs = simulationInputs(state())!;
-    const flat = { ...second, parentId: null, forkMonth: 0 };
-    const withoutLater = { ...flat, events: flat.events.filter((e) => e.month < 6 || e.id === "e-miles-six") };
-    const simulate = (sc: typeof flat) => sim.simulate(inputs.twin, sc, inputs.ctx);
-    expect(state().results[second.id].summary).toEqual(simulate(flat).summary);
-    expect(state().results[second.id].summary.netCost).not.toBe(simulate(withoutLater).summary.netCost);
   });
 
   it("confirm only takes the ids it is given", async () => {

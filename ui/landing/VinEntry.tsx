@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { data } from "@/ui/mocks";
@@ -28,8 +28,6 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
   const startFromVin = useForkStore((s) => s.actions.startFromVin);
 
   const clean = value.trim().toUpperCase().replace(/\s+/g, "");
-  // The made-up VIN of the demo Camry, from the same registry the sample cars use. No registry sample, no button.
-  const sampleVin = useMemo(() => data.listSampleVehicles().find((v) => v.vin)?.vin, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.toUpperCase().replace(/\s+/g, "");
@@ -67,12 +65,6 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
     onSuccess?.();
   };
 
-  const useSampleVin = () => {
-    if (!sampleVin) return;
-    setValue(sampleVin);
-    setLocalError(null);
-  };
-
   const isComplete = clean.length === 17;
   const isBusy = busy !== "idle";
   const displayedError = localError || storeError;
@@ -80,8 +72,8 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
   return (
     <form onSubmit={handleSubmit} className={cn("flex flex-col gap-3", className)}>
       <div className="flex flex-col gap-1.5 text-left">
-        <label htmlFor={inputId} className="text-sm font-medium text-ink/70">
-          Vehicle identification number
+        <label htmlFor={inputId} className="text-xs font-medium tracking-wide uppercase text-ink/60">
+          Vehicle Identification Number
         </label>
         <div className="relative flex items-center">
           <input
@@ -95,33 +87,16 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
             spellCheck="false"
             disabled={isBusy}
             className={cn(
-              "h-12 w-full rounded border border-line bg-ink/5 px-4 font-mono text-sm tracking-wider uppercase text-ink placeholder:text-ink/50",
-              "transition-colors focus:border-ink focus:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "h-12 w-full rounded border border-line bg-ink/5 px-4 font-mono text-sm tracking-wider uppercase text-ink placeholder:text-ink/30",
+              "transition-colors focus:border-ink focus:bg-ink/10 focus:outline-none",
               displayedError && "border-ink/80",
             )}
           />
-          <span className="absolute right-3 text-xs tabular-nums text-ink/55">
+          <span className="absolute right-3 text-xs tabular-nums text-ink/40">
             {clean.length}/17
           </span>
         </div>
       </div>
-
-      {sampleVin && (
-        <p className="text-left text-sm text-ink/60">
-          No VIN handy?{" "}
-          <button
-            type="button"
-            onClick={useSampleVin}
-            disabled={isBusy}
-            className="cursor-pointer text-ink underline decoration-ink/30 underline-offset-2 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
-          >
-            Use sample VIN
-          </button>
-          <span className="mt-1 block text-xs leading-5">
-            Made up for the demo. Fork knows two cars: a 2022 Camry SE and a 2024 RAV4 Hybrid XLE.
-          </span>
-        </p>
-      )}
 
       {displayedError && (
         <p role="alert" className="text-left text-xs font-medium text-ink/80">

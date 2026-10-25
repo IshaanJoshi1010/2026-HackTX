@@ -31,10 +31,8 @@ import type {
 import type { ReproductionSide } from "@/decision";
 import { ai, data, decision, sim } from "@/ui/mocks";
 import type { CarStageProps } from "@/ui/3d/types";
-import { carryOver } from "./carryOver";
 import { eventTitle } from "./eventLabels";
 import { MONTH_MAX, clampMonth } from "./months";
-import { vinFailureMessage, vinReason } from "./vinMessages";
 import {
   DEFAULT_PREFS,
   loadPersisted,
@@ -107,12 +105,6 @@ export type DumpOutcome =
   | { kind: "nothing"; message?: string; offline?: boolean }
   | { kind: "stale" }; // the answer came back after the session, car, future or request changed, so it was dropped
 
-/** What was just confirmed, so the result can be shown once: which future it made and which decisions went in. Not saved. */
-export interface Receipt {
-  scenarioId: string;
-  eventIds: string[];
-}
-
 /** The last sentence that was read without the AI, kept so the person can retry it or enter it by hand. */
 export interface LastDump {
   text: string;
@@ -153,7 +145,6 @@ export interface ForkActions {
   retryDump(): Promise<DumpOutcome>;
   /** Drop the offline notice without touching any draft. */
   dismissDumpNotice(): void;
-  dismissReceipt(): void;
   confirmDrafts(ids: string[]): void;
   editDraft(id: string, patch: Partial<LifeEvent>): void;
   rejectDraft(id: string): void;
@@ -212,8 +203,6 @@ export interface ForkState {
   explanation: Explanation | null;
   /** Set only while the last sentence was read without the AI. Not saved. */
   lastDump: LastDump | null;
-  /** The decisions just confirmed, until dismissed, replaced or left for another future. Not saved. */
-  receipt: Receipt | null;
   breakEven: BreakEvenResult | null;
   /** The break-even checked just below and just above its threshold, so anyone can type the numbers in. */
   breakEvenCheck: BreakEvenCheck | null;
@@ -281,7 +270,6 @@ function initialData(): DataFields {
     nextActionFactors: [],
     explanation: null,
     lastDump: null,
-    receipt: null,
     breakEven: null,
     breakEvenCheck: null,
     activeScenarioId: BASE_ID,
@@ -316,6 +304,13 @@ function initialData(): DataFields {
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
+
+const VIN_MESSAGE: Record<string, string> = {
+  length: "A VIN has 17 characters.",
+  chars: "VINs only use letters and numbers.",
+  forbidden_letter: "VINs never use the letters I, O, or Q.",
+  check_digit: "That VIN's check digit does not add up.",
+};
 
 export function scenarioName(events: LifeEvent[]): string {
   const titles = [...new Set(events.map(eventTitle))];
@@ -698,7 +693,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       setBusy("simulating");
       try {
         const id = await data.identifyVehicle(check.vin);
-        if (id.status !== "ok") return fail(new Error(vinFailureMessage(id)));
+        if (id.status !== "ok") return fail(new Error(id.reason));
         // The sample VINs are fictional demo cars saved in the registry, so they open the demo.
         // A VIN decoded from NHTSA is a real car and gets an ordinary twin.
         await begin(id.vehicle, id.decodeState === "registry" ? "demo" : "ordinary");
@@ -764,7 +759,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         return seq !== dumpSeq || epoch !== dumpEpoch || cur.twin?.vehicle.id !== vehicleId || cur.activeScenarioId !== scenarioId;
       };
 
-      set((cur) => ({ error: null, receipt: null, ui: { ...cur.ui, busy: "interpreting" } }));
+      set((cur) => ({ error: null, ui: { ...cur.ui, busy: "interpreting" } }));
       const active = findScenario(s, scenarioId);
       const ctx: InterpretContext = {
         vehicle: { make: s.twin.vehicle.make, model: s.twin.vehicle.model, year: s.twin.vehicle.year, trim: s.twin.vehicle.trim },
@@ -866,10 +861,6 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
       set({ lastDump: null });
     },
 
-    dismissReceipt() {
-      set({ receipt: null });
-    },
-
     // ---- confirm ----
     confirmDrafts(ids) {
       const s = get();
@@ -880,9 +871,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
         const events = chosen.map((e): LifeEvent => ({ ...e, status: "confirmed" }));
         const parent = findScenario(s, s.activeScenarioId) ?? findScenario(s, BASE_ID);
         if (!parent) return;
-        // A later dump keeps what the active future already planned after the new events, unless they replace it.
-        const forkMonth = Math.min(...events.map((e) => e.month));
-        const child = sim.fork(parent, forkMonth, carryOver(parent, forkMonth, events).events, scenarioName(events));
+        const child = sim.fork(parent, Math.min(...events.map((e) => e.month)), events, scenarioName(events));
         const scenarios = upsert(s.explore.scenarios, child);
         const explore: ExploreState = {
           ...s.explore,
@@ -899,7 +888,6 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
           breakEven: null,
           breakEvenCheck: null,
           lastDump: keepDump(s.lastDump, explore.draftChanges),
-          receipt: { scenarioId: child.id, eventIds: events.map((e) => e.id) },
           question: nextQuestion(withChild),
         });
       } catch (e) {
@@ -1094,7 +1082,7 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
     },
 
     setActiveScenario(id) {
-      set((s) => ({ ...activation(s, id), receipt: s.receipt?.scenarioId === id ? s.receipt : null }));
+      set((s) => activation(s, id));
     },
 
     setActiveMonth(m) {
@@ -1256,6 +1244,10 @@ export const useForkStore = create<ForkState>()((set, get, api) => {
 
   return { ...initialData(), hydrated: false, actions };
 });
+
+function vinReason(reason: string): string {
+  return VIN_MESSAGE[reason] ?? "That doesn't look like a valid VIN.";
+}
 
 function pickPrefs(ui: UiState) {
   return { lowPerformance: ui.lowPerformance };

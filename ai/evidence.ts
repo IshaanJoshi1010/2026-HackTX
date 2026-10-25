@@ -1,4 +1,3 @@
-import { MAX_INPUT_NUMBER } from "../data/inputLimits";
 import type { ExtractionItem } from "./schema";
 
 const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
@@ -11,28 +10,20 @@ export function readQuantity(text: string): number {
   return Number(token.replaceAll(",", "").replace(/(?:st|nd|rd|th)$/, "").replace(/k$/, "")) * (/k$/.test(token) ? 1000 : 1);
 }
 export function isQuestion(text: string): boolean {
-  return /[?؟]/.test(text.normalize("NFKC")) || /^\s*(?:if|should|would|could|can|will|what|how|why|which|is|are|does|do)\b/i.test(text);
+  return text.includes("?") || /^\s*(?:if|should|would|could|can|will|what|how|why|which|is|are|does|do)\b/i.test(text);
 }
 /** Conservative: ask rather than extract a change from a denial, hypothetical or correction. */
 export function ambiguousStatement(text: string): boolean {
-  text = text.normalize("NFKC").replace(/[’‘ʼ]/g, "\'").replace(/\p{Cf}/gu, "");
   return /\b(?:not|never|no longer|cannot|maybe|might|could|would|perhaps|unless|instead|actually|correction)\b|\b(?:isn|aren|wasn|weren|don|doesn|won|wouldn|can|couldn)'t\b|\bif\b|\bmay\s+(?:well\s+)?(?:be|move|relocate|have|drive|switch|change|need|cost|start|end)\b/i.test(text);
 }
 
-/** Words that make "N days a week" a commute. */
-export const commuteContext = /\bcommut\w*|\bto (?:work|the office|campus|school)\b/i;
-
 /** Match the quantity and its meaning together, not any unrelated number in the quote. */
-export function hasNumericEvidence(field: ExtractionItem["field"], value: number, quote: string, context = ""): boolean {
-  if (!Number.isFinite(value) || value < 0 || value > MAX_INPUT_NUMBER) return false;
+export function hasNumericEvidence(field: ExtractionItem["field"], value: number, quote: string): boolean {
   const q = `(?<quantity>${quantityPattern})`;
   const miles = "(?:miles|mi)";
   const year = "(?:a\\s+year|per\\s+year|annually|yearly|/\\s*(?:year|yr))";
   const patterns: Partial<Record<ExtractionItem["field"], string[]>> = {
-    // An amount "a year" is not miles ("90k a year", "1,200 a year in insurance"). The units (miles, mi) have to be
-    // there, or a driving verb right in front of the amount ("I drive 15k a year").
-    annualMiles: [`${q}\\s*(?:annual\\s+)?${miles}\\s*(?:${year})`, `${q}\\s*annual\\s+${miles}`, `(?:annual|yearly)\\s+(?:mileage|miles)\\s*(?:is|of|:|=)?\\s*${q}`,
-      `(?:drive|drives|driving|drove)\\s+(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+|nearly\\s+)?${q}\\s*(?:${year})`],
+    annualMiles: [`${q}\\s*(?:annual\\s+)?${miles}\\s*(?:${year})`, `${q}\\s*(?:annual\\s+${miles}|${year})`, `(?:annual|yearly)\\s+(?:mileage|miles)\\s*(?:is|of|:|=)?\\s*${q}`],
     commuteMilesOneWay: [`${q}\\s*${miles}\\s*(?:each|one)\\s*way`],
     commuteDaysPerWeek: [`${q}\\s*days?\\s*(?:a|per|/)\\s*week`],
     children: [`${q}\\s+(?:children|child|kids?|bab(?:y|ies))`, `(?:children|kids?)\\s*(?:is|are|:|=|will be)\\s*${q}`],
@@ -44,8 +35,6 @@ export function hasNumericEvidence(field: ExtractionItem["field"], value: number
     financeEndMonth: [`(?:lease\\s*(?:ends?|remaining)?\\s*(?:in)?\\s*)${q}\\s*months?`, `${q}\\s*months?\\s*(?:left|remaining)\\s*(?:on\\s+(?:my\\s+)?)?lease`],
     mileage: [`(?:odometer|current\\s+mileage|mileage)\\s*(?:reads|is|of|:|=)?\\s*${q}`, `(?:has|at)\\s+${q}\\s*${miles}\\b`],
   };
-  // Days a week is only a commute when the sentence is about a commute ("I work 5 days a week" is not one).
-  if (field === "commuteDaysPerWeek" && !commuteContext.test(`${quote} ${context}`)) return false;
   return (patterns[field] ?? []).some(pattern => [...quote.matchAll(new RegExp(`(?<![\\w.$-])${pattern}`, "gi"))]
     .some(match => readQuantity(match.groups!.quantity) === value));
 }

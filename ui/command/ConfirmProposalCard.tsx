@@ -3,7 +3,7 @@
 import { GitBranch, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/ui/profile/format";
-import { eventDetail, eventTitle } from "@/ui/store/eventLabels";
+import { eventTitle } from "@/ui/store/eventLabels";
 import { useForkStore } from "@/ui/store/useForkStore";
 
 export interface ConfirmProposalCardProps {
@@ -11,10 +11,6 @@ export interface ConfirmProposalCardProps {
   onConfirmed?: () => void;
 }
 
-/**
- * What Fork understood, before it counts. Each change says what it is, when, and in your own words; anything Fork had to
- * assume says so right there, so nothing is confirmed on a guess you could not see.
- */
 export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalCardProps) {
   const drafts = useForkStore((s) => s.explore.draftChanges);
   const busy = useForkStore((s) => s.ui.busy);
@@ -32,56 +28,65 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
   return (
     <div
       data-testid="confirm-proposal-card"
-      className={cn("fork-rise rounded-xl border border-line bg-canvas/95 p-4 text-left shadow-2xl backdrop-blur-md", className)}
+      className={cn(
+        "fork-rise rounded-xl border border-line bg-canvas/95 p-4 text-left shadow-2xl backdrop-blur-md",
+        className,
+      )}
     >
-      <h3 className="text-sm font-medium text-ink">
-        {drafts.length} {drafts.length === 1 ? "change" : "changes"} to confirm
-      </h3>
+      <div className="flex items-center justify-between pb-2.5 border-b border-line">
+        <div className="flex items-center gap-2">
+          <span className="flex size-2 rounded-full bg-ink animate-pulse" />
+          <h3 className="text-sm font-medium text-ink">
+            {drafts.length} {drafts.length === 1 ? "life change" : "life changes"} mapped
+          </h3>
+        </div>
+        <span className="text-xs text-ink/40">Ready to simulate</span>
+      </div>
 
-      <ul className="mt-2 divide-y divide-line">
-        {drafts.map((draft) => {
-          const detail = eventDetail(draft);
-          return (
-            <li key={draft.id} data-testid={`draft-row-${draft.id}`} className="flex items-start justify-between gap-3 py-2.5 text-sm">
-              <div className="min-w-0 flex-1">
-                <p>
-                  <span className="font-medium text-ink">{eventTitle(draft)}</span>
-                  <span className="text-ink/60">
-                    {" "}
-                    {draft.month === 0 ? "now" : `in ${monthLabel(draft.month)}`}
-                    {detail ? `, ${detail}` : ""}
-                    {draft.certainty === "inferred" ? ", inferred" : ""}
+      <div className="mt-3 space-y-2">
+        {drafts.map((draft) => (
+          <div
+            key={draft.id}
+            data-testid={`draft-row-${draft.id}`}
+            className="flex items-center justify-between gap-3 rounded-lg border border-line bg-ink/[0.03] px-3 py-2 text-xs"
+          >
+            <div className="flex-1 truncate">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-ink">{eventTitle(draft)}</span>
+                <span className="rounded bg-ink/10 px-1.5 py-0.5 text-[10px] text-ink/60 tabular-nums">
+                  {monthLabel(draft.month)}
+                </span>
+                {draft.certainty === "inferred" && (
+                  <span className="rounded border border-line px-1 text-[10px] uppercase text-ink/60">
+                    inferred
                   </span>
-                </p>
-                {draft.quote && <p className="mt-0.5 truncate text-xs italic text-ink/60">&ldquo;{draft.quote}&rdquo;</p>}
-                {draft.assumptions.length > 0 && (
-                  <ul data-testid="draft-assumptions" className="mt-1 text-xs leading-5 text-ink/60">
-                    {draft.assumptions.map((a) => (
-                      <li key={a}>{a}</li>
-                    ))}
-                  </ul>
                 )}
               </div>
+              {draft.quote && (
+                <p className="mt-0.5 text-[11px] italic text-ink/50 truncate">
+                  &ldquo;{draft.quote}&rdquo;
+                </p>
+              )}
+            </div>
 
-              <button
-                type="button"
-                onClick={() => rejectDraft(draft.id)}
-                title="Remove change"
-                aria-label="Remove change"
-                className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-ink/55 transition-colors hover:bg-ink/10 hover:text-ink"
-              >
-                <X className="size-3.5" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+            <button
+              type="button"
+              onClick={() => rejectDraft(draft.id)}
+              title="Remove change"
+              aria-label="Remove change"
+              className="flex size-6 shrink-0 items-center justify-center rounded text-ink/40 hover:bg-ink/10 hover:text-ink transition-colors cursor-pointer"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
 
-      <div className="mt-2 flex items-center justify-between">
+      <div className="mt-3.5 flex items-center justify-between pt-2.5 border-t border-line">
         <button
           type="button"
           onClick={() => drafts.forEach((d) => rejectDraft(d.id))}
-          className="cursor-pointer text-xs text-ink/60 transition-colors hover:text-ink"
+          className="text-xs text-ink/50 hover:text-ink transition-colors cursor-pointer"
         >
           Discard
         </button>
@@ -91,7 +96,7 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
           disabled={isBusy}
           onClick={handleConfirm}
           className={cn(
-            "flex h-8 cursor-pointer items-center gap-2 rounded px-4 text-xs font-medium transition-colors",
+            "flex h-8 items-center gap-2 rounded px-4 text-xs font-medium transition-colors cursor-pointer",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
             "bg-ink text-canvas hover:bg-ink/85 disabled:opacity-50",
           )}

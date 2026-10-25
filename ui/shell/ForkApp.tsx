@@ -29,7 +29,7 @@ export function ForkApp() {
       <AppHeader />
       {!hydrated ? (
         <main className="absolute inset-0 flex items-center justify-center">
-          <p className="text-sm text-ink/55">Loading</p>
+          <p className="text-sm text-ink/40">Loading</p>
         </main>
       ) : phase === "landing" ? (
         <Landing />

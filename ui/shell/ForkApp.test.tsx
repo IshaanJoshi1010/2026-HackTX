@@ -43,14 +43,12 @@ const denver = {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null); // jsdom has no canvas; the streams' labels still render
   localStorage.clear();
   resetForkStoreForTests();
 });
 
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -140,8 +138,7 @@ describe("the car page", () => {
       state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
     });
     goCar();
-    // the identity line under the car (the credits footer says "Representative 3D models" too)
-    expect(screen.getAllByText(/Representative 3D model/).some((el) => el.textContent?.includes("Move to Denver"))).toBe(true);
+    expect(screen.getByText(/Representative 3D model/)).toHaveTextContent("Move to Denver");
   });
 
   it("never prints placeholder paint text from the fixtures", async () => {
@@ -151,106 +148,34 @@ describe("the car page", () => {
   });
 });
 
-describe("the page switch", () => {
-  it("is a real tab set: arrow keys switch pages, and the open page is its tab's panel", async () => {
-    await enterWorkspace();
-    expect(screen.getByRole("tab", { name: "Car" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel", { name: "Car" })).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByRole("tab", { name: "Car" }), { key: "ArrowRight" });
-    expect(state().ui.view).toBe("future");
-    expect(screen.getByRole("tab", { name: "Future" })).toHaveFocus();
-    const panel = screen.getByRole("tabpanel", { name: "Future" });
-    expect(panel).toContainElement(screen.getByTestId("future-view"));
-    expect(screen.getByRole("tab", { name: "Car" })).toHaveAttribute("tabindex", "-1");
-  });
-});
-
 describe("the future page", () => {
-  const openNumbers = () => fireEvent.click(screen.getByRole("button", { name: "See the numbers" }));
-  const confirmDenver = () =>
-    act(() => {
-      state().actions.addDraft(denver);
-      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
-    });
-
-  it("opens on your future as particles: a heading, one stream, and the other car as a choice", async () => {
+  it("opens on the five year picture with one big number and its source", async () => {
     await enterWorkspace();
     goFuture();
     expect(screen.getByRole("tab", { name: "Future" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next 5 years");
-    expect(screen.getByTestId("future-subline")).toHaveTextContent("if nothing changes");
-    const field = screen.getByTestId("future-field");
-    expect(within(field).getAllByTestId("field-tag")).toHaveLength(1);
-    expect(within(field).getByRole("button", { name: /If nothing changes/ })).toHaveAttribute("aria-pressed", "true");
-    expect(within(field).getByTestId("field-offer")).toHaveTextContent("Switch to a 2024 RAV4 Hybrid XLE?");
+    expect(state().activeMonth).toBe(60);
+    expect(stats()[0]).toHaveTextContent("Net cost, 5 yr");
+    expect(screen.getByRole("slider", { name: "Month" })).toHaveAttribute("aria-valuetext", "5 yr");
   });
 
-  it("shows no data by default: no numbers, no road, no lists", async () => {
+  it("is minimal by default: the headline, the road, and quiet options. Nothing else.", async () => {
     await enterWorkspace();
     goFuture();
-    expect(stats()).toHaveLength(0);
-    expect(screen.queryByTestId("the-numbers")).toBeNull();
-    expect(screen.queryByTestId("road")).toBeNull();
-    expect(screen.queryByTestId("decision-list")).toBeNull();
-    expect(screen.getByTestId("future-field").textContent).not.toMatch(/\$\d/);
-    expect(screen.queryByRole("complementary")).toBeNull();
-    // one quiet option: the numbers
     const view = screen.getByTestId("future-view");
-    expect(within(view).getByRole("button", { name: "See the numbers" })).toHaveAttribute("aria-pressed", "false");
-    expect(within(view).queryByRole("button", { name: /Other futures/ })).toBeNull();
+    expect(screen.getByTestId("road")).toBeInTheDocument();
+    expect(stats()).toHaveLength(1); // only the headline number
+    // no lanes, no details, no other futures, no verdict until you ask
+    expect(screen.queryByTestId("future-details")).toBeNull();
+    expect(screen.queryAllByTestId("road-future")).toHaveLength(0);
+    expect(screen.queryByRole("region", { name: "Keep or replace" })).toBeNull();
+    // three quiet options at most: Details, and (with something to compare) the compare action
+    expect(within(view).getByRole("button", { name: "Details" })).toHaveAttribute("aria-pressed", "false");
+    expect(within(view).getByRole("button", { name: /Compare with a 2024 RAV4/ })).toBeInTheDocument();
+    expect(within(view).queryByRole("button", { name: /Other futures/ })).toBeNull(); // nothing else to show yet
+    expect(screen.queryByRole("complementary")).toBeNull();
   });
 
-  it("the numbers are one button away, and bring the list, the options and the road", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    openNumbers();
-    expect(state().ui.futureDetails).toBe(true);
-    expect(screen.getByRole("button", { name: "See the numbers" })).toHaveAttribute("aria-pressed", "true");
-    const numbers = screen.getByTestId("the-numbers");
-    expect(within(numbers).getByTestId("decision-list")).toBeInTheDocument();
-    expect(within(numbers).getByTestId("your-options")).toBeInTheDocument();
-    expect(within(numbers).getByTestId("road")).toBeInTheDocument();
-    for (const label of ["Odometer", "Fuel so far", "Upkeep so far", "Resale value"]) {
-      expect(within(screen.getByTestId("future-details")).getByText(label)).toBeInTheDocument();
-    }
-    openNumbers();
-    expect(screen.queryByTestId("the-numbers")).toBeNull();
-    expect(stats()).toHaveLength(0);
-  });
-
-  it("says what Net cost means, at the top of the options, in words with no number in them", async () => {
-    await enterWorkspace();
-    goFuture();
-    openNumbers();
-    const def = screen.getByTestId("net-cost-definition");
-    expect(def).toHaveTextContent("Net cost is what the car costs you from today");
-    expect(def).toHaveTextContent("fuel, upkeep, insurance and financing costs");
-    expect(def).toHaveTextContent("minus anything you get back from selling it");
-    expect(def.textContent).not.toMatch(/\d|\u2014/);
-    expect(screen.getByTestId("your-options")).toContainElement(def);
-    expect(def.compareDocumentPosition(stats()[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("says it once, even after you compare", async () => {
-    await enterWorkspace();
-    goFuture();
-    openNumbers();
-    fireEvent.click(within(screen.getByTestId("future-field")).getByTestId("field-offer"));
-    await advance(0);
-    expect(screen.getAllByTestId("net-cost-definition")).toHaveLength(1);
-  });
-
-  it("with nothing confirmed yet, the list of changes says so plainly and points at the command bar", async () => {
-    await enterWorkspace();
-    goFuture();
-    openNumbers();
-    expect(screen.getByTestId("decision-list")).toHaveTextContent("Nothing yet, so nothing has changed.");
-    expect(screen.getByTestId("decision-list")).toHaveTextContent("Tell Fork what's changing in the box below");
-    expect(screen.queryAllByTestId("decision-effect")).toHaveLength(0);
-  });
-
-  it("lists what you told Fork with what each did, and the supporting numbers carry their sources", async () => {
+  it("Details is opt-in, lives in the store, and shows what each decision changed", async () => {
     await enterWorkspace();
     act(() => {
       state().actions.addDraft({ ...denver, month: 12 });
@@ -258,23 +183,45 @@ describe("the future page", () => {
       state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
     });
     goFuture();
-    openNumbers();
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(state().ui.futureDetails).toBe(true);
+    expect(screen.getByRole("button", { name: "Details" })).toHaveAttribute("aria-pressed", "true");
+
     const rows = screen.getAllByTestId("decision-effect");
     expect(rows).toHaveLength(2);
     const byTitle = (t: string) => rows.find((r) => r.textContent!.includes(t))!;
+    // the stand-in sim reacts to mileage, not to a move: the road says exactly that
     expect(byTitle("24,000 miles a year").textContent).toMatch(/Adds \$[\d,]+/);
-    expect(byTitle("Move to Denver")).toHaveTextContent("No change to cost.");
-    expect(byTitle("Move to Denver")).toHaveTextContent("the simulation does not use location");
-    expect(byTitle("24,000 miles a year").querySelector("[data-source]")).not.toBeNull();
-    expect(byTitle("Move to Denver").querySelector("[data-source]")).toBeNull(); // no number, nothing to label
+    expect(byTitle("Move to Denver")).toHaveTextContent("No change in cost");
+    rows.forEach((r) => expect(r.querySelector("[data-source]")).not.toBeNull());
+
+    // the four supporting numbers arrive with it, each with a source
+    expect(stats()).toHaveLength(5);
     stats().forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
+    for (const label of ["Odometer", "Fuel so far", "Upkeep so far", "Resale value"]) {
+      expect(within(screen.getByTestId("future-details")).getByText(label)).toBeInTheDocument();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.queryByTestId("future-details")).toBeNull();
+    expect(stats()).toHaveLength(1);
+  });
+
+  it("Details on a road with nothing on it says so plainly", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByTestId("future-details")).toHaveTextContent("No decisions yet, so nothing has changed.");
   });
 
   it("every number on the page has a source label", async () => {
     await enterWorkspace();
-    confirmDenver();
+    act(() => {
+      state().actions.addDraft(denver);
+      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    });
     goFuture();
-    openNumbers();
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
     expect(stats().length).toBeGreaterThan(1);
     stats().forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
     expect(screen.getByTestId("road-effect").querySelector("[data-source]")).not.toBeNull();
@@ -283,7 +230,6 @@ describe("the future page", () => {
   it("scrubbing updates the numbers", async () => {
     await enterWorkspace();
     goFuture();
-    openNumbers();
     const headline = () => stats()[0].textContent;
     const at60 = headline();
     scrubTo(24);
@@ -292,47 +238,29 @@ describe("the future page", () => {
     expect(headline()).toContain("Net cost, 2 yr");
   });
 
-  it("a confirmed change splits the stream, and its name and what you told Fork are on it", async () => {
+  it("other futures are a choice: the option appears with a count, and turning it on names them on the road", async () => {
     await enterWorkspace();
-    confirmDenver();
+    act(() => {
+      state().actions.addDraft(denver);
+      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    });
     goFuture();
-    const field = screen.getByTestId("future-field");
-    const tags = within(field).getAllByTestId("field-tag");
-    expect(tags.map((t) => t.textContent)).toEqual([expect.stringContaining("If nothing changes"), expect.stringContaining("Move to Denver")]);
-    expect(within(field).getByRole("button", { name: /Move to Denver/ })).toHaveAttribute("aria-pressed", "true");
-    expect(within(field).getAllByTestId("field-decision").map((d) => d.textContent)).toEqual([expect.stringContaining("Move to Denver")]);
-    expect(screen.getByTestId("future-subline")).toHaveTextContent("Tap a name");
-  });
-
-  it("every future stays on the particles, and tapping a name looks at that future", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    const field = screen.getByTestId("future-field");
-    fireEvent.click(within(field).getByRole("button", { name: /If nothing changes/ }));
-    expect(state().activeScenarioId).toBe("base");
-    expect(within(field).getAllByTestId("field-tag")).toHaveLength(2); // the other is still one tap away
-    fireEvent.click(within(field).getByRole("button", { name: /Move to Denver/ }));
-    expect(state().activeScenarioId).not.toBe("base");
-  });
-
-  it("on the road, the other futures are a choice: the option appears with a count, and turning it on names them", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    openNumbers();
     const toggle = screen.getByRole("button", { name: "Other futures (1)" });
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryAllByTestId("road-future")).toHaveLength(0);
+    expect(screen.getByTestId("future-name")).toHaveTextContent("Move to Denver");
+
     fireEvent.click(toggle);
     expect(state().ui.futureCompare).toBe(true);
     expect(screen.getAllByTestId("road-future")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: /Keep the Camry/ }));
+    expect(screen.getByTestId("future-name")).toHaveTextContent("Keep the Camry");
   });
 
-  it("asking to compare with the RAV4 shows both futures and the verdict, and the car morphs behind the page", async () => {
+  it("asking to compare with the RAV4 shows both roads and the verdict, and the car morphs behind the page", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(within(screen.getByTestId("future-field")).getByTestId("field-offer"));
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
     await advance(0);
     expect(screen.getByTestId("car-stage-stub")).toHaveAttribute("data-phase", "transition");
     await advance(1900);
@@ -340,12 +268,12 @@ describe("the future page", () => {
 
     // The verdict is the engine's, so assert that there is one, not which it is (the demo story is pinned in its own test).
     expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent(/Keep your Camry|Switch to the RAV4|Close call/);
-    const field = screen.getByTestId("future-field");
-    expect(within(field).getByRole("button", { name: /Keep your Camry/ })).toBeInTheDocument();
-    expect(within(field).getByRole("button", { name: /Switch to the RAV4/ })).toHaveAttribute("aria-pressed", "true");
-    expect(within(field).getByRole("button", { name: /Switch to the RAV4/ }).textContent).toMatch(/costs (more|less|the same)/);
-    // the offer is gone once it has been looked at
-    expect(within(field).queryByTestId("field-offer")).toBeNull();
+    // you asked to compare, so the other future is on the road without another click
+    expect(state().ui.futureCompare).toBe(true);
+    const names = screen.getAllByTestId("road-future");
+    expect(names).toHaveLength(2);
+    expect(names.find((n) => n.textContent!.includes("Replace with RAV4"))).toHaveAttribute("aria-current", "true");
+    // the compare action is gone once there is a verdict
     expect(screen.queryByRole("button", { name: /Compare with a/ })).toBeNull();
 
     goCar();
@@ -374,35 +302,33 @@ describe("when something does not work, it says so", () => {
 });
 
 describe("the answer fits the page", () => {
-  it("once you compare: the verdict, the futures, then the next step. The numbers wait behind their button.", async () => {
+  it("once you compare, the verdict is the headline, then the road, then the next step", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(within(screen.getByTestId("future-field")).getByTestId("field-offer"));
+    expect(screen.getByText(/Net cost, 5 yr/)).toBeInTheDocument(); // the single headline number, before comparing
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
     await advance(0);
 
     const verdict = screen.getByTestId("verdict");
-    const field = screen.getByTestId("future-field");
+    const road = screen.getByTestId("road");
     const next = screen.getByTestId("next-step");
     const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(before(verdict, field)).toBe(true);
-    expect(before(field, next)).toBe(true);
-    expect(stats()).toHaveLength(0);
-    expect(screen.queryByTestId("road")).toBeNull();
-
-    // the numbers, side by side, when asked for
-    fireEvent.click(screen.getByRole("button", { name: "See the numbers" }));
-    expect(screen.getAllByText(/Net cost, 5 yr/)).toHaveLength(2);
-    expect(within(screen.getByTestId("option-keep")).getByText(/Net cost, 5 yr/)).toBeInTheDocument();
-    expect(within(screen.getByTestId("option-replace")).getByText(/Net cost, 5 yr/)).toBeInTheDocument();
-    expect(screen.getByTestId("road").style.height).toMatch(/30vh/); // the road tightens once there is a verdict
+    expect(before(verdict, road)).toBe(true);
+    expect(before(road, next)).toBe(true);
+    // the number is not repeated: the road's readout carries the cost at the playhead
+    expect(screen.queryByText(/Net cost, 5 yr/)).toBeNull();
+    // the road makes room so all of it fits above the command bar
+    expect(road.style.height).toMatch(/30vh/);
+    // and the road names each future itself, so the page does not say the name twice
+    expect(screen.queryByTestId("future-name")).toBeNull();
   });
 
-  it("the comparison's options sit in the same row as the numbers", async () => {
+  it("the comparison's two options sit in the same row as Details and Other futures", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(within(screen.getByTestId("future-field")).getByTestId("field-offer"));
+    fireEvent.click(screen.getByRole("button", { name: /Compare with a 2024 RAV4/ }));
     await advance(0);
-    const row = screen.getByRole("button", { name: "See the numbers" }).parentElement!;
+    const row = screen.getByRole("button", { name: "Details" }).parentElement!;
     expect(within(row).getByRole("button", { name: "What would change it" })).toBeInTheDocument();
     expect(within(row).getByRole("button", { name: "Why" })).toBeInTheDocument();
   });
@@ -438,10 +364,9 @@ describe("two pages, one stage", () => {
       fireEvent.click(screen.getByRole("button", { name: /branch timeline/i }));
     });
     expect(state().ui.view).toBe("future");
-    const field = screen.getByTestId("future-field");
-    expect(within(field).getAllByTestId("field-tag")).toHaveLength(2); // there is now something to compare against
-    expect(within(field).getByRole("button", { name: /Move to Denver/ })).toBeInTheDocument();
-    expect(screen.getByTestId("confirmed-card")).toBeInTheDocument(); // and what each change did, once
+    expect(screen.getByTestId("road-active")).toBeInTheDocument();
+    expect(screen.getByTestId("road-baseline")).toBeInTheDocument(); // there is now something to compare against
+    expect(screen.getByRole("button", { name: "Other futures (1)" })).toBeInTheDocument();
   });
 
   it("every control has an accessible name", async () => {
@@ -549,29 +474,5 @@ describe("preferences", () => {
     const saved = JSON.parse(localStorage.getItem("fork:v1")!);
     expect(saved.prefs).toEqual({ lowPerformance: true });
     expect(JSON.stringify(saved)).not.toMatch(/"view"|detailsOpen/);
-  });
-});
-
-describe("one calm row of options", () => {
-  it("after comparing, the row is the numbers, what would change it, and why. Edit terms is with the numbers.", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(within(screen.getByTestId("future-field")).getByTestId("field-offer"));
-    await advance(0);
-    const row = screen.getByRole("button", { name: "See the numbers" }).parentElement!;
-    expect([...row.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["See the numbers", "What would change it", "Why"]);
-    expect(screen.queryByRole("button", { name: "Edit terms" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "See the numbers" }));
-    const numbers = screen.getByTestId("the-numbers");
-    fireEvent.click(within(numbers).getByRole("button", { name: "Edit terms" }));
-    expect(state().ui.futureTerms).toBe(true);
-  });
-
-  it("the sentence under the heading is short, and has no em dash", async () => {
-    await enterWorkspace();
-    goFuture();
-    const line = screen.getByTestId("future-subline").textContent!;
-    expect(line).toBe("This is where you are headed if nothing changes.");
-    expect(line).not.toContain("\u2014");
   });
 });

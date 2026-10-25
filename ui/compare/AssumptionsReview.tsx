@@ -20,10 +20,10 @@ export interface AssumptionsReviewProps {
 }
 
 const inputClass =
-  "h-9 w-full rounded border border-line bg-ink/5 px-2.5 text-sm tabular-nums text-ink placeholder:text-ink/50 focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "h-9 w-full rounded border border-line bg-ink/5 px-2.5 text-sm tabular-nums text-ink placeholder:text-ink/30 focus:border-ink focus:outline-none";
 
 function Now({ field, unit, term }: { field: string; unit: string; term: CurrentTerm | undefined }) {
-  if (!term) return <p className="text-xs text-ink/55">Not used until you compare with a car.</p>;
+  if (!term) return <p className="text-xs text-ink/40">Not used until you compare with a car.</p>;
   return (
     <p className="flex items-center gap-2 text-xs text-ink/50">
       <span>Now {formatTerm(field, unit, term.value)}</span>
@@ -91,7 +91,7 @@ export function AssumptionsReview({ fields, current, applied, prepare, onConfirm
           <button
             type="button"
             onClick={onReset}
-            className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
           >
             Back to estimates
           </button>
@@ -110,7 +110,7 @@ export function AssumptionsReview({ fields, current, applied, prepare, onConfirm
             {fields.map(({ field, label, unit }) => (
               <div key={field} className="flex flex-col gap-1.5">
                 <label htmlFor={`${id}-${field}`} className="text-xs text-ink/60">
-                  {label} <span className="text-ink/55">({unit === "USD/month" ? "$ a month" : unit === "USD" ? "$" : unit === "percent" ? "%" : unit})</span>
+                  {label} <span className="text-ink/40">({unit === "USD/month" ? "$ a month" : unit === "USD" ? "$" : unit === "percent" ? "%" : unit})</span>
                 </label>
                 <input
                   id={`${id}-${field}`}
@@ -129,7 +129,7 @@ export function AssumptionsReview({ fields, current, applied, prepare, onConfirm
             ))}
           </div>
           <div className="mt-5 flex items-center justify-between gap-4">
-            <p role="status" data-testid="terms-problem" className={cn("text-sm", problem ? "text-ink" : "text-ink/55")}>
+            <p role="status" data-testid="terms-problem" className={cn("text-sm", problem ? "text-ink" : "text-ink/40")}>
               {problem ?? (anyEntered ? "You will see what changes before it does." : "Nothing entered yet.")}
             </p>
             <button
@@ -173,7 +173,7 @@ export function AssumptionsReview({ fields, current, applied, prepare, onConfirm
                         <SourceBadge compact source={current[field]!.source} />
                       </>
                     ) : (
-                      <span className="text-ink/55">not used yet</span>
+                      <span className="text-ink/40">not used yet</span>
                     )}
                   </li>
                 ))}
@@ -184,7 +184,7 @@ export function AssumptionsReview({ fields, current, applied, prepare, onConfirm
             <button
               type="button"
               onClick={() => setStep("edit")}
-              className="border-b border-ink/40 pb-0.5 text-sm text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="border-b border-ink/40 pb-0.5 text-sm text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
             >
               Edit
             </button>

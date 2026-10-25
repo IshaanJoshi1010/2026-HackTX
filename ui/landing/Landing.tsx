@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Credits } from "@/ui/shell/Credits";
 import { StageBackdrop } from "@/ui/shell/StageBackdrop";
-import { Tabs, panelId, tabId } from "@/ui/shell/Tabs";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { ModelYearPicker } from "./ModelYearPicker";
 import { SampleCarPicker } from "./SampleCarPicker";
@@ -15,9 +13,9 @@ const rise = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 type EntryMode = "samples" | "vin" | "model";
 
 const TABS: Array<{ id: EntryMode; label: string }> = [
-  { id: "samples", label: "Sample cars" },
+  { id: "samples", label: "Sample Cars" },
   { id: "vin", label: "Enter VIN" },
-  { id: "model", label: "Select model" },
+  { id: "model", label: "Select Model" },
 ];
 
 export function Landing() {
@@ -28,41 +26,34 @@ export function Landing() {
     <main className="absolute inset-0 flex flex-col items-center justify-center overflow-y-auto px-4 py-20 text-center">
       <StageBackdrop />
 
-      <div className="fork-rise relative z-10 flex w-full max-w-xl flex-col items-center gap-8" style={rise(0)}>
+      <div className="fork-rise relative z-10 flex w-full max-w-xl flex-col items-center gap-9" style={rise(0)}>
         <div>
           <h1 className="text-[56px] leading-none font-medium tracking-tight text-ink">Fork</h1>
           <p className="mt-3 text-lg text-ink/70">The future branches. Explore yours.</p>
-          <p data-testid="landing-explainer" className="mx-auto mt-4 max-w-sm text-sm leading-6 text-ink/60">
-            A digital twin of your Toyota. Tell it what is changing and see your options.
-          </p>
         </div>
 
-        {/* Three ways in. Quiet text tabs, with arrow keys. */}
-        <Tabs
-          group="entry"
-          label="Vehicle entry options"
-          tabs={TABS}
-          value={mode}
-          onChange={setMode}
-          className="flex gap-7 text-sm"
-          tabClassName={(selected) =>
-            cn(
-              "border-b-2 pb-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              selected ? "border-ink text-ink" : "border-transparent text-ink/60 hover:text-ink",
-            )
-          }
-        />
+        {/* Three ways in. Quiet text tabs. */}
+        <div role="tablist" aria-label="Vehicle entry options" className="flex gap-7 text-sm">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={mode === id}
+              onClick={() => setMode(id)}
+              className={cn(
+                "border-b-2 pb-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
+                mode === id ? "border-ink text-ink" : "border-transparent text-ink/50 hover:text-ink",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* Mode content */}
-        <div role="tabpanel" id={panelId("entry", mode)} aria-labelledby={tabId("entry", mode)} className="w-full">
-          {mode === "samples" && (
-            <>
-              <SampleCarPicker />
-              <p data-testid="alex-note" className="mt-4 text-sm text-ink/60">
-                Both come with Alex, a made-up driver in Austin.
-              </p>
-            </>
-          )}
+        <div className="w-full">
+          {mode === "samples" && <SampleCarPicker />}
           {mode === "vin" && <VinEntry />}
           {mode === "model" && <ModelYearPicker />}
         </div>
@@ -73,8 +64,6 @@ export function Landing() {
           </p>
         )}
       </div>
-
-      <Credits className="relative z-10 mt-14 w-full" />
 
     </main>
   );

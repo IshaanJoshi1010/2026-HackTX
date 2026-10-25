@@ -51,7 +51,7 @@ export function FinanceChips({ className }: FinanceChipsProps) {
               )}
             >
               <span>{label}</span>
-              <span className={cn("text-xs", isSelected ? "text-canvas/70" : "text-ink/55")}>
+              <span className={cn("text-[10px]", isSelected ? "text-canvas/70" : "text-ink/40")}>
                 {detail}
               </span>
               {isSelected && <Check className="size-3" />}

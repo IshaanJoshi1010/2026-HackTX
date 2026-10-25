@@ -4,8 +4,6 @@ import { GoogleGenAI } from "@google/genai";
 export interface GenerationRequest { system: string; input: unknown; schema?: Record<string, unknown> }
 export type Generator = (request: GenerationRequest) => Promise<string>;
 export class AIUnavailable extends Error {}
-/** The model the team tested live (ai/INTEGRATION.md). The previous default timed out, which cost a 15 s wait before the fallback. */
-export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export const generateWithGemini: Generator = async request => {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new AIUnavailable("AI unavailable");
@@ -14,7 +12,7 @@ export const generateWithGemini: Generator = async request => {
   try {
     const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 15000, retryOptions: { attempts: 1 } } });
     const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
+      model: process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash",
       contents: JSON.stringify(request.input),
       config: { systemInstruction: request.system, temperature: 0, maxOutputTokens: 4096,
         ...(request.schema ? { responseMimeType: "application/json", responseJsonSchema: request.schema } : {}) },

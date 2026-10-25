@@ -53,7 +53,7 @@ export function RevealOverlay() {
       data-testid="reveal-overlay"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-8 px-4 pb-8"
     >
-      <p data-testid="reveal-stage-pill" className="text-sm text-ink/55">
+      <p data-testid="reveal-stage-pill" className="text-sm text-ink/40">
         {STAGE_LABELS[revealStage] ?? "Assembling"}
       </p>
 

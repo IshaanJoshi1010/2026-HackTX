@@ -70,12 +70,9 @@ export function moveEvent(s: Scenario, eventId: string, newMonth: number): Scena
   return updateEvent(s, eventId, e => ({ ...e, month: newMonth }));
 }
 
-/**
- * Patches one event. The id never changes; a payload in the patch is merged key by key into the event's payload,
- * so editing the price of a replacement keeps its vehicleId. To drop a key, delete the event and add a new one.
- */
+/** Patches one event. The id never changes; a payload in the patch replaces the whole payload. */
 export function editEvent(s: Scenario, eventId: string, patch: Partial<LifeEvent>): Scenario {
-  return updateEvent(s, eventId, e => ({ ...e, ...copy(patch), payload: { ...e.payload, ...copy(patch.payload ?? {}) }, id: e.id }));
+  return updateEvent(s, eventId, e => ({ ...e, ...copy(patch), id: e.id }));
 }
 
 export function deleteEvent(s: Scenario, eventId: string): Scenario {

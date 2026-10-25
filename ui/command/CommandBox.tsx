@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { data } from "@/ui/mocks";
 import { useForkStore, type DumpOutcome } from "@/ui/store/useForkStore";
 import { ConfirmProposalCard } from "./ConfirmProposalCard";
-import { ConfirmedCard } from "./ConfirmedCard";
 import { InlineQuestionCard } from "./InlineQuestionCard";
 import { ManualEventForm } from "./ManualEventForm";
-import { StarterChips, starterPrompt } from "./StarterChips";
+import { StarterChips } from "./StarterChips";
 import { VoiceButton } from "./VoiceButton";
 
 const NOTHING_FOUND =
@@ -33,11 +31,7 @@ export function CommandBox({ className }: CommandBoxProps) {
   const drafts = useForkStore((s) => s.explore.draftChanges);
   const question = useForkStore((s) => s.question);
   const futures = useForkStore((s) => s.explore.scenarios.length);
-  const twin = useForkStore((s) => s.twin);
-  const evaluation = useForkStore((s) => s.evaluation);
-  const samples = useMemo(() => data.listSampleVehicles(), []);
   const lastDump = useForkStore((s) => s.lastDump);
-  const receipt = useForkStore((s) => s.receipt);
   const { submitDump, retryDump, setView } = useForkStore((s) => s.actions);
 
   const isInterpreting = busy === "interpreting";
@@ -99,7 +93,6 @@ export function CommandBox({ className }: CommandBoxProps) {
   return (
     <div data-testid="command-box" className={cn("mx-auto flex w-full max-w-2xl flex-col gap-3", className)}>
       {hasDrafts && <ConfirmProposalCard onConfirmed={() => setView("future")} />}
-      {receipt && !hasDrafts && <ConfirmedCard />}
       {question && !hasDrafts && <InlineQuestionCard />}
 
       {showManual && (
@@ -113,7 +106,7 @@ export function CommandBox({ className }: CommandBoxProps) {
           e.preventDefault();
           void handleProcess(text);
         }}
-        className="flex items-center gap-1 rounded-full bg-ink/10 py-2 pl-2 pr-2 backdrop-blur-xl focus-within:bg-ink/15 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+        className="flex items-center gap-1 rounded-full bg-ink/10 py-2 pl-2 pr-2 backdrop-blur-xl focus-within:bg-ink/15"
       >
         <button
           type="button"
@@ -138,7 +131,7 @@ export function CommandBox({ className }: CommandBoxProps) {
           placeholder="Tell Fork what's changing in your life"
           aria-label="What's changing in your life"
           disabled={isInterpreting}
-          className="h-9 min-w-0 flex-1 bg-transparent px-2 text-[15px] text-ink placeholder:text-ink/50 focus:outline-none"
+          className="h-9 min-w-0 flex-1 bg-transparent px-2 text-[15px] text-ink placeholder:text-ink/40 focus:outline-none"
         />
 
         <VoiceButton onTranscript={(t) => setText((prev) => (prev ? `${prev} ${t}` : t))} disabled={isInterpreting} />
@@ -166,14 +159,14 @@ export function CommandBox({ className }: CommandBoxProps) {
               type="button"
               onClick={() => void handleRetry()}
               disabled={isInterpreting}
-              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
             >
               Try the AI again
             </button>
             <button
               type="button"
               onClick={() => setShowManual(true)}
-              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
             >
               Enter it yourself
             </button>
@@ -184,13 +177,7 @@ export function CommandBox({ className }: CommandBoxProps) {
           {notice}
         </p>
       ) : (
-        !hasDrafts && twin && (
-          <StarterChips
-            prompt={starterPrompt({ futures, compared: evaluation !== null, current: twin.vehicle, other: samples.find((v) => v.id !== twin.vehicle.id) })}
-            onSelect={handleSeed}
-            disabled={isInterpreting}
-          />
-        )
+        futures <= 1 && !hasDrafts && !text && <StarterChips onSelect={handleSeed} disabled={isInterpreting} />
       )}
     </div>
   );

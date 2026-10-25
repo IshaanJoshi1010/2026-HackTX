@@ -67,15 +67,9 @@ describe("decisionsOf", () => {
 });
 
 describe("inheritedIds", () => {
-  it("is the parent's decisions from before the fork month, and empty with no parent", () => {
-    const parent = sc("p", [ev("x", 1), ev("y", 2), ev("z", 9)]);
-    expect([...inheritedIds(parent, 3)]).toEqual(["x", "y"]);
-    expect([...inheritedIds(parent, 10)]).toEqual(["x", "y", "z"]);
-    expect(inheritedIds(undefined, 6).size).toBe(0);
-  });
-
-  it("leaves a later decision the branch carried forward movable", () => {
-    expect(inheritedIds(sc("p", [ev("early", 2), ev("later", 32)]), 6).has("later")).toBe(false);
+  it("is the parent's decisions, and empty with no parent", () => {
+    expect([...inheritedIds(sc("p", [ev("x", 1), ev("y", 2)]))]).toEqual(["x", "y"]);
+    expect(inheritedIds(undefined).size).toBe(0);
   });
 });
 

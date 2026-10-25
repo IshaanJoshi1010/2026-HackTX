@@ -9,8 +9,6 @@ import { SourceBadge } from "@/ui/profile/SourceBadge";
 import { eventTitle } from "@/ui/store/eventLabels";
 import { specsFor } from "@/ui/store/selectors";
 import { BASE_ID, useForkStore } from "@/ui/store/useForkStore";
-import { noCostMessage, type NoCostMessage } from "./effects";
-import { useDecisionEffects } from "./useDecisionEffects";
 import { MONTH_MAX, YEAR_TICKS, decisionsOf, fanOffsets, inheritedIds, labelCenter, milestonesOf, pointAt, yearLabel } from "./layout";
 import { MilestoneTick, Marker } from "./EventMarkers";
 import {
@@ -65,16 +63,6 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
   const drawById = useMemo(() => new Map([...seriesById].map(([id, series]) => [id, smoothSeries(series)])), [seriesById]);
 
   const active = byId.get(activeId) ?? scenarios[0];
-  // What each decision changed, measured by running this future again without it. Hooks stay above the early return.
-  const effects = useDecisionEffects(active);
-  const noCostById = useMemo(() => {
-    const out = new Map<string, NoCostMessage>();
-    for (const e of effects) {
-      const message = noCostMessage(e);
-      if (message) out.set(e.event.id, message);
-    }
-    return out;
-  }, [effects]);
   if (!active) return null;
 
   const isBase = active.id === BASE_ID;
@@ -106,7 +94,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
   // Signposts: every decision in this future, with labels kept from overlapping.
   const decisions = decisionsOf(active);
   const parent = active.parentId ? byId.get(active.parentId) : undefined;
-  const inherited = inheritedIds(parent, active.forkMonth);
+  const inherited = inheritedIds(parent);
   const offsets = fanOffsets(decisions);
   const posts = decisions.map((e) => ({
     e,
@@ -229,10 +217,10 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
 
       {hasDrift && (
         <>
-          <span className="pointer-events-none absolute left-0 text-xs text-ink/55" style={{ top: frame.padTop - 28 }}>
+          <span className="pointer-events-none absolute left-0 text-[11px] text-ink/35" style={{ top: frame.padTop - 28 }}>
             Saves money
           </span>
-          <span className="pointer-events-none absolute left-0 text-xs text-ink/55" style={{ top: frame.height - frame.padBottom + 14 }}>
+          <span className="pointer-events-none absolute left-0 text-[11px] text-ink/35" style={{ top: frame.height - frame.padBottom + 14 }}>
             Costs more
           </span>
         </>
@@ -256,12 +244,11 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
               y={y}
               locked={inherited.has(e.id)}
               minMonth={active.parentId ? active.forkMonth : 0}
-              noCost={noCostById.get(e.id) ?? null}
               getAxis={getAxis}
               onMove={moveEvent}
               onSelect={setActiveMonth}
             />
-            <DecisionLabel event={e} x={x} y={y + off} above={off < 0} roadW={roadW} noCost={noCostById.has(e.id)} />
+            <DecisionLabel event={e} x={x} y={y + off} above={off < 0} roadW={roadW} />
           </div>
         );
       })}
@@ -292,7 +279,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
 
       {!isBase && !showAll && hasDrift && (
         <span
-          className="pointer-events-none absolute text-xs text-ink/55"
+          className="pointer-events-none absolute text-xs text-ink/45"
           style={{ right: 0, top: mid + (endDelta > 0 ? -26 : 14) }}
         >
           If nothing changes
@@ -312,7 +299,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
         {YEAR_TICKS.map((t) => (
           <span
             key={t}
-            className="absolute top-2 -translate-x-1/2 text-xs whitespace-nowrap text-ink/55 first:translate-x-0 last:-translate-x-full"
+            className="absolute top-2 -translate-x-1/2 text-xs whitespace-nowrap text-ink/45 first:translate-x-0 last:-translate-x-full"
             style={{ left: roadX(t, roadW) }}
           >
             {yearLabel(t)}
@@ -353,29 +340,25 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
   );
 }
 
-function DecisionLabel({ event, x, y, above, roadW, noCost }: { event: LifeEvent; x: number; y: number; above: boolean; roadW: number; noCost: boolean }) {
+function DecisionLabel({ event, x, y, above, roadW }: { event: LifeEvent; x: number; y: number; above: boolean; roadW: number }) {
   // The first decision sits on the left end of the road, so keep its label on screen.
-  const widest = Math.max(eventTitle(event).length, decisionWhen(event, noCost).length);
+  const widest = Math.max(eventTitle(event).length, `in ${monthLabel(event.month)}`.length);
   return (
     <div
       data-testid="decision-label"
       className="pointer-events-none absolute z-10 rounded bg-canvas px-2 py-0.5 text-center"
       style={{ left: labelCenter(x, "x".repeat(widest), roadW), top: y, transform: `translate(-50%, ${above ? "-100%" : "0"})` }}
     >
-      <DecisionText event={event} noCost={noCost} />
+      <DecisionText event={event} />
     </div>
   );
 }
 
-/** "in 1 yr", with a short reminder that it moves no dollar. The full sentence is on the marker. */
-const decisionWhen = (event: LifeEvent, noCost: boolean) =>
-  `${`in ${monthLabel(event.month)}`.replace("in Now", "now")}${noCost ? ", no cost change" : ""}`;
-
-function DecisionText({ event, noCost }: { event: LifeEvent; noCost: boolean }) {
+function DecisionText({ event }: { event: LifeEvent }) {
   return (
     <>
       <p className="text-[15px] leading-tight font-medium whitespace-nowrap text-ink">{eventTitle(event)}</p>
-      <p className="mt-0.5 text-xs whitespace-nowrap text-ink/50">{decisionWhen(event, noCost)}</p>
+      <p className="mt-0.5 text-xs whitespace-nowrap text-ink/50">{`in ${monthLabel(event.month)}`.replace("in Now", "now")}</p>
     </>
   );
 }

@@ -7,13 +7,11 @@ import { RevealOverlay } from "@/ui/reveal/RevealOverlay";
 import { selectActiveVehicle } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { CarView } from "./CarView";
-import { Credits } from "./Credits";
 import { DetailsSheet } from "./DetailsSheet";
 import { ErrorNotice } from "./ErrorNotice";
 import { FutureView } from "./FutureView";
 import { Identity } from "./Identity";
 import { StageBackdrop } from "./StageBackdrop";
-import { panelId, tabId } from "./Tabs";
 import { useElementHeight } from "./useElementHeight";
 import { ViewSwitch } from "./ViewSwitch";
 
@@ -83,15 +81,11 @@ export function Workspace() {
         </>
       ) : (
         <>
-          {/* The page is the switch's tab panel. It adds no box of its own, so the pages still position against the stage. */}
-          <div role="tabpanel" id={panelId("page", view)} aria-labelledby={tabId("page", view)} className="contents">
-            {view === "car" ? <CarView /> : <FutureView bottomInset={barHeight} />}
-          </div>
+          {view === "car" ? <CarView /> : <FutureView bottomInset={barHeight} />}
           <div ref={barRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-4 px-4 pb-5">
             <ErrorNotice />
             <CommandBox />
             <ViewSwitch />
-            <Credits compact className="-mt-2" />
           </div>
           <DetailsSheet />
         </>

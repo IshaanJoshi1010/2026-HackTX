@@ -6,30 +6,6 @@ export function hasTimingLanguage(text: string): boolean {
   const withoutModelYear = text.replace(/\$\s*20\d{2}\b/g, "amount").replace(/\b20\d{2}\s*(?:annual\s+)?(?:miles?|mi|dollars?|usd|a year|per year|\/yr|\/month)\b/gi, "quantity").replace(/\b20\d{2}\s+(?:toyota\s+)?(?:camry|rav4)\b/gi, "vehicle");
   return /\b(?:next|this|last)\s+(?:month|year|week|spring|summer|fall|autumn|winter|january|february|march|april|may|june|july|august|september|october|november|december)\b|\bin\s+[^,.;!?]*\b(?:months?|years?|weeks?|days?)\b|\b(?:in\s+)?20\d{2}\b|\b(?:after|before|by|until|soon|later|eventually)\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(withoutModelYear);
 }
-/**
- * The clauses of a sentence, split one way for everyone (the offline reader and the mapper): sentence punctuation,
- * commas that are not inside a number, and " and ". "20,000" stays whole.
- */
-export function splitClauses(text: string): string[] {
-  return text.replace(/(\d),(?=\d)/g, "$1\u0001").split(/[;!?\n]|[.](?!\d)|,|\s+and\s+/i)
-    .map(clause => clause.replaceAll("\u0001", ",").trim()).filter(Boolean);
-}
-
-const monthNames = "january|february|march|april|may|june|july|august|september|october|november|december";
-/** Like hasTimingLanguage, but "by" only counts before a date ("by 2029", "by March"). "By train" is not a date. */
-export function hasDateLanguage(text: string): boolean {
-  const withoutByWord = text.replace(new RegExp(`\\bby\\s+(?!(?:the\\s+(?:end|start|beginning)|next|this|last|20\\d{2}|\\d|${monthNames})\\b)\\w+`, "gi"), "");
-  return hasTimingLanguage(withoutByWord);
-}
-/**
- * True when some clause names a date but no extracted change comes from that clause, so the date would be silently
- * dropped and the change would land on today. "moving to San Antonio, TX next year" is the classic case: the date is
- * in the clause after the comma. Ask instead of guessing.
- */
-export function hasOrphanTiming(text: string, quotes: string[]): boolean {
-  return splitClauses(text).some(clause => hasDateLanguage(clause) && !quotes.some(quote => clause.includes(quote) || quote.includes(clause)));
-}
-
 export type EventTiming = { resolved: true; month: number; inferred: boolean; assumptions: string[] }
   | { resolved: false; reason: string };
 

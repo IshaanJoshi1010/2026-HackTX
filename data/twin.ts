@@ -1,4 +1,3 @@
-import { MAX_INPUT_NUMBER } from "./inputLimits";
 import { z } from "zod";
 import type { ConnectionProvider, HistoryRecord, Question, RawProfileInput, Source, VehicleConfig, VehicleTwin } from "../contracts";
 import { AccountDataSchema, VehicleConfigSchema, VehicleSignalsSchema, VehicleTwinSchema } from "../contracts/schemas";
@@ -21,7 +20,7 @@ export interface TwinMetadata {
 }
 export type DetailedTwinResult = { ok: true; twin: VehicleTwin; metadata: TwinMetadata } | { ok: false; error: string };
 export interface TwinDependencies { getHistory?: (vehicleId: string) => HistoryRecord[]; currentYear?: number }
-const mileageSchema = z.number().finite().nonnegative().max(MAX_INPUT_NUMBER);
+const mileageSchema = z.number().finite().nonnegative();
 
 export function createTwinBuilder(deps: TwinDependencies = {}) {
   return async function buildWithDetails(a: BuildTwinInput): Promise<DetailedTwinResult> {
@@ -72,7 +71,13 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
       } else {
         if (saved && a.raw?.financeType === undefined && prepared.financeInput.payment === undefined && prepared.financeInput.endMonth === undefined) {
           finance = structuredClone(syntheticFinance);
-          driver.financeType = finance.financeType;
+          if (prepared.financeInput.payment !== undefined && prepared.financeInput.payment !== finance.monthlyPayment) {
+          return { ok: false, error: "Supplied payment conflicts with the provider account; confirmation is required" };
+        }
+        if (prepared.financeInput.endMonth !== undefined && prepared.financeInput.endMonth !== finance.leaseEndMonth) {
+          return { ok: false, error: "Supplied lease end month conflicts with the provider account; confirmation is required" };
+        }
+        driver.financeType = finance.financeType;
           driver.provenance.financeType = "synthetic";
         } else finance.provenance.financeType = driver.provenance.financeType;
         warnings.push(finance === financeResolution.finance ? "Finance amounts use labeled demo estimates, not a lender quote" : "Synthetic demo finance fixture; not a real account");
@@ -81,8 +86,6 @@ export function createTwinBuilder(deps: TwinDependencies = {}) {
           if (financeResolution.nextAction) warnings.push(financeResolution.nextAction);
         }
       }
-      if (Object.values(finance).some(value => typeof value === "number" && value > MAX_INPUT_NUMBER))
-        return { ok: false, error: "Finance values exceed the supported input range" };
       const mileage = a.mileage ?? signals?.mileage ?? saved?.listingSnapshot.fields.mileage;
       if (!mileageSchema.safeParse(mileage).success) return { ok: false, error: "A valid mileage is required from input, provider signals, or a saved listing" };
       const mileageSource: Source = a.mileage !== undefined ? "user" : signals?.source ?? "synthetic";

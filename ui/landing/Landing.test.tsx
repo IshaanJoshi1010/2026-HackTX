@@ -23,43 +23,17 @@ describe("Landing", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Fork" })).toBeInTheDocument();
     expect(screen.getByText("The future branches. Explore yours.")).toBeInTheDocument();
 
-    // Default tab is Sample cars
-    expect(screen.getByRole("tab", { name: "Sample cars" })).toHaveAttribute("aria-selected", "true");
+    // Default tab is Sample Cars
+    expect(screen.getByRole("tab", { name: "Sample Cars" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /2022 Camry SE/ })).toBeInTheDocument();
 
     // Switch to Enter VIN tab
     fireEvent.click(screen.getByRole("tab", { name: "Enter VIN" }));
     expect(screen.getByPlaceholderText("17-character VIN")).toBeInTheDocument();
 
-    // Switch to Select model tab
-    fireEvent.click(screen.getByRole("tab", { name: "Select model" }));
-    expect(screen.getByLabelText("Select vehicle model")).toBeInTheDocument();
-  });
-});
-
-describe("Landing explainer", () => {
-  it("says what Fork does in one short line, before anything is entered", () => {
-    render(<Landing />);
-    const text = screen.getByTestId("landing-explainer").textContent!;
-    expect(text).toContain("digital twin of your Toyota");
-    expect(text).toContain("see your options");
-    expect(text.length).toBeLessThan(100);
-    expect(text).not.toContain("\u2014");
-  });
-
-  it("names Alex on the sample cars tab, and says Alex is made up", () => {
-    render(<Landing />);
-    expect(screen.getByTestId("alex-note")).toHaveTextContent("Alex, a made-up driver in Austin");
-    fireEvent.click(screen.getByRole("tab", { name: "Enter VIN" }));
-    expect(screen.queryByTestId("alex-note")).toBeNull();
-  });
-
-  it("keeps the credits to one quiet line until asked", () => {
-    render(<Landing />);
-    expect(screen.getByTestId("credits")).toHaveTextContent("Representative 3D models.");
-    expect(screen.queryByTestId("credits-panel")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "3D model credits" }));
-    expect(screen.getAllByTestId("model-credit").length).toBeGreaterThan(0);
+    // Switch to Select Model tab
+    fireEvent.click(screen.getByRole("tab", { name: "Select Model" }));
+    expect(screen.getByLabelText("Select Vehicle Model")).toBeInTheDocument();
   });
 });
 
@@ -116,19 +90,18 @@ describe("VinEntry", () => {
 });
 
 describe("SampleCarPicker", () => {
-  it("shows the two cars as one tap each, with no spec sheet to read", async () => {
+  it("renders sample vehicles with badges and handles selection", async () => {
     render(<SampleCarPicker />);
 
-    const camryBtn = screen.getByRole("button", { name: /2022 camry se/i });
-    const rav4Btn = screen.getByRole("button", { name: /2024 rav4 hybrid xle/i });
+    const camryBtn = screen.getByRole("button", { name: /select 2022 camry se/i });
+    const rav4Btn = screen.getByRole("button", { name: /select 2024 rav4 hybrid xle/i });
 
-    expect(camryBtn).toHaveTextContent("Demo car");
-    expect(rav4Btn).toHaveTextContent("Hybrid");
-    // the specs come once the car is on screen, so there is nothing here to label
-    expect(screen.queryByText("mpg")).toBeNull();
-    expect(screen.queryByText("cu ft")).toBeNull();
-    expect(document.querySelectorAll("[data-source]")).toHaveLength(0);
-    expect(screen.getAllByRole("button")).toHaveLength(2);
+    expect(camryBtn).toBeInTheDocument();
+    expect(rav4Btn).toBeInTheDocument();
+
+    // Check spec numbers are accompanied by source badges
+    expect(screen.getAllByText("mpg")).toHaveLength(2);
+    expect(screen.getAllByText("cu ft")).toHaveLength(2);
 
     // Click sample car
     await act(async () => {
@@ -144,7 +117,7 @@ describe("ModelYearPicker", () => {
     const startFromPickerSpy = vi.spyOn(useForkStore.getState().actions, "startFromPicker");
     render(<ModelYearPicker />);
 
-    const select = screen.getByLabelText("Select vehicle model");
+    const select = screen.getByLabelText("Select Vehicle Model");
     expect(select).toBeInTheDocument();
 
     // Submit default Camry
@@ -152,48 +125,5 @@ describe("ModelYearPicker", () => {
       fireEvent.click(screen.getByRole("button", { name: /explore 2022 camry se/i }));
     });
     expect(startFromPickerSpy).toHaveBeenCalledWith("Toyota", "Camry", 2022, "SE");
-  });
-});
-
-describe("VinEntry sample VIN", () => {
-  it("fills in the demo Camry's VIN, ready to decode, and never says exact", async () => {
-    render(<VinEntry />);
-    const input = screen.getByPlaceholderText("17-character VIN");
-    expect(input).toHaveValue("");
-    fireEvent.click(screen.getByRole("button", { name: "Use sample VIN" }));
-    expect((input as HTMLInputElement).value).toMatch(/^[A-HJ-NPR-Z0-9]{17}$/);
-    expect(screen.getByText("17/17")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /decode vin/i })).toBeEnabled();
-    expect(screen.queryByText(/exact/i)).toBeNull();
-  });
-
-  it("clears an earlier error, and the VIN it fills is the one the sample Camry card uses", async () => {
-    render(<VinEntry />);
-    const input = screen.getByPlaceholderText("17-character VIN");
-    fireEvent.change(input, { target: { value: "123i" } });
-    expect(screen.getByRole("alert")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Use sample VIN" }));
-    expect(screen.queryByRole("alert")).toBeNull();
-    const { data } = await import("@/ui/mocks");
-    expect((input as HTMLInputElement).value).toBe(data.listSampleVehicles()[0].vin);
-  });
-
-  it("tells a stranger which two cars Fork knows, and that the sample VIN is made up", () => {
-    render(<VinEntry />);
-    const note = screen.getByText(/No VIN handy\?/).closest("p")!;
-    expect(note).toHaveTextContent("Made up for the demo");
-    expect(note).toHaveTextContent("2022 Camry SE");
-    expect(note).toHaveTextContent("2024 RAV4 Hybrid XLE");
-  });
-
-  it("decodes the sample VIN through the normal path and opens the demo", async () => {
-    vi.useRealTimers();
-    render(<VinEntry />);
-    fireEvent.click(screen.getByRole("button", { name: "Use sample VIN" }));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /decode vin/i }));
-    });
-    await vi.waitFor(() => expect(useForkStore.getState().phase).toBe("reveal"));
-    expect(useForkStore.getState().twin?.vehicle.model).toBe("Camry");
   });
 });

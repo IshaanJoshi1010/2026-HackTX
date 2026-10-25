@@ -7,7 +7,6 @@ import { gapCheck } from "../data/gapCheck";
 import { ExtractionSchema, type Extraction } from "./schema";
 import { mapExtraction } from "./mapper";
 import { generateWithGemini, type Generator } from "./gemini";
-import { toProviderSchema } from "./providerSchema";
 import { extractionInstructions } from "./prompts/system";
 
 const jsonSchema = z.toJSONSchema(ExtractionSchema) as Record<string, unknown>;
@@ -19,7 +18,7 @@ function groundedResponseSchema(prompt: string): Record<string, unknown> {
   const quotes = [...new Set([prompt, ...prompt.split(/[!?;\n]|[.,](?!\d)|\s+and\s+/i).map(part => part.trim()).filter(Boolean)])];
   const schema = structuredClone(jsonSchema) as SchemaNode;
   schema.properties!.items.items!.properties!.quote = { type: "string", enum: quotes };
-  return toProviderSchema(schema as Record<string, unknown>);
+  return schema;
 }
 export const InterpretRequestSchema = z.object({ prompt: z.string().trim().min(1).max(8000), context: InterpretContextSchema }).strict();
 const clarify = (): InterpretResult => ({ aiAvailable: true, intent: "CLARIFY", proposals: [], profilePatches: [] });
@@ -61,7 +60,6 @@ export function createInterpreter(generate: Generator = generateWithGemini) {
         ...(validationFeedback ? { validationFeedback } : {}) }, schema: responseSchema }); }
       catch { return { aiAvailable: false }; }
       try {
-        if (text.length > 64000) throw new Error("Extraction response exceeds the supported size");
         const extraction = ExtractionSchema.parse(JSON.parse(text));
         const mapped = mapExtraction(extraction, ctx, request.data.prompt);
         if (!mapped.result.aiAvailable) return mapped.result;
