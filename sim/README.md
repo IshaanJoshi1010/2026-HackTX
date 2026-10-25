@@ -66,7 +66,7 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 | `withParameter(scenario, parameter, value)` | | Scenario with the value held for all 60 months (the same what-if break-even uses) |
 | `sensitivity({ twin, scenarios, ctx, priorities })` | | `SensitivityResult`: low/base/high runs and "held in X of 9" |
 | `withSensitivity(evaluation, s)`, `robustnessLine(s)` | | Evaluation with `sensitivity` filled and the robustness line added |
-| `nextAction(evaluation, twin, be?, results?)` | Pass `results`: rules 2 to 4 need them | `NextAction` with `factors`. First match wins: current car breaks a hard constraint, keep, replace with unknown finance, replace, inconclusive |
+| `nextAction(evaluation, twin, be?, results?)` | Pass `results`: rules 2 to 4 need them | `NextAction` with `factors`. First match wins: current car breaks a hard constraint, keep, replace with unknown finance, replace, inconclusive (a lease ending inside the projection asks for lease-end terms first) |
 | `metricsOf(result)`, `keepsCurrentCar(result, id)` | | Scoring inputs |
 
 ## Decision rules
@@ -76,7 +76,8 @@ Each call takes a few milliseconds. A full pipeline (2 scenarios, both break-eve
 3. Normalize: min-max across the compared scenarios, with a floor on the spread ($3,000 for net cost and fuel, 0.25 for longevity, 0.5 for family, 0.25 for comfort). When the spread is at least the floor, it's exactly min-max. Below the floor, scores shrink toward 0.5, so a tiny gap can't swing a whole weight. All equal gives 0.5 each.
 4. Score: weighted sum with the user's priorities, returned per factor. If the top two are within 0.05, the verdict is `inconclusive`.
 5. Break-even: one parameter, bisection between 5,000 and 40,000 mi/yr or $2 and $8/gal, stopping at 0.5% of the range or after 40 steps. If today's verdict is keep, it finds where replacing would win; otherwise where keeping would.
-6. Robustness: every combination of depreciation x0.8/1/1.2 and fuel x0.8/1/1.2, reported as "held in X of 9 tested cases". Never a probability.
+6. Lease: when a lease ends inside the 60 months, the simulation models no cost for that car afterwards (no renewal or buyout), which would make keeping look nearly free. A keep verdict in that case becomes `inconclusive` with a lease-end line in the rationale, and the next action asks for the buyout or renewal terms. A verdict for replacing is left alone.
+7. Robustness: every combination of depreciation x0.8/1/1.2 and fuel x0.8/1/1.2, reported as "held in X of 9 tested cases". Never a probability.
 
 ## Disclose in the pitch as illustrative
 

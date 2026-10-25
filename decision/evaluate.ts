@@ -1,7 +1,8 @@
 import type { DecisionEvaluation, DriverProfile, Scenario, SimulationResult, VehicleTwin } from "../contracts";
 import { applyEvents } from "../sim/events";
 import { INCONCLUSIVE_MARGIN, LONGEVITY_MILES, MEANINGFUL_DIFFERENCE } from "./config";
-import { type Metrics, metricsOf } from "./metrics";
+import { leaseEndInHorizon } from "./lease";
+import { type Metrics, keepsCurrentCar, metricsOf } from "./metrics";
 import { nextAction } from "./nextAction";
 
 type Priorities = DriverProfile["priorities"];
@@ -99,11 +100,17 @@ export function evaluateDetailed(a: EvaluateInput): { evaluation: DecisionEvalua
 
   const ranked = scores.filter(s => s.eligible).sort((x, y) => y.total - x.total); // stable: ties keep input order
   const [top, second] = ranked;
-  const preferredScenarioId = !top ? "inconclusive"
+  const rankedId = !top ? "inconclusive"
     : second && top.total - second.total < INCONCLUSIVE_MARGIN ? "inconclusive" : top.scenarioId;
+  // A keep verdict on a lease that ends inside the projection rests on a car with no cost after that month.
+  const leaseEnd = leaseEndInHorizon(a.twin, a.results);
+  const leased = leaseEnd !== null && rankedId !== "inconclusive"
+    && a.results.some(r => r.scenarioId === rankedId && keepsCurrentCar(r, a.twin.vehicle.id));
+  const preferredScenarioId = leased ? "inconclusive" : rankedId;
 
   const rationale: string[] = [];
   if (!top) rationale.push("No scenario meets the hard constraints");
+  else if (leased) rationale.push(`Inconclusive: ${top.name} leads on paper (${f2(top.total)}), but your lease ends at month ${leaseEnd} and a renewal or buyout is not modeled, so keeping the car has no cost after that`);
   else if (preferredScenarioId === "inconclusive") rationale.push(`Inconclusive: ${top.name} ${f2(top.total)} vs ${second.name} ${f2(second.total)}, within the ${f2(INCONCLUSIVE_MARGIN)} margin`);
   else rationale.push(`Preferred: ${top.name} scores ${f2(top.total)}${second ? ` vs ${f2(second.total)} for ${second.name}` : ""}`);
   for (const s of scores) for (const v of s.violations) rationale.push(`Hard constraint, ${s.name}: ${v}`);

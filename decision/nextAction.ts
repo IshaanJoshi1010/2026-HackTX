@@ -1,5 +1,6 @@
 import type { BreakEvenResult, DecisionEvaluation, NextAction, SimulationResult, VehicleTwin } from "../contracts";
 import { FRONT_SEATS, REEVALUATE_MONTHS, REPLACEMENT_NAME } from "./config";
+import { leaseEndInHorizon } from "./lease";
 import { keepsCurrentCar, metricsOf } from "./metrics";
 
 const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -39,7 +40,8 @@ function advantages(a: SimulationResult, b: SimulationResult): { factor: string;
  * 2. Verdict keep: keep the car and review the next major service (mileage from the sim).
  * 3. Verdict replace and finance unknown: get a payoff or trade-in quote first.
  * 4. Verdict replace: investigate the replacement, citing the modeled factors.
- * 5. Inconclusive: reevaluate at the break-even threshold if one exists, else at a mileage or month.
+ * 5. Inconclusive: when a lease ends inside the projection, get the lease-end terms first; else reevaluate at the
+ *    break-even threshold if one exists, else at a mileage or month.
  * `results` (the evaluated simulations) unlocks rules 2 to 4; evaluate() passes them. Never implies a booking,
  * application or approval happened. officialLink is omitted: no verified official links are supplied yet.
  */
@@ -103,6 +105,15 @@ export function nextAction(e: DecisionEvaluation, twin: VehicleTwin, be?: BreakE
   }
 
   // 5. Inconclusive (or no results to tell keep from replace).
+  // A lease that ends inside the projection leaves the keep side with no modeled cost, so the numbers cannot settle it.
+  const leaseEnd = keep ? leaseEndInHorizon(twin, results) : null;
+  if (leaseEnd !== null) {
+    return {
+      label: "Get your lease-end terms before deciding",
+      detail: `Your lease ends at month ${leaseEnd}. Fork does not model a renewal or a buyout, so keeping your ${model} looks cheaper than it is after that. Find out your buyout price or renewal terms, then compare again.`,
+      factors: ["lease_end"],
+    };
+  }
   if (be?.found) {
     const value = be.parameter === "annualMiles" ? `${Math.round(be.threshold).toLocaleString("en-US")} mi/yr` : `$${be.threshold.toFixed(2)}/gal`;
     const what = be.parameter === "annualMiles" ? "your driving" : "fuel prices";

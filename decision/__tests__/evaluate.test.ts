@@ -98,6 +98,39 @@ describe("evaluate", () => {
     });
   });
 
+  describe("a lease that ends inside the projection", () => {
+    // Audit repro: lease $400 a month ending at month 18. After that the keep side has no modeled cost.
+    const leased = (leaseEndMonth: number): VehicleTwin => ({
+      ...twin,
+      driver: { ...twin.driver, financeType: "lease" as const },
+      finance: { financeType: "lease" as const, balance: 0, monthlyPayment: 400, remainingTermMonths: leaseEndMonth, leaseEndMonth, provenance: {} },
+    });
+
+    it("keep no longer wins for free: the verdict is inconclusive and says why", () => {
+      const t = leased(18);
+      const { evaluation, scores, keep } = compare(t, baseline, equal);
+      expect(scores[0].total).toBeGreaterThan(scores[1].total + 0.05); // on paper keep leads by a clear margin
+      expect(evaluation.preferredScenarioId).toBe("inconclusive");
+      expect(evaluation.rationale[0]).toMatch(/^Inconclusive: Keep leads on paper \([\d.]+\), but your lease ends at month 18 and a renewal or buyout is not modeled/);
+      expect(evaluation.nextAction.label).toBe("Get your lease-end terms before deciding");
+      expect(evaluation.nextAction.detail).toMatch(/lease ends at month 18/);
+      expect(evaluation.nextAction.detail).not.toMatch(/Neither option leads/);
+      expect(keep.id).toBe(baseline.id);
+    });
+
+    it("a lease that runs past the projection, or any other finance, is untouched", () => {
+      expect(compare(leased(60), baseline, equal).evaluation.preferredScenarioId).toBe(baseline.id);
+      expect(compare(twin, baseline, equal).evaluation.preferredScenarioId).toBe(baseline.id);
+    });
+
+    it("does not overrule a verdict for replacing", () => {
+      const heavy = { ...leased(18), driver: { ...leased(18).driver, annualMiles: 30000, fuelPricePerGal: 5 } };
+      const { evaluation, replace } = compare(heavy, baseline, equal);
+      expect(evaluation.preferredScenarioId).toBe(replace.id);
+      expect(evaluation.nextAction.label).not.toMatch(/lease-end/);
+    });
+  });
+
   it("a household too big for both cars: no scenario can be preferred", () => {
     const big = { ...twin, driver: { ...twin.driver, householdSize: 6, children: 4 } };
     const { evaluation, scores } = compare(big, baseline, equal);
