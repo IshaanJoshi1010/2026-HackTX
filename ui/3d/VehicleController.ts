@@ -28,7 +28,8 @@ export class VehicleController {
   private toColor = new Color();
   private readonly cyan = new Color("#27E1FF");
   get isMorphing() { return !!this.morph; }
-  constructor(private readonly load = loadAsset, private readonly loadPoints = loadPointsFile) {}
+  constructor(private readonly load = loadAsset, private readonly loadPoints = loadPointsFile,
+    private readonly prepare?: (root: Object3D) => Promise<void>) {}
 
   async select(vehicle: VehicleConfig, duration: number, status: CarStageProps["onModelStatus"], ready: () => void, complete: () => void, options?: AnimationOptions) {
     const generation = ++this.generation;
@@ -63,6 +64,13 @@ export class VehicleController {
         }
       });
       applyPaint(root, spec.body, spec.hex);
+      if (this.prepare) {
+        // Compile the fade variant before changing the visible scene. Restore opaque state.
+        const warmup = new ViewMaterials(root);
+        try { warmup.update("solid", 0.5); await this.prepare(root); warmup.update("solid", 1); await this.prepare(root); }
+        catch (error) { disposeObject(root); throw error; }
+        if (generation !== this.generation) { disposeObject(root); return; }
+      }
       this.layers.forEach((layer) => { layer.startOpacity = layer.opacity; });
       const outgoing = this.layers.at(-1);
       const layer: Layer = { root, data, hex: spec.hex, materials: new ViewMaterials(root), opacity: this.layers.length ? 0 : 1, startOpacity: 0 };

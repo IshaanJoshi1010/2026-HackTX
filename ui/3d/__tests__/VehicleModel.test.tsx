@@ -2,7 +2,7 @@ import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { CarStageProps } from "../types";
 const bridge = vi.hoisted(() => ({ select: vi.fn(), complete: undefined as (() => void) | undefined }));
-vi.mock("@react-three/fiber", () => ({ useFrame: () => {} }));
+vi.mock("@react-three/fiber", () => ({ useFrame: () => {}, useThree: () => ({}) }));
 vi.mock("../VehicleController", () => ({ VehicleController: class {
   group = {}; dispose = vi.fn(); skip = vi.fn();
   select(...args: unknown[]) { bridge.select(...args); bridge.complete = args[4] as () => void; }

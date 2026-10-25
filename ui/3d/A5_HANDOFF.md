@@ -1,6 +1,6 @@
 # A5 integration handoff
 
-Status: A0-A5 implemented on `dev1-3d`. A3/A4 checkpoint is `94b02fc`. A6 projector/performance profiling and the final integrated rehearsal remain.
+Status: A0-A5 implemented on `dev1-3d`. A3/A4 checkpoint is `94b02fc`. A6 local performance validation is now recorded in `ui/3d/3D_PERF.md`; the final integrated/projector rehearsal remains.
 
 ## Public interface
 

@@ -12,17 +12,27 @@ function Preview() {
   const [vehicle, setVehicle] = useState(camry);
   const [audit, setAudit] = useState("Not run");
   const [memory, setMemory] = useState("");
+  const [performanceText, setPerformanceText] = useState("");
+  const [resolution, setResolution] = useState("responsive");
+  const frameSamples = useRef<{ fps: number; worstFrameMs: number; width: number; height: number }[]>([]);
   const renderer = useRef<WebGLRenderer | null>(null);
   const auditRunning = useRef(false);
   const animationDone = useRef<(() => void) | null>(null);
   useEffect(() => {
     const capture = (event: Event) => { renderer.current = (event as CustomEvent<WebGLRenderer>).detail; };
     window.addEventListener("fork:3d-renderer", capture);
+    const measure = (event: Event) => {
+      const sample = (event as CustomEvent).detail;
+      frameSamples.current.push(sample);
+      if (frameSamples.current.length > 120) frameSamples.current.shift();
+      setPerformanceText(`FPS ${sample.fps.toFixed(1)} / worst frame ${sample.worstFrameMs.toFixed(1)} ms / buffer ${sample.width}x${sample.height}`);
+    };
+    window.addEventListener("fork:3d-performance", measure);
     const timer = setInterval(() => {
       const info=renderer.current?.info;
       if(info) setMemory(`Geometries ${info.memory.geometries} / Textures ${info.memory.textures} / Calls ${info.render.calls} / Triangles ${info.render.triangles}`);
     }, 500);
-    return () => {clearInterval(timer);window.removeEventListener("fork:3d-renderer",capture);auditRunning.current=false;};
+    return () => {clearInterval(timer);window.removeEventListener("fork:3d-renderer",capture);window.removeEventListener("fork:3d-performance",measure);auditRunning.current=false;};
   }, []);
   async function runAudit() {
     if(auditRunning.current)return;
@@ -66,6 +76,22 @@ function Preview() {
     finally { auditRunning.current = false; animationDone.current = null; }
   }
   const [phase, setPhase] = useState<CarStageProps["phase"]>("interactive");
+  async function runSwitchAudit() {
+    if (auditRunning.current) return;
+    auditRunning.current = true;
+    const results = [];
+    try {
+      await preloadCars([camry, rav4]); setMounted(true); setPhase("interactive"); setView("solid");
+      frameSamples.current = [];
+      for (let i = 0; i < 20 && auditRunning.current; i++) {
+        setVehicle(i % 2 ? camry : rav4); setAudit(`Switch ${i + 1}/20`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        results.push({ cycle: i + 1, memory: { ...renderer.current!.info.memory }, calls: renderer.current!.info.render.calls });
+      }
+      setAudit(JSON.stringify({ kind: "switch", quality: low ? "low" : "high", reducedMotion, resolution, results, frames: frameSamples.current }));
+    } catch (error) { setAudit(String(error)); }
+    finally { auditRunning.current = false; }
+  }
   const [target, setTarget] = useState(rav4);
   const [viewMode, setView] = useState<CarStageProps["viewMode"]>("solid");
   const [skip, setSkip] = useState(0);
@@ -90,13 +116,15 @@ function Preview() {
       <button onClick={runAudit}>Run 10-cycle memory audit</button>
       <button onClick={() => void runAnimationAudit("reveal")}>Audit 10 reveals</button>
       <button onClick={() => void runAnimationAudit("morph")}>Audit 10 morphs</button>
+      <button onClick={() => void runSwitchAudit()}>Audit 20 switches</button>
       <button onClick={() => setReset(reset + 1)}>Reset camera</button>
       <label>View <select value={viewMode} onChange={(event) => setView(event.target.value as CarStageProps["viewMode"])}><option>solid</option><option>wireframe</option><option>points</option></select></label>
       <label><input type="checkbox" checked={reducedMotion} onChange={(event) => setReduced(event.target.checked)} />Reduced motion</label>
       <label><input type="checkbox" checked={low} onChange={(event) => setLow(event.target.checked)} />Low quality</label>
+      <label>Stage size <select aria-label="Stage size" value={resolution} onChange={event => setResolution(event.target.value)}><option>responsive</option><option>1024x768</option><option>1280x720</option><option>1920x1080</option></select></label>
     </div>
-    <div style={{ height: "55vh", minHeight: 320 }}>{mounted && <CarStage vehicle={vehicle} transitionTo={target} phase={phase} viewMode={viewMode} quality={low ? "low" : "high"} reducedMotion={reducedMotion} skipSignal={skip} replaySignal={replay} resetCameraSignal={reset} onRevealStage={(stage) => { append(stage); if (stage === "done") animationDone.current?.(); }} onTransitionComplete={() => { append("transition complete"); setVehicle(target); setPhase("interactive"); animationDone.current?.(); }} onModelStatus={(status) => append(`${status.vehicleId}: ${status.ready ? "ready" : status.error || "loading"}`)} />}</div>
-    <p>{memory}</p><pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{audit}</pre>
+    <div style={{ height: resolution === "responsive" ? "55vh" : Number(resolution.split("x")[1]), width: resolution === "responsive" ? "100%" : Number(resolution.split("x")[0]), minHeight: 320 }}>{mounted && <CarStage vehicle={vehicle} transitionTo={target} phase={phase} viewMode={viewMode} quality={low ? "low" : "high"} reducedMotion={reducedMotion} skipSignal={skip} replaySignal={replay} resetCameraSignal={reset} onRevealStage={(stage) => { append(stage); if (stage === "done") animationDone.current?.(); }} onTransitionComplete={() => { append("transition complete"); setVehicle(target); setPhase("interactive"); animationDone.current?.(); }} onModelStatus={(status) => append(`${status.vehicleId}: ${status.ready ? "ready" : status.error || "loading"}`)} />}</div>
+    <p style={{ position: "fixed", bottom: 0, left: 0, zIndex: 10, margin: 0, padding: 8, background: "#101114ee", pointerEvents: "none", fontSize: 11 }}>{memory} / {performanceText}</p><pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{audit}</pre>
     <p role="status">{events.join(" / ") || "Waiting for callbacks"}</p>
   </main>;
 }

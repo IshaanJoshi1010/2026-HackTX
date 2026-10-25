@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Group } from "three";
 import { VehicleController } from "./VehicleController";
 import type { CarStageProps } from "./types";
 
 export function VehicleModel({ props, onReady, onBusy }: { props: CarStageProps; onReady: () => void; onBusy: (busy: boolean) => void }) {
+  const { gl, camera, scene } = useThree();
   const mount = useRef<Group>(null);
   const controller = useRef<VehicleController | null>(null);
   const callbacks = useRef({ props, onReady });
@@ -15,11 +16,11 @@ export function VehicleModel({ props, onReady, onBusy }: { props: CarStageProps;
   const previousSkip = useRef(props.skipSignal);
   const completedSelection = useRef<string | null>(null);
   useEffect(() => {
-    const instance = new VehicleController();
+    const instance = new VehicleController(undefined, undefined, async root => { await gl.compileAsync(root, camera, scene); });
     controller.current = instance;
     mount.current?.add(instance.group);
     return () => { instance.dispose(); controller.current = null; completedSelection.current = null; };
-  }, []);
+  }, [gl, camera, scene]);
 
   useEffect(() => {
     const active = callbacks.current.props;

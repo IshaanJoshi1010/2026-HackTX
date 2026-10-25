@@ -53,6 +53,24 @@ describe("viewer resource ownership", () => {
 });
 
 describe("vehicle switching", () => {
+  it("waits for shader preparation and disposes a prepared clone after unmount", async () => {
+    let release!: () => void;
+    let prepared: Group | undefined;
+    const prepare = vi.fn(async (root) => {
+      prepared = root;
+      if (prepare.mock.calls.length === 1) await new Promise<void>(done => { release = done; });
+    });
+    const controller = new VehicleController(async () => source(), undefined, prepare);
+    const ready = vi.fn();
+    const pending = controller.select(vehicle, 0, vi.fn(), ready, vi.fn());
+    await vi.waitFor(() => expect(prepared).toBeDefined());
+    expect(ready).not.toHaveBeenCalled();
+    const free = vi.spyOn((prepared!.children[0] as Mesh).geometry, "dispose");
+    controller.dispose(); release(); await pending;
+    expect(free).toHaveBeenCalledTimes(1);
+    expect(ready).not.toHaveBeenCalled();
+    expect(controller.group.children).toHaveLength(0);
+  });
   it("keeps the old car while loading and on failure; crossfade disposes the outgoing car", async () => {
     let resolve!: (root: Group) => void;
     const loader = vi.fn().mockResolvedValueOnce(source()).mockImplementationOnce(() => new Promise<Group>((done) => { resolve = done; })).mockRejectedValueOnce(new Error("broken model"));
