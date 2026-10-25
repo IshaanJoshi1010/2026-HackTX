@@ -56,7 +56,7 @@ export function ModelYearPicker({ className, onSuccess }: ModelYearPickerProps) 
           disabled={isBusy}
           className={cn(
             "h-12 w-full appearance-none rounded border border-line bg-ink/5 px-4 text-sm text-ink",
-            "transition-colors focus:border-ink focus:bg-ink/10 focus:outline-none cursor-pointer",
+            "transition-colors focus:border-ink focus:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer",
           )}
         >
           {SUPPORTED_OPTIONS.map((opt, idx) => (

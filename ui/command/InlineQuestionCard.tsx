@@ -70,7 +70,7 @@ export function InlineQuestionCard({ className }: InlineQuestionCardProps) {
             onChange={(e) => setNumValue(e.target.value)}
             placeholder="Enter a number"
             aria-label={question.text}
-            className="h-8 w-32 rounded bg-ink/10 px-3 text-sm text-ink placeholder:text-ink/35 focus:bg-ink/15 focus:outline-none"
+            className="h-8 w-32 rounded bg-ink/10 px-3 text-sm text-ink placeholder:text-ink/50 focus:bg-ink/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           />
           <button type="submit" disabled={numValue === ""} className={cn(chip, "bg-ink text-canvas hover:bg-ink/85 disabled:opacity-40")}>
             Save

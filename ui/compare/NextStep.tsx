@@ -27,7 +27,7 @@ export function NextStep({ action, source }: NextStepProps) {
           href={action.officialLink}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-block border-b border-ink/40 pb-0.5 text-sm text-ink hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+          className="mt-3 inline-block border-b border-ink/40 pb-0.5 text-sm text-ink hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           Open the official page
         </a>

@@ -95,12 +95,12 @@ export function VinEntry({ className, onSuccess }: VinEntryProps) {
             spellCheck="false"
             disabled={isBusy}
             className={cn(
-              "h-12 w-full rounded border border-line bg-ink/5 px-4 font-mono text-sm tracking-wider uppercase text-ink placeholder:text-ink/30",
-              "transition-colors focus:border-ink focus:bg-ink/10 focus:outline-none",
+              "h-12 w-full rounded border border-line bg-ink/5 px-4 font-mono text-sm tracking-wider uppercase text-ink placeholder:text-ink/50",
+              "transition-colors focus:border-ink focus:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               displayedError && "border-ink/80",
             )}
           />
-          <span className="absolute right-3 text-xs tabular-nums text-ink/40">
+          <span className="absolute right-3 text-xs tabular-nums text-ink/55">
             {clean.length}/17
           </span>
         </div>

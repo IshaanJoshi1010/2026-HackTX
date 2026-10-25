@@ -113,7 +113,7 @@ export function CommandBox({ className }: CommandBoxProps) {
           e.preventDefault();
           void handleProcess(text);
         }}
-        className="flex items-center gap-1 rounded-full bg-ink/10 py-2 pl-2 pr-2 backdrop-blur-xl focus-within:bg-ink/15"
+        className="flex items-center gap-1 rounded-full bg-ink/10 py-2 pl-2 pr-2 backdrop-blur-xl focus-within:bg-ink/15 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
       >
         <button
           type="button"
@@ -138,7 +138,7 @@ export function CommandBox({ className }: CommandBoxProps) {
           placeholder="Tell Fork what's changing in your life"
           aria-label="What's changing in your life"
           disabled={isInterpreting}
-          className="h-9 min-w-0 flex-1 bg-transparent px-2 text-[15px] text-ink placeholder:text-ink/40 focus:outline-none"
+          className="h-9 min-w-0 flex-1 bg-transparent px-2 text-[15px] text-ink placeholder:text-ink/50 focus:outline-none"
         />
 
         <VoiceButton onTranscript={(t) => setText((prev) => (prev ? `${prev} ${t}` : t))} disabled={isInterpreting} />
@@ -166,14 +166,14 @@ export function CommandBox({ className }: CommandBoxProps) {
               type="button"
               onClick={() => void handleRetry()}
               disabled={isInterpreting}
-              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Try the AI again
             </button>
             <button
               type="button"
               onClick={() => setShowManual(true)}
-              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+              className="border-b border-ink/40 pb-0.5 text-ink transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Enter it yourself
             </button>

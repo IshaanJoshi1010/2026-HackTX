@@ -79,7 +79,7 @@ export function FutureDetails() {
       )}
 
       {result && result.warnings.length > 0 && (
-        <p className="mx-auto max-w-2xl text-center text-xs leading-5 text-ink/40">{result.warnings.join(" ")}</p>
+        <p className="mx-auto max-w-2xl text-center text-xs leading-5 text-ink/55">{result.warnings.join(" ")}</p>
       )}
     </section>
   );

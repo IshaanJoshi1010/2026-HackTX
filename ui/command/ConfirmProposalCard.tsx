@@ -40,7 +40,7 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
             {drafts.length} {drafts.length === 1 ? "life change" : "life changes"} mapped
           </h3>
         </div>
-        <span className="text-xs text-ink/40">Ready to simulate</span>
+        <span className="text-xs text-ink/55">Ready to simulate</span>
       </div>
 
       <div className="mt-3 space-y-2">
@@ -53,17 +53,17 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
             <div className="flex-1 truncate">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-ink">{eventTitle(draft)}</span>
-                <span className="rounded bg-ink/10 px-1.5 py-0.5 text-[10px] text-ink/60 tabular-nums">
+                <span className="rounded bg-ink/10 px-1.5 py-0.5 text-xs text-ink/60 tabular-nums">
                   {monthLabel(draft.month)}
                 </span>
                 {draft.certainty === "inferred" && (
-                  <span className="rounded border border-line px-1 text-[10px] uppercase text-ink/60">
+                  <span className="rounded border border-line px-1 text-xs uppercase text-ink/60">
                     inferred
                   </span>
                 )}
               </div>
               {draft.quote && (
-                <p className="mt-0.5 text-[11px] italic text-ink/50 truncate">
+                <p className="mt-0.5 text-xs italic text-ink/50 truncate">
                   &ldquo;{draft.quote}&rdquo;
                 </p>
               )}
@@ -74,7 +74,7 @@ export function ConfirmProposalCard({ className, onConfirmed }: ConfirmProposalC
               onClick={() => rejectDraft(draft.id)}
               title="Remove change"
               aria-label="Remove change"
-              className="flex size-6 shrink-0 items-center justify-center rounded text-ink/40 hover:bg-ink/10 hover:text-ink transition-colors cursor-pointer"
+              className="flex size-6 shrink-0 items-center justify-center rounded text-ink/55 hover:bg-ink/10 hover:text-ink transition-colors cursor-pointer"
             >
               <X className="size-3.5" />
             </button>

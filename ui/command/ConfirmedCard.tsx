@@ -46,14 +46,14 @@ export function ConfirmedCard({ className }: { className?: string }) {
           <h3 className="text-sm font-medium text-ink">
             {rows.length} {rows.length === 1 ? "change" : "changes"} added to your road
           </h3>
-          <p className="text-xs text-ink/40">What each one did to your cost, over {monthLabel(MONTH_MAX)}</p>
+          <p className="text-xs text-ink/55">What each one did to your cost, over {monthLabel(MONTH_MAX)}</p>
         </div>
         <button
           type="button"
           onClick={dismissReceipt}
           title="Dismiss"
           aria-label="Dismiss"
-          className="flex size-6 shrink-0 items-center justify-center rounded text-ink/40 transition-colors hover:bg-ink/10 hover:text-ink cursor-pointer"
+          className="flex size-6 shrink-0 items-center justify-center rounded text-ink/55 transition-colors hover:bg-ink/10 hover:text-ink cursor-pointer"
         >
           <X className="size-3.5" />
         </button>

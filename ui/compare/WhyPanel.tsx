@@ -26,7 +26,7 @@ export function WhyPanel({ explanation, rationale, source }: WhyPanelProps) {
           <p data-testid="why-summary" className="text-base leading-7 text-ink">
             {aiSummary.text}
           </p>
-          <p data-testid="why-origin" className="mt-2 text-xs text-ink/40">
+          <p data-testid="why-origin" className="mt-2 text-xs text-ink/55">
             Written by AI from the engine&apos;s numbers. It was given computed values only.
           </p>
         </>

@@ -80,8 +80,8 @@ export function BreakEvenViz({ breakEven, check, source, currentSource, ...names
               <SourceBadge compact source={currentSource} />
             </span>
             {/* the ends of what was tested */}
-            <span className="absolute top-10 left-0 text-xs text-ink/40">{formatParameter(breakEven.parameter, bounds[0])}</span>
-            <span className="absolute top-10 right-0 text-xs text-ink/40">{formatParameter(breakEven.parameter, bounds[1])}</span>
+            <span className="absolute top-10 left-0 text-xs text-ink/55">{formatParameter(breakEven.parameter, bounds[0])}</span>
+            <span className="absolute top-10 right-0 text-xs text-ink/55">{formatParameter(breakEven.parameter, bounds[1])}</span>
           </div>
 
           <p className="mb-2 text-sm text-ink/50">

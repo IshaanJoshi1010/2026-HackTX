@@ -52,7 +52,7 @@ export function TradeoffCards({ className }: TradeoffCardsProps) {
           <h4 className="text-xs font-medium tracking-wide uppercase text-ink/60">
             Priority Trade-offs
           </h4>
-          <p className="text-xs text-ink/40">
+          <p className="text-xs text-ink/55">
             A vs. B picks calibrate your recommendation weights without subjective sliders.
           </p>
         </div>
@@ -85,7 +85,7 @@ export function TradeoffCards({ className }: TradeoffCardsProps) {
                     <span>{def.optionA.label}</span>
                     {currentChoice === "A" && <Check className="size-3" />}
                   </div>
-                  <span className={cn("text-[10px]", currentChoice === "A" ? "text-canvas/70" : "text-ink/40")}>
+                  <span className={cn("text-xs", currentChoice === "A" ? "text-canvas/70" : "text-ink/55")}>
                     {def.optionA.detail}
                   </span>
                 </button>
@@ -105,7 +105,7 @@ export function TradeoffCards({ className }: TradeoffCardsProps) {
                     <span>{def.optionB.label}</span>
                     {currentChoice === "B" && <Check className="size-3" />}
                   </div>
-                  <span className={cn("text-[10px]", currentChoice === "B" ? "text-canvas/70" : "text-ink/40")}>
+                  <span className={cn("text-xs", currentChoice === "B" ? "text-canvas/70" : "text-ink/55")}>
                     {def.optionB.detail}
                   </span>
                 </button>

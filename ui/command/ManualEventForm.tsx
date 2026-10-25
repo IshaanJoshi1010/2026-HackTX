@@ -102,7 +102,7 @@ export function resolveMonthYear(
 }
 
 const inputClass =
-  "h-9 rounded border border-line bg-ink/5 px-2.5 text-sm text-ink placeholder:text-ink/30 focus:border-ink focus:outline-none";
+  "h-9 rounded border border-line bg-ink/5 px-2.5 text-sm text-ink placeholder:text-ink/50 focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /** The way in when you would rather type a change as a form. Works with no AI and no network. */
 export function ManualEventForm({ className, onAdded }: ManualEventFormProps) {
@@ -155,7 +155,7 @@ export function ManualEventForm({ className, onAdded }: ManualEventFormProps) {
     <form data-testid="manual-event-form" onSubmit={handleSubmit} className={cn("space-y-4 text-left", className)}>
       <div className="flex items-baseline justify-between">
         <h4 className="text-sm font-medium text-ink">Add a change yourself</h4>
-        <span className="text-xs text-ink/40">Works without AI</span>
+        <span className="text-xs text-ink/55">Works without AI</span>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

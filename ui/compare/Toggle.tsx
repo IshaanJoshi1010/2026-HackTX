@@ -8,7 +8,7 @@ export function Toggle({ pressed, onClick, children }: { pressed: boolean; onCli
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "border-b pb-0.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
+        "border-b pb-0.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         pressed ? "border-ink text-ink" : "border-transparent text-ink/55 hover:text-ink",
       )}
     >

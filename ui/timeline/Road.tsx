@@ -229,10 +229,10 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
 
       {hasDrift && (
         <>
-          <span className="pointer-events-none absolute left-0 text-[11px] text-ink/35" style={{ top: frame.padTop - 28 }}>
+          <span className="pointer-events-none absolute left-0 text-xs text-ink/55" style={{ top: frame.padTop - 28 }}>
             Saves money
           </span>
-          <span className="pointer-events-none absolute left-0 text-[11px] text-ink/35" style={{ top: frame.height - frame.padBottom + 14 }}>
+          <span className="pointer-events-none absolute left-0 text-xs text-ink/55" style={{ top: frame.height - frame.padBottom + 14 }}>
             Costs more
           </span>
         </>
@@ -292,7 +292,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
 
       {!isBase && !showAll && hasDrift && (
         <span
-          className="pointer-events-none absolute text-xs text-ink/45"
+          className="pointer-events-none absolute text-xs text-ink/55"
           style={{ right: 0, top: mid + (endDelta > 0 ? -26 : 14) }}
         >
           If nothing changes
@@ -312,7 +312,7 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
         {YEAR_TICKS.map((t) => (
           <span
             key={t}
-            className="absolute top-2 -translate-x-1/2 text-xs whitespace-nowrap text-ink/45 first:translate-x-0 last:-translate-x-full"
+            className="absolute top-2 -translate-x-1/2 text-xs whitespace-nowrap text-ink/55 first:translate-x-0 last:-translate-x-full"
             style={{ left: roadX(t, roadW) }}
           >
             {yearLabel(t)}

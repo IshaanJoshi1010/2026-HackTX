@@ -139,7 +139,7 @@ export function Marker({ event, scenarioId, x, y, locked = false, minMonth = 0, 
         }}
         className={cn(
           "flex size-10 touch-none items-center justify-center rounded-full bg-canvas text-ink ring-2 ring-ink transition-transform duration-150",
-          "hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
+          "hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           locked ? "cursor-pointer" : dragMonth !== null ? "scale-110 cursor-grabbing" : "cursor-grab",
           // a rough guess gets a thinner ring, so it reads as less certain
           event.certainty === "vague" && "ring-1",

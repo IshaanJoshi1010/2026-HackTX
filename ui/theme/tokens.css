@@ -83,3 +83,13 @@ html[data-reduced-motion="true"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/*
+ * One focus ring for everything a keyboard can reach: the same white outline, the same gap. Components that spell the
+ * ring out (focus-visible:outline-2 ...) get exactly this; anything that forgot still gets a visible one. Zero
+ * specificity (:where), so a component can still say otherwise on purpose.
+ */
+:where(a[href], button, input, select, textarea, summary, [role="tab"], [role="slider"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--fork-ink);
+  outline-offset: 2px;
+}

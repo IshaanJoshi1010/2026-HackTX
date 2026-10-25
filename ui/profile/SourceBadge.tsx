@@ -42,7 +42,7 @@ export function SourceBadge({ source, detail, compact = false, className }: Sour
         data-source="none"
         title="This number has no source label yet."
         className={cn(
-          "inline-flex items-center rounded-sm bg-ink px-1.5 text-[11px] font-medium leading-4 whitespace-nowrap text-canvas",
+          "inline-flex items-center rounded-sm bg-ink px-1.5 text-xs font-medium leading-4 whitespace-nowrap text-canvas",
           className,
         )}
       >
@@ -58,7 +58,7 @@ export function SourceBadge({ source, detail, compact = false, className }: Sour
       data-source={source}
       title={tip}
       className={cn(
-        "inline-flex items-center gap-1.5 text-[11px] leading-4 whitespace-nowrap text-ink/55",
+        "inline-flex items-center gap-1.5 text-xs leading-4 whitespace-nowrap text-ink/55",
         !compact && cn("rounded-full border px-2 py-px", PILL_BORDER[variant]),
         className,
       )}

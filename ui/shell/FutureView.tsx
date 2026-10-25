@@ -94,7 +94,7 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
                 type="button"
                 onClick={() => void openReplaceComparison()}
                 disabled={busy !== "idle" || !result}
-                className="border-b border-transparent pb-0.5 text-sm text-ink/55 transition-colors hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+                className="border-b border-transparent pb-0.5 text-sm text-ink/55 transition-colors hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 Compare with a {other.year} {other.model}
               </button>
