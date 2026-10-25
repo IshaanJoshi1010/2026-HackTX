@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifeEvent } from "@/contracts";
 import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
@@ -348,3 +348,41 @@ describe("CommandBox when the AI is not available", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("ConfirmProposalCard shows what Fork assumed", () => {
+  const daily: LifeEvent = {
+    id: "daily",
+    type: "mileage_change",
+    month: 12,
+    payload: { annualMiles: 36500 },
+    source: "ai",
+    assumptions: ["Assumes you drive every day of the year"],
+    quote: "100 miles a day",
+    certainty: "inferred",
+    status: "proposed",
+  };
+
+  it("says what it assumed, in the open, before you confirm", () => {
+    act(() => useForkStore.getState().actions.addDraft(daily));
+    render(<ConfirmProposalCard />);
+    const row = screen.getByTestId("draft-row-daily");
+    expect(row).toHaveTextContent("Assumes you drive every day of the year");
+    expect(row).toHaveTextContent("inferred");
+    expect(row).toHaveTextContent("\u201c100 miles a day\u201d");
+    expect(within(row).getByTestId("draft-assumptions").querySelectorAll("li")).toHaveLength(1);
+  });
+
+  it("shows every assumption, and a value the title does not carry, and nothing extra when there is nothing to say", () => {
+    act(() => {
+      useForkStore.getState().actions.addDraft({ ...daily, id: "two", assumptions: ["First", "Second"] });
+      useForkStore.getState().actions.addDraft({ ...daily, id: "budget", type: "budget_change", payload: { monthlyBudget: 900 }, assumptions: [], certainty: "clear", quote: undefined });
+    });
+    render(<ConfirmProposalCard />);
+    expect(within(screen.getByTestId("draft-row-two")).getByTestId("draft-assumptions").textContent).toBe("FirstSecond");
+    const budget = screen.getByTestId("draft-row-budget");
+    expect(budget).toHaveTextContent("$900 a month");
+    expect(within(budget).queryByTestId("draft-assumptions")).toBeNull();
+    expect(budget.textContent).not.toContain("inferred");
+  });
+});
+

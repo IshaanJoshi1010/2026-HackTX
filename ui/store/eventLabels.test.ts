@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventTitle } from "./eventLabels";
+import { eventDetail, eventTitle } from "./eventLabels";
 
 describe("eventTitle says what the decision is", () => {
   it.each([
@@ -24,3 +24,25 @@ describe("eventTitle says what the decision is", () => {
     expect(eventTitle({ type: "mileage_change", payload: { annualMiles: "lots" } })).toBe("Driving change");
   });
 });
+
+describe("eventDetail", () => {
+  const ev = (type: Parameters<typeof eventTitle>[0]["type"], payload: Record<string, number | string>) => ({ type, payload });
+
+  it("says what a budget or cargo change sets, which the title alone does not", () => {
+    expect(eventDetail(ev("budget_change", { monthlyBudget: 900 }))).toBe("$900 a month");
+    expect(eventDetail(ev("cargo_change", { cargoNeed: "high" }))).toBe("High cargo need");
+  });
+
+  it("says a commute in words", () => {
+    expect(eventDetail(ev("mileage_change", { commuteMilesOneWay: 18, commuteDaysPerWeek: 4 }))).toBe("18 miles each way, 4 days a week");
+    expect(eventDetail(ev("mileage_change", { commuteDaysPerWeek: 3 }))).toBe("3 days a week");
+  });
+
+  it("is null when the title is the whole story, and never invents a value", () => {
+    expect(eventDetail(ev("relocation", { location: "Denver" }))).toBeNull();
+    expect(eventDetail(ev("mileage_change", { annualMiles: 20000 }))).toBeNull();
+    expect(eventDetail(ev("budget_change", {}))).toBeNull();
+    expect(eventDetail(ev("cargo_change", { cargoNeed: 3 }))).toBeNull();
+  });
+});
+
