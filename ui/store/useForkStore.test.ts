@@ -403,8 +403,9 @@ describe("questions and profile answers", () => {
 });
 
 describe("replace comparison", () => {
-  it("builds keep vs replace, starts the morph, and finishes it on callback", async () => {
+  it("builds keep vs replace, starts the morph once the month is at the swap, and finishes it on callback", async () => {
     await enterWorkspace();
+    actions().setActiveMonth(40); // past the swap in month 12: the car in view at that month is the RAV4
     await actions().openReplaceComparison();
 
     expect(state().replacementVehicle?.id).toBe(RAV4);
@@ -430,10 +431,12 @@ describe("replace comparison", () => {
 
   it("clicking the keep branch morphs back to the Camry", async () => {
     await enterWorkspace();
+    actions().setActiveMonth(40);
     await actions().openReplaceComparison();
     actions().onTransitionComplete();
 
     actions().setActiveScenario(BASE_ID);
+    expect(state().activeMonth).toBe(40); // looking at the other future keeps the month
     expect(state().stage.phase).toBe("transition");
     expect(state().stage.transitionTo?.id).toBe(CAMRY);
     actions().onTransitionComplete();
@@ -544,12 +547,12 @@ describe("stage and ui", () => {
 });
 
 describe("pages", () => {
-  it("the future page opens on the five year picture when the playhead is at now", async () => {
+  it("the future page opens at now: the story starts at the beginning, and the five year totals do not depend on the month", async () => {
     await enterWorkspace();
     expect(state().activeMonth).toBe(0);
     actions().setView("future");
     expect(state().ui.view).toBe("future");
-    expect(state().activeMonth).toBe(60);
+    expect(state().activeMonth).toBe(0);
   });
 
   it("the future page keeps a month you already chose", async () => {
@@ -847,6 +850,7 @@ describe("a car the stage cannot show never leaves the app waiting", () => {
 
   it("a target model that fails finishes the morph, so the app moves on to the new car", async () => {
     await enterWorkspace();
+    actions().setActiveMonth(40);
     await actions().openReplaceComparison();
     expect(state().stage.phase).toBe("transition");
     actions().onModelStatus(broken(RAV4));
@@ -1153,6 +1157,157 @@ describe("the expanded timeline flag", () => {
     actions().setFutureExpanded(true);
     actions().resetAll();
     expect(state().ui.futureExpanded).toBe(false);
+  });
+});
+
+describe("the Future page's one clock", () => {
+  const confirmMove = () => {
+    actions().addDraft({ type: "relocation", month: 12, payload: { location: "Denver" }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+  };
+
+  it("vehicleAtMonth: the car you own until the swap month, the replacement from it on", async () => {
+    const { vehicleAtMonth } = await import("./useForkStore");
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    const replace = state().explore.scenarios.find((s) => s.id === state().comparison!.replaceId)!;
+    const swapMonth = replace.events.find((e) => e.type === "vehicle_replacement")!.month;
+    expect(swapMonth).toBe(12);
+    expect(vehicleAtMonth(replace, state().twin!, 0)).toBe(CAMRY);
+    expect(vehicleAtMonth(replace, state().twin!, 11)).toBe(CAMRY);
+    expect(vehicleAtMonth(replace, state().twin!, 12)).toBe(RAV4); // the simulation switches cars in the swap month itself
+    expect(vehicleAtMonth(replace, state().twin!, 60)).toBe(RAV4);
+    expect(vehicleAtMonth(state().explore.scenarios[0], state().twin!, 60)).toBe(CAMRY); // keeping never changes cars
+    expect(vehicleAtMonth(undefined, state().twin!, 30)).toBe(CAMRY);
+    // and it agrees with the simulation's own points, month by month
+    for (const p of state().results[replace.id].points) expect(vehicleAtMonth(replace, state().twin!, p.month)).toBe(p.vehicleId);
+  });
+
+  it("picking the other future keeps the month, and the car follows the month, not the future's end", async () => {
+    await enterWorkspace();
+    await actions().openReplaceComparison();
+    const { keepId, replaceId } = state().comparison!;
+    actions().setActiveMonth(5);
+    actions().setActiveScenario(replaceId);
+    expect(state().activeMonth).toBe(5);
+    expect(state().stage.phase === "transition" ? state().stage.transitionTo?.id : state().activeVehicleId).toBe(CAMRY); // before the swap
+    actions().onTransitionComplete();
+    actions().setActiveMonth(30);
+    actions().setActiveScenario(keepId);
+    actions().setActiveScenario(replaceId);
+    expect(state().activeMonth).toBe(30);
+    expect(state().stage.transitionTo?.id).toBe(RAV4); // after it
+  });
+
+  it("selecting an event moves the month to it, keeps the selection, and stops playback", async () => {
+    await enterWorkspace();
+    confirmMove();
+    const move = state().explore.scenarios.find((s) => s.id === state().activeScenarioId)!.events[0];
+    actions().play();
+    expect(state().ui.playing).toBe(true);
+    actions().selectEvent(move.id);
+    expect(state().selectedEventId).toBe(move.id);
+    expect(state().activeMonth).toBe(move.month);
+    expect(state().ui.playing).toBe(false);
+    actions().selectEvent(null);
+    expect(state().selectedEventId).toBeNull();
+    expect(state().activeMonth).toBe(move.month); // clearing does not move the clock
+    actions().selectEvent("nope");
+    expect(state().selectedEventId).toBeNull();
+  });
+
+  it("the swap can be selected too, from the other future, and it moves the month to the modeled swap date", async () => {
+    await enterWorkspace();
+    confirmMove();
+    await actions().openReplaceComparison();
+    const replace = state().explore.scenarios.find((s) => s.id === state().comparison!.replaceId)!;
+    const swap = replace.events.find((e) => e.type === "vehicle_replacement")!;
+    actions().setActiveScenario(state().comparison!.keepId); // looking at keeping, yet the swap is part of the comparison
+    actions().selectEvent(swap.id);
+    expect(state().selectedEventId).toBe(swap.id);
+    expect(state().activeMonth).toBe(swap.month);
+  });
+
+  it("playback never starts by itself, a manual move stops it, and the player's moves do not", async () => {
+    await enterWorkspace();
+    expect(state().ui.playing).toBe(false);
+    actions().setView("future");
+    expect(state().ui.playing).toBe(false);
+    actions().play();
+    expect(state().ui.playing).toBe(true);
+    actions().advanceMonth(7);
+    expect([state().activeMonth, state().ui.playing]).toEqual([7, true]);
+    actions().advanceMonth(60);
+    expect([state().activeMonth, state().ui.playing]).toEqual([60, false]); // it stops at the end
+    actions().play();
+    expect([state().activeMonth, state().ui.playing]).toEqual([0, true]); // and plays again from the start
+    actions().setActiveMonth(20);
+    expect(state().ui.playing).toBe(false);
+    actions().play();
+    actions().setView("car");
+    expect(state().ui.playing).toBe(false);
+  });
+
+  it("drawers: one at a time, opening one stops playback, a page change closes it", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    actions().play();
+    actions().openDrawer("costs");
+    expect([state().ui.drawer, state().ui.playing]).toEqual(["costs", false]);
+    actions().openDrawer("explain");
+    expect(state().ui.drawer).toBe("explain");
+    actions().closeDrawer();
+    expect(state().ui.drawer).toBeNull();
+    actions().openDrawer("recommendation");
+    actions().setView("car");
+    expect(state().ui.drawer).toBeNull();
+  });
+
+  it("every recalculation is a new revision, and moving the clock is not one", async () => {
+    await enterWorkspace();
+    const r0 = state().revision;
+    actions().setActiveMonth(10);
+    expect(state().revision).toBe(r0);
+    confirmMove();
+    expect(state().revision).toBeGreaterThan(r0);
+    const r1 = state().revision;
+    actions().answerRiders("kids");
+    expect(state().revision).toBeGreaterThan(r1);
+  });
+
+  it("remembers what a change touched, as a new object each time, so the page can highlight it", async () => {
+    await enterWorkspace();
+    expect(state().lastChange).toBeNull();
+    confirmMove();
+    const first = state().lastChange!;
+    const move = state().explore.scenarios.find((s) => s.id === state().activeScenarioId)!.events[0];
+    expect(first).toMatchObject({ kind: "confirm", eventIds: [move.id] });
+    actions().moveEvent(state().activeScenarioId, move.id, 20);
+    const second = state().lastChange!;
+    expect(second).toMatchObject({ kind: "move", eventIds: [move.id] });
+    expect(second).not.toBe(first);
+    expect(second.id).toBeGreaterThan(first.id);
+    actions().answerRiders("mixed");
+    expect(state().lastChange).toMatchObject({ kind: "answer", eventIds: [] });
+  });
+
+  it("a selected event stays selected through a later change, since it keeps its id", async () => {
+    await enterWorkspace();
+    confirmMove();
+    const move = state().explore.scenarios.find((s) => s.id === state().activeScenarioId)!.events[0];
+    actions().selectEvent(move.id);
+    actions().addDraft({ type: "mileage_change", month: 30, payload: { annualMiles: 25000 }, source: "user", assumptions: [], certainty: "clear" });
+    actions().confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+    expect(state().selectedEventId).toBe(move.id);
+    expect(state().explore.scenarios.find((s) => s.id === state().activeScenarioId)!.events.some((e) => e.id === move.id)).toBe(true);
+  });
+
+  it("a new session starts with nothing selected, nothing playing, no drawer", async () => {
+    await enterWorkspace();
+    actions().setView("future");
+    actions().openDrawer("costs");
+    actions().resetAll();
+    expect([state().selectedEventId, state().ui.playing, state().ui.drawer, state().lastChange]).toEqual([null, false, null, null]);
   });
 });
 
