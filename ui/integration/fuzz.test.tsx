@@ -235,34 +235,59 @@ function screenProblems(): string[] {
     if (steps.length !== want) out.push(`the path has ${steps.length} steps but ${shown.id} has ${decisions.length} decisions (expected ${want})`);
 
     const cost = (id: string) => s.results[id]?.points.find((p) => p.month === 60)?.netEconomicCost;
+    const keepCostId = s.comparison ? s.comparison.keepId : s.activeScenarioId;
+
+    // The totals live in the summary at the top, and nowhere else: never again inside an event.
     const card = screen.queryByTestId("step-detail");
-    const stats = [...(card?.querySelectorAll('[data-slot="stat"]') ?? [])].map((n) => n.textContent ?? "");
-    const open = steps.find((b) => b.getAttribute("aria-current") === "step");
-    const kind = open?.getAttribute("data-step-key");
-    const expectCosts: number[] = [];
-    if (kind === "fork" && s.comparison) expectCosts.push(cost(s.comparison.keepId)!, cost(s.comparison.replaceId)!);
-    else if (kind === "fork") expectCosts.push(cost(shown.id)!);
-    else if (kind === "start") expectCosts.push(cost(BASE_ID)!);
-    else expectCosts.push(cost(shown.id)!);
-    if (stats.length !== expectCosts.length) out.push(`the card shows ${stats.length} costs, expected ${expectCosts.length} (open step ${kind})`);
-    else expectCosts.forEach((c, i) => { if (!stats[i].includes(usd.format(c))) out.push(`the card says "${stats[i]}" but the engine says ${usd.format(c)} for step ${kind}`); });
+    if (card?.querySelector('[data-slot="stat"]')) out.push("an event's details repeat a net cost that the summary already shows");
+
+    if (!s.ui.futureExpanded) {
+      const keepEl = screen.queryByTestId("cost-keep");
+      const keepCost = cost(keepCostId);
+      if (!keepEl) out.push("no keep cost at the top of the future page");
+      else if (keepCost !== undefined && !(keepEl.textContent ?? "").includes(usd.format(keepCost))) out.push(`the summary says "${keepEl.textContent}" for keeping but the engine says ${usd.format(keepCost)}`);
+      if (s.comparison) {
+        const switchEl = screen.queryByTestId("cost-switch");
+        const k = cost(s.comparison.keepId), r = cost(s.comparison.replaceId);
+        if (k !== undefined && r !== undefined) {
+          if (!(switchEl?.textContent ?? "").includes(usd.format(r))) out.push(`the summary says "${switchEl?.textContent}" for switching but the engine says ${usd.format(r)}`);
+          const gap = Math.round(r) - Math.round(k);
+          const diff = screen.queryByTestId("cost-difference")?.textContent ?? "";
+          if (gap !== 0 && !diff.includes(usd.format(Math.abs(gap)))) out.push(`the difference says "${diff}" but the two costs differ by ${usd.format(Math.abs(gap))}`);
+          if (gap > 0 && !/adds/i.test(diff)) out.push(`switching costs more but the difference says "${diff}"`);
+          if (gap < 0 && !/saves/i.test(diff)) out.push(`switching costs less but the difference says "${diff}"`);
+        }
+      } else if (/Switching (adds|saves)/.test(screen.queryByTestId("cost-difference")?.textContent ?? "")) out.push("a cost difference with no comparison");
+
+      // one deeper panel at a time, and the chart ends where the engine says
+      const open = ["costs", "why", "change"].filter((id) => screen.queryByTestId(`panel-${id}`));
+      if (open.length > 1) out.push(`${open.length} deeper panels are open at once: ${open.join(", ")}`);
+      for (const line of screen.queryAllByTestId("cost-chart-line")) {
+        const id = line.getAttribute("data-scenario");
+        const end = Number(line.getAttribute("data-end-value"));
+        const want = id ? cost(id) : undefined;
+        if (want !== undefined && Math.round(end) !== Math.round(want)) out.push(`the cost chart ends ${line.getAttribute("data-line")} at ${Math.round(end)} but the engine says ${Math.round(want)}`);
+      }
+    }
 
     const ends = screen.queryAllByTestId("fork-end");
     if (s.comparison && ends.length !== 2) out.push(`after comparing there are ${ends.length} ways at the fork, expected 2`);
     if (s.comparison && s.evaluation && !s.ui.futureExpanded) {
       const pref = s.evaluation.preferredScenarioId;
-      const tags = ends.map((e) => e.textContent ?? "");
-      const recommended = tags.filter((t) => t.includes("Recommended")).length;
-      if (pref === "inconclusive" && (recommended !== 0 || tags.filter((t) => t.includes("Close call")).length !== 2)) out.push("a close call is not shown as one at the fork");
-      if (pref !== "inconclusive" && recommended !== 1) out.push(`${recommended} ways recommended at the fork, expected 1`);
+      const headline = screen.queryByTestId("verdict-headline")?.textContent ?? "";
       if (pref !== "inconclusive") {
-        const headline = screen.queryByTestId("verdict-headline")?.textContent ?? "";
         const picksKeep = pref === s.comparison.keepId;
         if (picksKeep && !/^Keep your/.test(headline)) out.push(`the verdict says "${headline}" but the engine picked keeping`);
         if (!picksKeep && !/^Switch to/.test(headline)) out.push(`the verdict says "${headline}" but the engine picked the other car`);
-      } else if (screen.queryByTestId("verdict-headline")?.textContent !== "Close call") out.push("a close call whose headline is not Close call");
+      } else if (headline !== "Close call") out.push(`a close call whose headline is "${headline}"`);
+      // recommendation status is the summary's job, not the route's
+      if (ends.some((e) => /Recommended|Alternative|Close call/.test(e.textContent ?? ""))) out.push("a recommendation tag is on the route");
     }
-    if (!s.comparison && screen.queryByTestId("verdict")) out.push("a verdict on screen with no comparison");
+    if (!s.comparison && !s.ui.futureExpanded) {
+      const headline = screen.queryByTestId("verdict-headline")?.textContent ?? "";
+      if (headline !== "Your next five years") out.push(`a verdict ("${headline}") on screen with no comparison`);
+      if (screen.queryByTestId("next-step")) out.push("a next step on screen with no comparison");
+    }
   }
   return out;
 }

@@ -30,7 +30,15 @@ async function enterWorkspace() {
 
 const goFuture = () => fireEvent.click(screen.getByRole("tab", { name: "Future" }));
 const goCar = () => fireEvent.click(screen.getByRole("tab", { name: "Car" }));
-const openDetails = () => fireEvent.click(screen.getByRole("button", { name: "Edit assumptions" }));
+// Opens the drawer and every dropdown in it, so a test can reach any control. (DetailsSheet.test.tsx covers the dropdowns.)
+const openDetails = () => {
+  fireEvent.click(screen.getByRole("button", { name: "Edit assumptions" }));
+  const dialog = screen.getByRole("dialog", { name: "Edit assumptions" });
+  for (const h of within(dialog).getAllByRole("heading", { level: 3 })) {
+    const header = within(h).getByRole("button");
+    if (header.getAttribute("aria-expanded") !== "true") fireEvent.click(header);
+  }
+};
 const scrubTo = (month: number) =>
   fireEvent.change(screen.getByRole("slider", { name: "Month" }), { target: { value: String(month) } });
 const stats = () => [...document.querySelectorAll('[data-slot="stat"]')];
@@ -163,42 +171,56 @@ describe("the future page", () => {
     });
   const stepButtons = () => screen.getAllByTestId("step");
   const compareNow = async () => {
-    fireEvent.click(screen.getByRole("button", { name: /Explore the 2024 RAV4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Compare with the 2024 RAV4/ }));
     await advance(0);
   };
+  const tab = (id: string) => screen.getByTestId(`tab-${id}`);
 
-  it("opens on your next five years: a heading, the winding path, and the other car as a dashed choice", async () => {
+  it("opens with the decision on top: a small intro, the heading, what keeping costs, and a way to compare", async () => {
     await enterWorkspace();
     goFuture();
     expect(screen.getByRole("tab", { name: "Future" })).toHaveAttribute("aria-selected", "true");
     expect(state().activeMonth).toBe(60);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Life takes turns.");
-    expect(screen.getByTestId("future-kicker")).toHaveTextContent("Your next five years");
-    const timeline = screen.getByTestId("winding-timeline");
-    // nothing has been said yet: where you start, then the fork
-    expect(within(timeline).getAllByTestId("step-label").map((l) => l.textContent)).toEqual([expect.stringContaining("Your 2022 Camry"), expect.stringContaining("A fork in the road")]);
-    expect(within(timeline).getByRole("button", { name: /Keep your 2022 Camry/ })).toBeInTheDocument();
-    expect(within(timeline).getByRole("button", { name: /Explore the 2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
-    expect(screen.getByTestId("path-down")).toHaveAttribute("data-dashed", "true"); // the car nobody has priced is a dashed path
-    expect(screen.getByTestId("path-up")).toHaveAttribute("data-dashed", "false");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next five years");
+    const summary = screen.getByTestId("verdict");
+    expect(summary).toHaveTextContent("Life takes turns.");
+    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Your next five years");
+    expect(summary).toHaveTextContent("Modeled net cost over five years");
+    expect(screen.getByTestId("cost-keep")).toHaveTextContent("Keep your Camry");
+    expect(screen.getByTestId("cost-keep").querySelector("[data-source]")).not.toBeNull(); // the number says where it came from
+    expect(within(screen.getByTestId("cost-switch")).getByRole("button", { name: /Compare with the 2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
+    expect(screen.getByTestId("cost-difference")).toHaveTextContent("Not compared yet");
+    expect(screen.getByTestId("why-sentence")).toHaveTextContent("Compare with the RAV4");
+    expect(screen.queryByTestId("next-step")).toBeNull(); // there is no recommendation to follow up yet
   });
 
-  it("is minimal by default: the path and one card. The road, the lists and the other futures wait behind Details.", async () => {
+  it("then the journey, which is only events and choices: the path, and the other car as a dashed offer", async () => {
     await enterWorkspace();
     goFuture();
-    const view = screen.getByTestId("future-view");
-    expect(screen.getByTestId("winding-timeline")).toBeInTheDocument();
-    expect(screen.queryByTestId("road")).toBeNull();
-    expect(screen.queryByTestId("details-section")).toBeNull();
-    expect(screen.queryByTestId("future-details")).toBeNull();
-    expect(screen.queryByRole("region", { name: "Keep or replace" })).toBeNull();
-    expect(stats()).toHaveLength(1); // the one number on the open card, with its source
-    expect(stats()[0].querySelector("[data-source]")).not.toBeNull();
-    expect(within(view).getByRole("button", { name: "Details" })).toHaveAttribute("aria-pressed", "false");
+    const journey = screen.getByTestId("journey");
+    expect(within(journey).getByRole("heading", { level: 2, name: "Your journey" })).toBeInTheDocument();
+    expect(within(journey).getByTestId("winding-timeline")).toBeInTheDocument();
+    // nothing has been said yet: where you start, then the choice
+    expect(within(journey).getAllByTestId("step-label").map((l) => l.textContent)).toEqual([expect.stringContaining("Your 2022 Camry"), expect.stringContaining("Your choice")]);
+    expect(within(journey).getByRole("button", { name: /Keep your 2022 Camry/ })).toBeInTheDocument();
+    expect(within(journey).getByRole("button", { name: /Explore the 2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
+    expect(screen.getByTestId("path-down")).toHaveAttribute("data-dashed", "true");
+    expect(screen.queryByTestId("future-selector")).toBeNull(); // one future so far: nothing to choose between
+  });
+
+  it("is minimal by default: the deeper panels, the chart and the drawer all wait behind a click", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(screen.queryByTestId("costs-panel")).toBeNull();
+    expect(screen.queryByTestId("road")).toBeNull(); // the road is gone from the page
+    expect(screen.queryByTestId("panel-costs")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Edit assumptions" })).toHaveAttribute("data-open", "false");
+    // before there is a comparison there is nothing to explain, so only Costs and the inputs are offered
+    expect(within(screen.getByTestId("deep-dive")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Costs", "Edit assumptions"]);
     expect(screen.queryByRole("complementary")).toBeNull();
   });
 
-  it("tap a step and its card opens: what it is, when, what it did to cost, and where the number comes from", async () => {
+  it("tap a step and its details open under it: the selected event, its effect, then why", async () => {
     await enterWorkspace();
     act(() => {
       state().actions.addDraft({ ...denver, month: 12 });
@@ -206,13 +228,16 @@ describe("the future page", () => {
       state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
     });
     goFuture();
-    expect(stepButtons().map((b) => b.textContent)).toEqual(["01", "02", "03", "04"]); // start, two decisions, the fork
+    expect(stepButtons().map((b) => b.textContent)).toEqual(["01", "02", "03", ""]); // start, two changes, then the unnumbered choice
     expect(screen.getByTestId("step-title")).toHaveTextContent("Your 2022 Camry");
 
     const byKey = (title: string) => stepButtons().find((b) => b.getAttribute("aria-label")!.includes(title))!;
     fireEvent.click(byKey("24,000 miles a year"));
+    const detail = screen.getByTestId("step-detail");
     expect(screen.getByTestId("step-title")).toHaveTextContent("24,000 miles a year");
     expect(byKey("24,000 miles a year")).toHaveAttribute("aria-current", "step");
+    expect(["Selected event", "Effect", "Explanation"].map((t) => detail.textContent!.indexOf(t))).toEqual([...["Selected event", "Effect", "Explanation"].map((t) => detail.textContent!.indexOf(t))].sort((x, y) => x - y));
+    expect(detail.textContent).not.toContain("-1");
     expect(screen.getByTestId("step-effect").textContent).toMatch(/Adds \$[\d,]+ over 5 yr/); // the stand-in sim reacts to mileage
     expect(screen.getByTestId("step-effect").querySelector("[data-source]")).not.toBeNull();
 
@@ -221,116 +246,98 @@ describe("the future page", () => {
     expect(screen.getByTestId("step-effect")).toHaveTextContent("No change to cost.");
     expect(screen.getByTestId("step-effect").querySelector("[data-source]")).toBeNull(); // no number, nothing to label
     expect(screen.getByTestId("step-detail")).toHaveTextContent("\u201cmoving to Denver next year\u201d"); // what you said
-    stats().forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
   });
 
-  it("previous and next, and the arrow keys, walk the path", async () => {
+  it("the totals are not repeated inside each event: the event details carry no net cost", async () => {
     await enterWorkspace();
     confirmDenver();
     goFuture();
-    expect(screen.getByTestId("step-count")).toHaveTextContent("1 of 3");
+    for (const b of stepButtons()) {
+      fireEvent.click(b);
+      expect(screen.getByTestId("step-detail").querySelector('[data-slot="stat"]')).toBeNull();
+      expect(screen.getByTestId("step-detail").textContent).not.toMatch(/Net cost over/);
+    }
+  });
+
+  it("previous and next, and the arrow keys, walk the path, and the choice is not counted as a step", async () => {
+    await enterWorkspace();
+    confirmDenver();
+    goFuture();
+    expect(screen.getByTestId("step-count")).toHaveTextContent("1 of 2"); // where you start, and the move
     expect(screen.getByRole("button", { name: "Previous step" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("step-count")).toHaveTextContent("2 of 3");
+    expect(screen.getByTestId("step-count")).toHaveTextContent("2 of 2");
     expect(screen.getByTestId("step-title")).toHaveTextContent("Move to Denver");
     fireEvent.keyDown(stepButtons()[1], { key: "ArrowRight" });
-    expect(screen.getByTestId("step-title")).toHaveTextContent("A fork in the road");
+    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
     expect(stepButtons()[2]).toHaveFocus();
     expect(screen.getByRole("button", { name: "Next step" })).toBeDisabled();
     fireEvent.keyDown(stepButtons()[2], { key: "Home" });
-    expect(screen.getByTestId("step-count")).toHaveTextContent("1 of 3");
-    // only the chosen step is in the tab order
-    expect(stepButtons().map((b) => b.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
+    expect(screen.getByTestId("step-count")).toHaveTextContent("1 of 2");
+    expect(stepButtons().map((b) => b.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]); // only the open one is in the tab order
   });
 
-  it("the fork's card says what keeping costs, and that the dashed path is how to compare", async () => {
+  it("before comparing, the choice's details say to compare, rather than guess at a tradeoff", async () => {
     await enterWorkspace();
     goFuture();
     fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    const card = screen.getByTestId("step-detail");
-    expect(card).toHaveTextContent("A fork in the road");
-    expect(card).toHaveTextContent("Tap the dashed path to compare them");
-    expect(card.querySelectorAll('[data-slot="stat"]')).toHaveLength(1);
+    expect(screen.getByTestId("step-detail")).toHaveTextContent("Your choice");
+    expect(screen.getByTestId("step-detail")).toHaveTextContent("Compare with the RAV4 to see the tradeoff");
+    expect(screen.queryByTestId("tradeoff-rows")).toBeNull();
   });
 
-  it("Details is opt-in, lives in the store, and brings the month by month road and what each decision changed", async () => {
+  it("Costs opens the chart and what each change did, and closes again", async () => {
     await enterWorkspace();
-    act(() => {
-      state().actions.addDraft({ ...denver, month: 12 });
-      state().actions.addDraft({ type: "mileage_change", month: 12, payload: { annualMiles: 24000 }, source: "user", assumptions: [], certainty: "clear" });
-      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
-    });
+    confirmDenver();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(tab("costs")).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(tab("costs"));
     expect(state().ui.futureDetails).toBe(true);
-    expect(screen.getByRole("button", { name: "Details" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(screen.getByTestId("month-by-month")).getByTestId("road")).toBeInTheDocument();
-
-    const rows = screen.getAllByTestId("decision-effect");
-    expect(rows).toHaveLength(2);
-    const byTitle = (t: string) => rows.find((r) => r.textContent!.includes(t))!;
-    expect(byTitle("24,000 miles a year").textContent).toMatch(/Adds \$[\d,]+/);
-    expect(byTitle("Move to Denver")).toHaveTextContent("No change in cost");
-    rows.forEach((r) => expect(r.querySelector("[data-source]")).not.toBeNull());
-
-    // the card's number, and the four supporting numbers, each with a source
-    expect(stats()).toHaveLength(5);
-    stats().forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
-    for (const label of ["Odometer", "Fuel so far", "Upkeep so far", "Resale value"]) {
-      expect(within(screen.getByTestId("future-details")).getByText(label)).toBeInTheDocument();
-    }
-
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(screen.queryByTestId("details-section")).toBeNull();
-    expect(stats()).toHaveLength(1);
+    expect(tab("costs")).toHaveAttribute("aria-expanded", "true");
+    const panel = screen.getByTestId("panel-costs");
+    expect(within(panel).getByTestId("cost-chart")).toBeInTheDocument(); // a chart with labeled dollar and time axes
+    expect(within(panel).getByTestId("cost-chart-xtitle")).toHaveTextContent("Years from now");
+    expect(within(panel).getByTestId("cost-chart-ytitle")).toHaveTextContent("Net cost");
+    expect(within(panel).getAllByTestId("decision-effect").length).toBeGreaterThan(0); // the breakdown is directly under it
+    fireEvent.click(tab("costs"));
+    expect(screen.queryByTestId("panel-costs")).toBeNull();
+    expect(state().ui.futureDetails).toBe(false);
   });
 
-  it("Details on a path with nothing on it says so plainly", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(screen.getByTestId("future-details")).toHaveTextContent("No decisions yet, so nothing has changed.");
-  });
-
-  it("every number on the page has a source label, the road's readout too", async () => {
+  it("every number in the Costs panel has a source label, and the month slider moves its readout", async () => {
     await enterWorkspace();
     confirmDenver();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(stats().length).toBeGreaterThan(1);
-    stats().forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
-    expect(screen.getByTestId("road-effect").querySelector("[data-source]")).not.toBeNull();
-  });
-
-  it("scrubbing the month by month road updates its numbers", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(screen.getByRole("slider", { name: "Month" })).toHaveAttribute("aria-valuetext", "5 yr");
-    const readout = () => screen.getByTestId("road-readout").textContent;
+    fireEvent.click(tab("costs"));
+    const panel = screen.getByTestId("panel-costs");
+    const readout = () => within(panel).getByTestId("cost-readout").textContent;
     const at60 = readout();
     scrubTo(24);
     expect(state().activeMonth).toBe(24);
     expect(readout()).not.toBe(at60);
+    within(panel).getAllByTestId("cost-readout-line").forEach((l) => expect(l.querySelector("[data-source]")).not.toBeNull());
+    panel.querySelectorAll('[data-slot="stat"]').forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
   });
 
-  it("on the road, the other futures are a choice: the option appears with a count, and turning it on names them", async () => {
+  it("with nothing confirmed the Costs breakdown says so plainly", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(tab("costs"));
+    expect(screen.getByTestId("future-details")).toHaveTextContent(/No decisions yet|nothing has changed/i);
+  });
+
+  it("the other futures are a selector beside the journey, and choosing one looks at it", async () => {
     await enterWorkspace();
     confirmDenver();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    const toggle = screen.getByRole("button", { name: "Other futures (1)" });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(screen.queryAllByTestId("road-future")).toHaveLength(0);
-    fireEvent.click(toggle);
-    expect(state().ui.futureCompare).toBe(true);
-    expect(screen.getAllByTestId("road-future")).toHaveLength(2);
-    fireEvent.click(screen.getByRole("button", { name: /Keep the Camry/ }));
+    const selector = within(screen.getByTestId("journey")).getByTestId("future-selector") as HTMLSelectElement;
+    expect([...selector.options].map((o) => o.textContent)).toEqual(["If nothing changes", "Move to Denver"]);
+    fireEvent.change(selector, { target: { value: "base" } });
     expect(state().activeScenarioId).toBe("base");
+    expect(screen.getAllByTestId("step-label").map((l) => l.textContent)).toEqual([expect.stringContaining("Your 2022 Camry"), expect.stringContaining("Your choice")]);
   });
 
-  it("tapping the dashed path compares with the RAV4: both ways, the verdict, and the car morphs behind the page", async () => {
+  it("comparing from the totals shows both costs, the verdict and the next step, and the car morphs behind the page", async () => {
     await enterWorkspace();
     goFuture();
     await compareNow();
@@ -340,36 +347,50 @@ describe("the future page", () => {
 
     // The verdict is the engine's, so assert that there is one, not which it is (the demo story is pinned in its own test).
     expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent(/Keep your Camry|Switch to the RAV4|Close call/);
+    expect(screen.getByTestId("cost-switch")).toHaveTextContent("Switch to the RAV4");
+    expect(screen.getByTestId("cost-switch").querySelector("[data-source]")).not.toBeNull();
+    expect(screen.getByTestId("cost-difference").textContent).toMatch(/Switching (adds|saves) \$[\d,]+|No difference/);
+    expect(screen.getByTestId("why-sentence").textContent).not.toMatch(/Compare with the RAV4/);
+    expect(screen.getByTestId("next-step")).toBeInTheDocument();
     expect(state().ui.futureCompare).toBe(true);
-    const ends = screen.getAllByTestId("fork-end");
-    expect(ends.map((e) => e.getAttribute("data-option")).sort()).toEqual(["keep", "replace"]);
-    expect(screen.getByRole("button", { name: /Switch to the 2024 RAV4/ })).toHaveAttribute("aria-pressed", "true"); // the car you are looking at
-    // the offer is gone once there is a verdict
-    expect(screen.queryByRole("button", { name: /Explore the 2024 RAV4/ })).toBeNull();
+    expect(screen.getAllByTestId("fork-end").map((e) => e.getAttribute("data-option")).sort()).toEqual(["keep", "replace"]);
+    expect(screen.queryByRole("button", { name: /Compare with the 2024 RAV4/ })).toBeNull(); // the offer is gone once it is priced
 
     goCar();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("2024 Toyota RAV4");
   });
 
-  it("after comparing, the engine's pick is the solid path and says recommended; the other is dashed. A close call picks neither.", async () => {
+  it("after comparing, the reasons and what could change join the tabs, one panel at a time", async () => {
     await enterWorkspace();
     goFuture();
     await compareNow();
-    const preferred = state().evaluation!.preferredScenarioId;
-    const keepEnd = screen.getByRole("button", { name: /Keep your 2022 Camry/ });
-    const switchEnd = screen.getByRole("button", { name: /Switch to the 2024 RAV4/ });
-    if (preferred === "inconclusive") {
-      expect(keepEnd).toHaveTextContent("Close call");
-      expect(switchEnd).toHaveTextContent("Close call");
-      expect(screen.getByTestId("path-up")).toHaveAttribute("data-dashed", "false");
-      expect(screen.getByTestId("path-down")).toHaveAttribute("data-dashed", "false");
-    } else {
-      const picksKeep = preferred === state().comparison!.keepId;
-      expect(picksKeep ? keepEnd : switchEnd).toHaveTextContent("Recommended");
-      expect(picksKeep ? switchEnd : keepEnd).toHaveTextContent("Alternative");
-      expect(screen.getByTestId("path-up")).toHaveAttribute("data-dashed", "false"); // the recommended way goes up, solid
-      expect(screen.getByTestId("path-down")).toHaveAttribute("data-dashed", "true");
-    }
+    expect(within(screen.getByTestId("deep-dive")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Costs", "Why this result", "What could change", "Edit assumptions"]);
+    fireEvent.click(tab("costs"));
+    fireEvent.click(tab("why"));
+    expect(screen.queryByTestId("panel-costs")).toBeNull();
+    expect(within(screen.getByTestId("panel-why")).getByTestId("why-robustness").textContent).toMatch(/Held in \d+ of \d+ tested cases/);
+    expect(within(screen.getByTestId("panel-why")).getByTestId("why")).toBeInTheDocument();
+    fireEvent.click(tab("change"));
+    expect(screen.queryByTestId("panel-why")).toBeNull();
+    expect(state().breakEven).not.toBeNull(); // opening it ran the engine's break-even
+    expect(screen.getByTestId("panel-change")).toBeInTheDocument();
+  });
+
+  it("the robustness count is in Why this result and not on the front page", async () => {
+    await enterWorkspace();
+    goFuture();
+    await compareNow();
+    expect(screen.getByTestId("verdict").textContent).not.toMatch(/tested cases/);
+    fireEvent.click(tab("why"));
+    expect(screen.getByTestId("panel-why").textContent).toMatch(/tested cases/);
+  });
+
+  it("Edit assumptions opens the drawer", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(tab("assumptions"));
+    expect(state().ui.detailsOpen).toBe(true);
+    expect(screen.getByRole("dialog", { name: "Edit assumptions" })).toHaveAttribute("data-open", "true");
   });
 });
 
@@ -394,34 +415,33 @@ describe("when something does not work, it says so", () => {
 });
 
 describe("the answer fits the page", () => {
-  it("once you compare: the verdict beside the heading, then the path, then the next step. The numbers wait behind Details.", async () => {
+  it("each section has one job, in order: the decision and its next step, the journey, then the deeper tabs", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: /Explore the 2024 RAV4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Compare with the 2024 RAV4/ }));
     await advance(0);
 
-    const verdict = screen.getByTestId("verdict");
-    const heading = screen.getByTestId("future-heading");
-    const timeline = screen.getByTestId("winding-timeline");
-    const next = screen.getByTestId("next-step");
+    const el = (id: string) => screen.getByTestId(id);
     const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(verdict).toHaveAttribute("data-compact");
-    expect(verdict).toHaveTextContent("The recommendation");
-    expect(before(heading, verdict)).toBe(true); // beside the heading, not above it
-    expect(before(verdict, timeline)).toBe(true);
-    expect(before(timeline, next)).toBe(true);
+    expect(before(el("verdict-headline"), el("cost-keep"))).toBe(true); // the heading, then the numbers that explain it
+    expect(before(el("cost-keep"), el("why-sentence"))).toBe(true); // then why
+    expect(before(el("why-sentence"), el("next-step"))).toBe(true); // the next step directly beneath the recommendation
+    expect(before(el("next-step"), el("journey"))).toBe(true);
+    expect(before(el("journey"), el("deep-dive"))).toBe(true);
+    expect(el("verdict").contains(el("next-step"))).toBe(true);
+    // nothing deeper is on screen until asked for
     expect(screen.queryByTestId("road")).toBeNull();
-    expect(screen.queryByTestId("details-section")).toBeNull();
+    expect(screen.queryByTestId("panel-costs")).toBeNull();
   });
 
-  it("the comparison's options sit in the same row as Details", async () => {
+  it("the default screen is the verdict, both costs, the journey, the selected event and the next step", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: /Explore the 2024 RAV4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Compare with the 2024 RAV4/ }));
     await advance(0);
-    const row = screen.getByRole("button", { name: "Details" }).parentElement!;
-    expect(within(row).getByRole("button", { name: "What would change it" })).toBeInTheDocument();
-    expect(within(row).getByRole("button", { name: "Why" })).toBeInTheDocument();
+    for (const id of ["verdict-headline", "cost-keep", "cost-switch", "cost-difference", "winding-timeline", "step-detail", "next-step"]) {
+      expect(screen.getByTestId(id)).toBeInTheDocument();
+    }
   });
 });
 
@@ -456,15 +476,13 @@ describe("two pages, one stage", () => {
     });
     expect(state().ui.view).toBe("future");
     expect(screen.getByTestId("winding-timeline")).toBeInTheDocument();
-    // the move is a year out, so the path starts with where you are, then the move, then the fork
+    // the move is a year out, so the path starts with where you are, then the move, then the choice
     expect(screen.getAllByTestId("step-label").map((l) => l.textContent)).toEqual([
       expect.stringContaining("Your 2022 Camry"),
       expect.stringContaining("Move to Denver"),
-      expect.stringContaining("A fork in the road"),
+      expect.stringContaining("Your choice"),
     ]);
-    expect(screen.getByTestId("step-title")).toHaveTextContent("Your 2022 Camry"); // the card opens on the first step
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(screen.getByRole("button", { name: "Other futures (1)" })).toBeInTheDocument();
+    expect(screen.getByTestId("step-title")).toHaveTextContent("Your 2022 Camry"); // the details open on the first step
   });
 
   it("every control has an accessible name", async () => {
@@ -707,13 +725,14 @@ describe("the expanded timeline", () => {
     await enterWorkspace();
     confirmDenver();
     goFuture();
-    const before = screen.getByTestId("future-view").innerHTML;
+    const html = () => screen.getByTestId("future-view").innerHTML.replace(/_r_[0-9a-z]+_/g, "_id_"); // React's generated ids differ after a remount
+    const before = html();
     fireEvent.click(expandButton());
     fireEvent.click(expandButton());
     expect(state().ui.futureExpanded).toBe(false);
-    expect(screen.getByRole("button", { name: "Details" })).toBeInTheDocument();
+    expect(screen.getByTestId("deep-dive")).toBeInTheDocument();
     expect(screen.getByTestId("winding-timeline")).toHaveAttribute("data-expanded", "false");
-    expect(screen.getByTestId("future-view").innerHTML).toBe(before);
+    expect(html()).toBe(before);
   });
 
   it("keeps the step you were on when it expands and collapses", async () => {
@@ -722,11 +741,11 @@ describe("the expanded timeline", () => {
     goFuture();
     fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("step-title")).toHaveTextContent("A fork in the road");
+    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
     fireEvent.click(expandButton());
-    expect(screen.getByTestId("step-title")).toHaveTextContent("A fork in the road");
+    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
     fireEvent.click(expandButton());
-    expect(screen.getByTestId("step-title")).toHaveTextContent("A fork in the road");
+    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
   });
 
   it("Escape collapses it, and does nothing when it is not expanded", async () => {
@@ -761,7 +780,7 @@ describe("the expanded timeline", () => {
     goCar();
     expect(state().ui.futureExpanded).toBe(false);
     goFuture();
-    expect(screen.getByRole("button", { name: "Details" })).toBeInTheDocument();
+    expect(screen.getByTestId("deep-dive")).toBeInTheDocument();
     expect(screen.getByTestId("winding-timeline")).toHaveAttribute("data-expanded", "false");
   });
 

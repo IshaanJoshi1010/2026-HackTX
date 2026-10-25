@@ -68,7 +68,11 @@ describe("what it will not guess", () => {
 
   it("dates it cannot place are explained, not clamped to the end of the road or turned into now", () => {
     expect(nothing("I'm moving to Seattle in 10 years").note).toMatch(/five-year|timing/i);
-    expect(nothing("I'm moving to Seattle next summer").note).toMatch(/timing|clarify/i);
+    // A season is not left unplaced: it becomes an inferred month, and says so where the confirm card shows it.
+    const summer = read("I'm moving to Seattle next summer").events;
+    expect(summer).toHaveLength(1);
+    expect(summer[0]).toMatchObject({ type: "relocation", month: 8, certainty: "inferred", payload: { location: "Seattle" } });
+    expect(summer[0].assumptions.join(" ")).toMatch(/june 2027.*confirm or correct/i);
     nothing("moving to Boise in 2040");
     nothing("moving to Boise in 2020"); // already past
   });

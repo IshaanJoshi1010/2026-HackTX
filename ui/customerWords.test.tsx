@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { data } from "@/ui/mocks";
 import { ForkApp } from "@/ui/shell/ForkApp";
@@ -78,8 +78,9 @@ describe("a customer never reads the words demo or data", () => {
 
     // the details sheet: profile, finance, priorities, and the ownership history (written by another module)
     fireEvent.click(screen.getByRole("button", { name: "Edit assumptions" }));
+    for (const name of ["History", "Display", "Session"]) fireEvent.click(within(screen.getByRole("dialog", { name: "Edit assumptions" })).getByRole("button", { name }));
     expect(screen.getByTestId("vehicle-history-list").querySelectorAll("li").length).toBeGreaterThan(0); // so this sweep means something
-    sweep("your details, with the history");
+    sweep("the assumptions drawer, with the history"); 
     fireEvent.click(screen.getByRole("button", { name: "Close details" }));
 
     // tell it something, confirm it, look at the future
@@ -93,25 +94,29 @@ describe("a customer never reads the words demo or data", () => {
     });
     await advance(0);
     sweep("the future page");
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    sweep("the future page, with details");
+    fireEvent.click(screen.getByTestId("tab-costs"));
+    sweep("the future page, with the costs open");
 
     // compare, ask what would change it, ask why, edit the terms
     fireEvent.click(screen.getByRole("button", { name: /Explore the 2024 RAV4/ }));
     await advance(0);
     await advance(1900);
     sweep("the comparison, the verdict and the next step");
-    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    fireEvent.click(screen.getByTestId("tab-why"));
     await advance(0);
-    sweep("why");
+    sweep("why this result");
     await act(async () => {
       await state().actions.submitDump("What would have to change for keeping the Camry to be the better option?");
     });
     await advance(0);
     sweep("what would change it");
-    const terms = screen.queryByRole("button", { name: "Edit terms" });
-    if (terms) fireEvent.click(terms);
-    sweep("edit terms");
+    fireEvent.click(screen.getByTestId("tab-assumptions"));
+    const drawer = screen.getByRole("dialog", { name: "Edit assumptions" });
+    for (const h of within(drawer).getAllByRole("heading", { level: 3 })) {
+      const header = within(h).getByRole("button");
+      if (header.getAttribute("aria-expanded") !== "true") fireEvent.click(header);
+    }
+    sweep("edit assumptions, every group open, with the replacement terms");
 
     // it really looked: a lot of text across every step, not an empty page
     expect(seen.length).toBeGreaterThanOrEqual(8);

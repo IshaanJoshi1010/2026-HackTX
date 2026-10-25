@@ -2,33 +2,29 @@
 
 import { useEffect } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
-import { ComparisonMore, ComparisonNextStep, ComparisonToggles, ComparisonVerdict } from "@/ui/compare/ComparisonSection";
-import { Toggle } from "@/ui/compare/Toggle";
+import { DecisionSummary } from "@/ui/compare/DecisionSummary";
 import { selectActiveScenario } from "@/ui/store/selectors";
 import { useForkStore } from "@/ui/store/useForkStore";
-import { Road } from "@/ui/timeline/Road";
 import { WindingTimeline } from "@/ui/timeline/WindingTimeline";
-import { FutureDetails } from "./FutureDetails";
+import { DeepDive } from "./DeepDive";
+import { FutureSelector } from "./FutureSelector";
 import { IconButton } from "./IconButton";
 
 /**
- * The second page: your next five years as a winding path. One step for each thing you told Fork, then a fork where you
- * choose; tap a step for what it does. The recommendation sits beside the heading once you compare. The month by month
- * cost, the other futures and the supporting numbers are one option away, not on the page until asked.
+ * The second page. Each section has one job, in order of importance:
+ *  1. the decision and what it costs, together at the top (DecisionSummary: the verdict, both costs, why, the next step);
+ *  2. the journey: only events and choices, with the selected event's details under it;
+ *  3. everything deeper (costs over time, why this result, what could change, the inputs), one deliberate click away.
+ * Expanded gives the journey the whole page.
  */
 export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
-  const scenarios = useForkStore((s) => s.explore.scenarios);
   const evaluation = useForkStore((s) => s.evaluation);
-  const details = useForkStore((s) => s.ui.futureDetails);
-  const compare = useForkStore((s) => s.ui.futureCompare);
   const expanded = useForkStore((s) => s.ui.futureExpanded);
   const detailsOpen = useForkStore((s) => s.ui.detailsOpen);
   const scenario = useForkStore(selectActiveScenario);
-  const { setFutureDetails, setFutureCompare, setFutureExpanded } = useForkStore((s) => s.actions);
+  const setFutureExpanded = useForkStore((s) => s.actions.setFutureExpanded);
 
-  const futuresCount = scenarios.length - 1;
-
-  // Escape closes the expanded timeline, unless the details sheet is up: that one takes Escape first.
+  // Escape closes the expanded timeline, unless the assumptions drawer is up: that one takes Escape first.
   useEffect(() => {
     if (!expanded || detailsOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -38,81 +34,49 @@ export function FutureView({ bottomInset = 0 }: { bottomInset?: number }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded, detailsOpen, setFutureExpanded]);
 
+  const expandButton = (
+    <IconButton
+      label={expanded ? "Collapse timeline" : "Expand timeline"}
+      aria-expanded={expanded}
+      data-testid="expand-timeline"
+      onClick={() => setFutureExpanded(!expanded)}
+    >
+      {expanded ? <Minimize2 /> : <Maximize2 />}
+    </IconButton>
+  );
+
   return (
     <>
-      {/* Content slides away under a soft fade, not under the header and the mock-mode pill. */}
+      {/* Content slides away under a soft fade, not under the header. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-[11] h-20 bg-gradient-to-b from-black via-black/80 to-transparent" />
       <div
         data-testid="future-view"
         style={{ bottom: bottomInset }}
-        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[5%] pb-10 pt-[clamp(3.5rem,8vh,6rem)]"
+        className="fork-page absolute inset-x-0 top-0 z-10 overflow-y-auto px-[4%] pb-12 pt-[clamp(3.5rem,8vh,6rem)]"
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-[clamp(1.25rem,3vh,2.25rem)]">
-          <div className="flex items-center justify-between gap-4">
-            {expanded ? (
-              <p data-testid="expanded-title" className="text-base text-ink/60">
-                {evaluation ? "Your options over five years" : scenario?.name}
-              </p>
-            ) : (
-              <p data-testid="future-kicker" className="text-sm text-ink/60">
-                Your next five years
-              </p>
-            )}
-            <IconButton
-              label={expanded ? "Collapse timeline" : "Expand timeline"}
-              aria-expanded={expanded}
-              data-testid="expand-timeline"
-              onClick={() => setFutureExpanded(!expanded)}
-            >
-              {expanded ? <Minimize2 /> : <Maximize2 />}
-            </IconButton>
-          </div>
+        <h1 className="sr-only">Your next five years</h1>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-[clamp(2rem,5vh,3.5rem)]">
+          {/* Expanded puts the journey alone on the page. It is the same section in the same place either way, so the step you had open stays open. */}
+          {!expanded && <DecisionSummary />}
 
-          {!expanded && (
-            <header className="grid gap-x-10 gap-y-6 md:grid-cols-[1fr_auto] md:items-end">
-              <div>
-                <h1 data-testid="future-heading" className="text-[clamp(34px,6vh,56px)] leading-none font-medium tracking-tight text-ink">
-                  Life takes turns.
-                </h1>
-                <p data-testid="future-subline" className="mt-3 text-base text-ink/60">
-                  Tap a step to see what it does.
+          <section aria-label="Your journey" data-testid="journey">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+              {expanded ? (
+                <p data-testid="expanded-title" className="text-lg text-ink/60">
+                  {evaluation ? "Your options over five years" : scenario?.name}
                 </p>
+              ) : (
+                <h2 className="text-xl font-medium text-ink">Your journey</h2>
+              )}
+              <div className="flex items-center gap-3">
+                <FutureSelector />
+                {expandButton}
               </div>
-              {evaluation && <ComparisonVerdict compact />}
-            </header>
-          )}
-
-          <WindingTimeline expanded={expanded} />
-
-          {!expanded && <ComparisonNextStep />}
-
-          {!expanded && (
-            <div className="flex flex-wrap items-center justify-center gap-x-9 gap-y-2">
-              <Toggle pressed={details} onClick={() => setFutureDetails(!details)}>
-                Details
-              </Toggle>
-              <ComparisonToggles />
             </div>
-          )}
+            <WindingTimeline expanded={expanded} />
+          </section>
 
-          {!expanded && details && (
-            <div data-testid="details-section" className="flex flex-col gap-[clamp(1.75rem,4vh,3rem)]">
-              <section aria-label="Month by month" data-testid="month-by-month">
-                <div className="mb-2 flex items-center justify-between gap-4">
-                  <h2 className="text-base font-medium text-ink">Cost month by month</h2>
-                  {futuresCount > 0 && (
-                    <Toggle pressed={compare} onClick={() => setFutureCompare(!compare)}>
-                      Other futures ({futuresCount})
-                    </Toggle>
-                  )}
-                </div>
-                <Road compact={evaluation !== null} />
-              </section>
-              <FutureDetails />
-            </div>
-          )}
-
-          {!expanded && <ComparisonMore />}
+          {!expanded && <DeepDive />}
         </div>
       </div>
     </>
