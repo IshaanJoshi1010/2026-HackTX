@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Credits } from "@/ui/shell/Credits";
 import { StageBackdrop } from "@/ui/shell/StageBackdrop";
+import { Tabs, panelId, tabId } from "@/ui/shell/Tabs";
 import { useForkStore } from "@/ui/store/useForkStore";
 import { ModelYearPicker } from "./ModelYearPicker";
 import { SampleCarPicker } from "./SampleCarPicker";
@@ -14,9 +15,9 @@ const rise = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 type EntryMode = "samples" | "vin" | "model";
 
 const TABS: Array<{ id: EntryMode; label: string }> = [
-  { id: "samples", label: "Sample Cars" },
+  { id: "samples", label: "Sample cars" },
   { id: "vin", label: "Enter VIN" },
-  { id: "model", label: "Select Model" },
+  { id: "model", label: "Select model" },
 ];
 
 export function Landing() {
@@ -37,27 +38,24 @@ export function Landing() {
           </p>
         </div>
 
-        {/* Three ways in. Quiet text tabs. */}
-        <div role="tablist" aria-label="Vehicle entry options" className="flex gap-7 text-sm">
-          {TABS.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={mode === id}
-              onClick={() => setMode(id)}
-              className={cn(
-                "border-b-2 pb-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
-                mode === id ? "border-ink text-ink" : "border-transparent text-ink/50 hover:text-ink",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Three ways in. Quiet text tabs, with arrow keys. */}
+        <Tabs
+          group="entry"
+          label="Vehicle entry options"
+          tabs={TABS}
+          value={mode}
+          onChange={(id) => setMode(id)}
+          className="flex gap-7 text-sm"
+          tabClassName={(selected) =>
+            cn(
+              "border-b-2 pb-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              selected ? "border-ink text-ink" : "border-transparent text-ink/60 hover:text-ink",
+            )
+          }
+        />
 
         {/* Mode content */}
-        <div className="w-full">
+        <div role="tabpanel" id={panelId("entry", mode)} aria-labelledby={tabId("entry", mode)} className="w-full">
           {mode === "samples" && (
             <>
               <SampleCarPicker />

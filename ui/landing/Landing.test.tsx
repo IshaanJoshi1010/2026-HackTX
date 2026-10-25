@@ -23,16 +23,16 @@ describe("Landing", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Fork" })).toBeInTheDocument();
     expect(screen.getByText("The future branches. Explore yours.")).toBeInTheDocument();
 
-    // Default tab is Sample Cars
-    expect(screen.getByRole("tab", { name: "Sample Cars" })).toHaveAttribute("aria-selected", "true");
+    // Default tab is Sample cars
+    expect(screen.getByRole("tab", { name: "Sample cars" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: /2022 Camry SE/ })).toBeInTheDocument();
 
     // Switch to Enter VIN tab
     fireEvent.click(screen.getByRole("tab", { name: "Enter VIN" }));
     expect(screen.getByPlaceholderText("17-character VIN")).toBeInTheDocument();
 
-    // Switch to Select Model tab
-    fireEvent.click(screen.getByRole("tab", { name: "Select Model" }));
+    // Switch to Select model tab
+    fireEvent.click(screen.getByRole("tab", { name: "Select model" }));
     expect(screen.getByLabelText("Select vehicle model")).toBeInTheDocument();
   });
 });

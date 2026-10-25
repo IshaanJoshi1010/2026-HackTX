@@ -149,6 +149,20 @@ describe("the car page", () => {
   });
 });
 
+describe("the page switch", () => {
+  it("is a real tab set: arrow keys switch pages, and the open page is its tab's panel", async () => {
+    await enterWorkspace();
+    expect(screen.getByRole("tab", { name: "Car" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "Car" })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Car" }), { key: "ArrowRight" });
+    expect(state().ui.view).toBe("future");
+    expect(screen.getByRole("tab", { name: "Future" })).toHaveFocus();
+    const panel = screen.getByRole("tabpanel", { name: "Future" });
+    expect(panel).toContainElement(screen.getByTestId("future-view"));
+    expect(screen.getByRole("tab", { name: "Car" })).toHaveAttribute("tabindex", "-1");
+  });
+});
+
 describe("the future page", () => {
   it("opens on the five year picture with one big number and its source", async () => {
     await enterWorkspace();
