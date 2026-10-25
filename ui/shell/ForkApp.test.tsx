@@ -1,9 +1,24 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetForkStoreForTests, useForkStore } from "@/ui/store/useForkStore";
+import type { LifeEvent, SimulationResult } from "@/contracts";
+import { buildTradeoff } from "@/ui/compare/tradeoff";
+import { robustnessLine } from "@/ui/compare/Verdict";
+import { dateLabel } from "@/ui/journey/dates";
+import { EVENT_CARD_SIZE } from "@/ui/journey/EventCard";
+import { DWELL_MS, MS_PER_MONTH } from "@/ui/journey/playback";
+import { prioritiesInWords } from "@/ui/journey/RecommendationContent";
+import { makeFrame, timePos } from "@/ui/journey/roadGeometry";
+import { ai, data, sim } from "@/ui/mocks";
+import { customerText } from "@/ui/profile/customerText";
+import { monthLabel, usd } from "@/ui/profile/format";
+import { eventTitle } from "@/ui/store/eventLabels";
+import { resetForkStoreForTests, simulationInputs, useForkStore } from "@/ui/store/useForkStore";
 import { ForkApp } from "./ForkApp";
 
 const state = () => useForkStore.getState();
+
+// Built from the code point so this file has none itself.
+const EM_DASH = String.fromCharCode(0x2014);
 
 /** Flush promises, then run the stub's timers. */
 async function advance(ms: number) {
@@ -39,9 +54,19 @@ const openDetails = () => {
     if (header.getAttribute("aria-expanded") !== "true") fireEvent.click(header);
   }
 };
-const scrubTo = (month: number) =>
-  fireEvent.change(screen.getByRole("slider", { name: "Month" }), { target: { value: String(month) } });
 const stats = () => [...document.querySelectorAll('[data-slot="stat"]')];
+
+// ---- the Future page: where things are on it ----
+const slider = () => screen.getByRole("slider", { name: "Selected month" }) as HTMLInputElement;
+const scrubTo = (month: number) => fireEvent.change(slider(), { target: { value: String(month) } });
+const timeline = () => screen.getByTestId("journey-timeline");
+const marker = () => screen.getByTestId("time-marker");
+const stage = () => screen.getByTestId("car-stage-stub");
+const destination = (future: "keep" | "switch") => document.querySelector(`[data-testid="destination"][data-future="${future}"]`) as HTMLElement;
+const eventMarkers = () => screen.getAllByTestId("event-marker");
+/** A drawer panel by its label, whether or not it is open. (A shut one is hidden, which leaves it without a computed name.) */
+const drawerPanel = (label: string) => screen.getAllByRole("dialog", { hidden: true }).find((d) => d.getAttribute("aria-label") === label)!;
+const eventMarker = (id: string) => document.querySelector(`[data-testid="event-marker"][data-event-id="${id}"]`) as HTMLElement;
 
 const denver = {
   type: "relocation" as const,
@@ -53,6 +78,91 @@ const denver = {
   certainty: "clear" as const,
 };
 
+const mileage = {
+  type: "mileage_change" as const,
+  month: 30,
+  payload: { annualMiles: 24000 },
+  source: "user" as const,
+  assumptions: [],
+  certainty: "clear" as const,
+};
+
+const family = {
+  type: "family_change" as const,
+  month: 6,
+  payload: { children: 2 },
+  source: "user" as const,
+  assumptions: [],
+  quote: "expecting a second child this spring",
+  certainty: "clear" as const,
+};
+
+type Said = typeof denver | typeof mileage | typeof family;
+
+/** Say these in the chat and confirm them, the way the command bar does it. */
+const confirm = (...events: Said[]) =>
+  act(() => {
+    for (const e of events) state().actions.addDraft(e);
+    state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
+  });
+const confirmDenver = () => confirm(denver);
+const compareNow = async () => {
+  fireEvent.click(screen.getByRole("button", { name: /Compare with the RAV4/ }));
+  await advance(0);
+};
+/** The Future page with the other car compared (and what was said confirmed first). */
+async function openCompared(...events: Said[]) {
+  await enterWorkspace();
+  if (events.length > 0) confirm(...events);
+  goFuture();
+  await compareNow();
+}
+
+// ---- what the engine says, to check the page against ----
+/** The simulation's net cost for a future at a month (the page never shows a number that is not one of these). */
+const at = (scenarioId: string, month: number): number => state().results[scenarioId].points.find((p) => p.month === month)!.netEconomicCost;
+/** What the engine called it, in the words the heading uses. */
+function verdictWords(): string {
+  const { evaluation, comparison } = state();
+  if (evaluation!.preferredScenarioId === "inconclusive") return "Close call";
+  return evaluation!.preferredScenarioId === comparison!.keepId ? "Keep your Camry" : "Switch to the RAV4";
+}
+/** The one line about the gap, from the two rounded five-year figures. */
+function differenceWords(): string {
+  const { keepId, replaceId } = state().comparison!;
+  const amount = Math.round(at(replaceId, 60)) - Math.round(at(keepId, 60));
+  return `${amount > 0 ? `Switching adds ${usd(amount)}` : amount < 0 ? `Switching saves ${usd(-amount)}` : "No difference between the two"} over five years.`;
+}
+/** Where the simulation would put a swap for the future on screen. */
+function defaultSwapMonth(): number {
+  const keep = state().explore.scenarios.find((sc) => sc.id === state().activeScenarioId)!;
+  const other = data.listSampleVehicles().find((v) => v.id !== state().twin!.vehicle.id)!;
+  const swaps = sim.makeReplaceScenario(keep, other).events.filter((e) => e.type === "vehicle_replacement");
+  return swaps[swaps.length - 1].month;
+}
+/** What a future holds that the person said (not the swap). */
+const lifeIn = (scenarioId: string): LifeEvent[] => state().explore.scenarios.find((sc) => sc.id === scenarioId)!.events.filter((e) => e.type !== "vehicle_replacement");
+const swapOf = (scenarioId: string): LifeEvent => state().explore.scenarios.find((sc) => sc.id === scenarioId)!.events.find((e) => e.type === "vehicle_replacement")!;
+/** What one event does at month 60, by running its future again without it: the cost and the miles it adds. */
+function engineEffect(scenarioId: string, eventId: string): { cost: number; miles: number } {
+  const inputs = simulationInputs(state())!;
+  const scenario = state().explore.scenarios.find((sc) => sc.id === scenarioId)!;
+  const without = sim.simulate(inputs.twin, { ...scenario, events: scenario.events.filter((e) => e.id !== eventId) }, inputs.ctx);
+  const end = (r: SimulationResult) => r.points.find((p) => p.month === 60)!;
+  return { cost: end(state().results[scenarioId]).netEconomicCost - end(without).netEconomicCost, miles: end(state().results[scenarioId]).mileage - end(without).mileage };
+}
+/** Everything a person could read or hear: text, labels, tooltips. */
+function everythingVisible(): string {
+  const out = [document.body.textContent ?? ""];
+  for (const el of document.body.querySelectorAll("*")) {
+    for (const name of ["title", "aria-label", "placeholder", "alt", "aria-valuetext"]) {
+      const v = el.getAttribute(name);
+      if (v) out.push(v);
+    }
+  }
+  return out.join("\n");
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
@@ -62,6 +172,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks(); // a spy on the AI or the layout must never leak into the next test
+  vi.unstubAllGlobals();
 });
 
 describe("flow", () => {
@@ -163,234 +275,799 @@ describe("the car page", () => {
   });
 });
 
-describe("the future page", () => {
-  const confirmDenver = () =>
-    act(() => {
-      state().actions.addDraft(denver);
-      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
-    });
-  const stepButtons = () => screen.getAllByTestId("step");
-  const compareNow = async () => {
-    fireEvent.click(screen.getByRole("button", { name: /Compare with the 2024 RAV4/ }));
-    await advance(0);
-  };
-  const tab = (id: string) => screen.getByTestId(`tab-${id}`);
 
-  it("opens with the decision on top: a small intro, the heading, what keeping costs, and a way to compare", async () => {
+describe("the future page", () => {
+  it("opens on your next five years at month 0: the road, what keeping costs, and a dashed offer that is not priced", async () => {
     await enterWorkspace();
     goFuture();
     expect(screen.getByRole("tab", { name: "Future" })).toHaveAttribute("aria-selected", "true");
-    expect(state().activeMonth).toBe(60);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next five years");
-    const summary = screen.getByTestId("verdict");
-    expect(summary).toHaveTextContent("Life takes turns.");
-    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Your next five years");
-    expect(summary).toHaveTextContent("Modeled net cost over five years");
-    expect(screen.getByTestId("cost-keep")).toHaveTextContent("Keep your Camry");
-    expect(screen.getByTestId("cost-keep").querySelector("[data-source]")).not.toBeNull(); // the number says where it came from
-    expect(within(screen.getByTestId("cost-switch")).getByRole("button", { name: /Compare with the 2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
-    expect(screen.getByTestId("cost-difference")).toHaveTextContent("Not compared yet");
-    expect(screen.getByTestId("why-sentence")).toHaveTextContent("Compare with the RAV4");
-    expect(screen.queryByTestId("next-step")).toBeNull(); // there is no recommendation to follow up yet
-  });
+    expect(state().activeMonth).toBe(0);
 
-  it("then the journey, which is only events and choices: the path, and the other car as a dashed offer", async () => {
-    await enterWorkspace();
-    goFuture();
-    const journey = screen.getByTestId("journey");
-    expect(within(journey).getByRole("heading", { level: 2, name: "Your journey" })).toBeInTheDocument();
-    expect(within(journey).getByTestId("winding-timeline")).toBeInTheDocument();
-    // nothing has been said yet: where you start, then the choice
-    expect(within(journey).getAllByTestId("step-label").map((l) => l.textContent)).toEqual([expect.stringContaining("Your 2022 Camry"), expect.stringContaining("Your choice")]);
-    expect(within(journey).getByRole("button", { name: /Keep your 2022 Camry/ })).toBeInTheDocument();
-    expect(within(journey).getByRole("button", { name: /Explore the 2024 RAV4 Hybrid XLE/ })).toBeInTheDocument();
-    expect(screen.getByTestId("path-down")).toHaveAttribute("data-dashed", "true");
+    // Before a comparison the heading is plain text: there is no recommendation to open yet.
+    const heading = screen.getByRole("heading", { level: 1, name: "Your next five years" });
+    expect(within(heading).queryByRole("button")).toBeNull();
+    expect(screen.queryByTestId("journey-heading")).toBeNull();
+    expect(screen.getByTestId("journey-difference")).toHaveTextContent("Compare to see what switching would change over five years.");
+
+    // The road, at month 0, on the horizontal layout.
+    expect(timeline()).toHaveAttribute("data-month", "0");
+    expect(timeline()).toHaveAttribute("data-orientation", "horizontal");
+    expect(slider().value).toBe("0");
+    expect(marker()).toHaveAttribute("data-month", "0");
+    expect(screen.getByTestId("road-path-keep")).toHaveAttribute("data-dashed", "false");
+
+    // Keeping is priced, and its figure is the simulation's month 60.
+    expect(destination("keep")).toHaveTextContent("Keep your Camry");
+    expect(destination("keep")).toHaveTextContent(usd(at("base", 60)));
+    expect(destination("keep")).toHaveTextContent("over five years");
+    expect(destination("keep")).toHaveTextContent("2022 Camry SE");
+
+    // Switching is an offer: dashed, from the month the simulation would default to, with no dollar figure of its own.
+    const offer = screen.getByTestId("road-path-switch");
+    expect(offer).toHaveAttribute("data-dashed", "true");
+    expect(offer.getAttribute("stroke-dasharray")).toBeTruthy();
+    expect(offer).toHaveAttribute("data-split-month", String(defaultSwapMonth()));
+    expect(destination("switch")).toHaveTextContent("Switch to the RAV4");
+    expect(destination("switch")).toHaveTextContent("Compare");
+    expect(destination("switch").textContent).not.toContain("$");
+    expect(destination("switch")).toHaveAttribute("aria-pressed", "false");
+    expect(Object.keys(state().results)).toEqual(["base"]); // nothing was simulated for it
+    expect(timeline().textContent!.match(/\$[\d,]+/g)).toEqual([usd(at("base", 60))]); // the only dollar figure on the road is keeping's
+
+    // One way to compare the costs and one to compare with the other car, and nothing else on the page asks for it.
+    expect(screen.getAllByRole("button", { name: "Compare costs" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Compare with the RAV4/ })).toHaveLength(1);
     expect(screen.queryByTestId("future-selector")).toBeNull(); // one future so far: nothing to choose between
+
+    // The scrubber waits at month 0 with Play, and the event card describes the moment, with nothing to explain yet.
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    const card = screen.getByRole("region", { name: "Selected moment" });
+    expect(card).toHaveAttribute("data-state", "moment");
+    expect(card).toHaveTextContent(dateLabel(state().todayISO, 0));
+    expect(within(card).queryByRole("button", { name: "Explain this" })).toBeNull();
+    expect(screen.queryByTestId("explain-content")).toBeNull(); // the long version waits behind a click
+    expect(state().ui.drawer).toBeNull();
   });
 
-  it("is minimal by default: the deeper panels, the chart and the drawer all wait behind a click", async () => {
+  it("nothing plays by itself", async () => {
     await enterWorkspace();
     goFuture();
-    expect(screen.queryByTestId("costs-panel")).toBeNull();
-    expect(screen.queryByTestId("road")).toBeNull(); // the road is gone from the page
-    expect(screen.queryByTestId("panel-costs")).toBeNull();
-    expect(screen.getByRole("dialog", { name: "Edit assumptions" })).toHaveAttribute("data-open", "false");
-    // before there is a comparison there is nothing to explain, so only Costs and the inputs are offered
-    expect(within(screen.getByTestId("deep-dive")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Costs", "Edit assumptions"]);
-    expect(screen.queryByRole("complementary")).toBeNull();
-  });
+    await advance(10_000);
+    expect(state().ui.playing).toBe(false);
+    expect(state().activeMonth).toBe(0);
+    expect(screen.getByRole("button", { name: "Play" })).toHaveAttribute("aria-pressed", "false");
+    expect(slider().value).toBe("0");
 
-  it("tap a step and its details open under it: the selected event, its effect, then why", async () => {
-    await enterWorkspace();
-    act(() => {
-      state().actions.addDraft({ ...denver, month: 12 });
-      state().actions.addDraft({ type: "mileage_change", month: 12, payload: { annualMiles: 24000 }, source: "user", assumptions: [], certainty: "clear" });
-      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
-    });
-    goFuture();
-    expect(stepButtons().map((b) => b.textContent)).toEqual(["01", "02", "03", ""]); // start, two changes, then the unnumbered choice
-    expect(screen.getByTestId("step-title")).toHaveTextContent("Your 2022 Camry");
-
-    const byKey = (title: string) => stepButtons().find((b) => b.getAttribute("aria-label")!.includes(title))!;
-    fireEvent.click(byKey("24,000 miles a year"));
-    const detail = screen.getByTestId("step-detail");
-    expect(screen.getByTestId("step-title")).toHaveTextContent("24,000 miles a year");
-    expect(byKey("24,000 miles a year")).toHaveAttribute("aria-current", "step");
-    expect(["Selected event", "Effect", "Explanation"].map((t) => detail.textContent!.indexOf(t))).toEqual([...["Selected event", "Effect", "Explanation"].map((t) => detail.textContent!.indexOf(t))].sort((x, y) => x - y));
-    expect(detail.textContent).not.toContain("-1");
-    expect(screen.getByTestId("step-effect").textContent).toMatch(/Adds \$[\d,]+ over 5 yr/); // the stand-in sim reacts to mileage
-    expect(screen.getByTestId("step-effect").querySelector("[data-source]")).not.toBeNull();
-
-    fireEvent.click(byKey("Move to Denver"));
-    expect(screen.getByTestId("step-title")).toHaveTextContent("Move to Denver");
-    expect(screen.getByTestId("step-effect")).toHaveTextContent("No change to cost.");
-    expect(screen.getByTestId("step-effect").querySelector("[data-source]")).toBeNull(); // no number, nothing to label
-    expect(screen.getByTestId("step-detail")).toHaveTextContent("\u201cmoving to Denver next year\u201d"); // what you said
-  });
-
-  it("the totals are not repeated inside each event: the event details carry no net cost", async () => {
-    await enterWorkspace();
     confirmDenver();
+    await compareNow();
+    await advance(10_000);
+    expect(state().ui.playing).toBe(false);
+    expect(state().activeMonth).toBe(0);
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+  });
+
+  it("draws every event the person confirmed at its modeled month, once, and names it with its date", async () => {
+    await enterWorkspace();
+    confirm(denver, mileage);
     goFuture();
-    for (const b of stepButtons()) {
-      fireEvent.click(b);
-      expect(screen.getByTestId("step-detail").querySelector('[data-slot="stat"]')).toBeNull();
-      expect(screen.getByTestId("step-detail").textContent).not.toMatch(/Net cost over/);
+    const keepId = state().activeScenarioId;
+    const events = lifeIn(keepId);
+    expect(events.map((e) => e.month).sort((a, b) => a - b)).toEqual([12, 30]);
+    expect(eventMarkers()).toHaveLength(2);
+    for (const e of events) {
+      const m = eventMarker(e.id);
+      expect(m).toHaveAttribute("data-month", String(e.month));
+      expect(m).toHaveAccessibleName(`${eventTitle(e)}, ${dateLabel(state().todayISO, e.month)}`);
+    }
+    expect(eventMarker(events.find((e) => e.type === "relocation")!.id)).toHaveAccessibleName("Move to Denver, Oct 2027");
+  });
+
+  it("Edit assumptions, in the header, opens the assumptions drawer from here too", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(screen.getByRole("dialog", { name: "Edit assumptions" })).toHaveAttribute("data-open", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Edit assumptions" }));
+    expect(state().ui.detailsOpen).toBe(true);
+    expect(screen.getByRole("dialog", { name: "Edit assumptions" })).toHaveAttribute("data-open", "true");
+  });
+
+  it("is on screen alongside the command bar on this page, and reads no build words", async () => {
+    await enterWorkspace();
+    goFuture();
+    expect(screen.getByRole("button", { name: "Submit changes" })).toBeInTheDocument();
+    expect(everythingVisible()).not.toMatch(/demo|data/i);
+    expect(everythingVisible()).not.toContain(EM_DASH);
+  });
+});
+
+describe("the future page, after comparing", () => {
+  it("the heading is the engine's call, and it opens the recommendation", async () => {
+    await openCompared(denver);
+    const preferred = state().evaluation!.preferredScenarioId;
+    expect(["inconclusive", state().comparison!.keepId, state().comparison!.replaceId]).toContain(preferred);
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    const button = within(heading).getByRole("button", { name: verdictWords() });
+    expect(button).toHaveAttribute("data-testid", "journey-heading");
+    expect(button).toHaveAttribute("aria-haspopup", "dialog");
+    expect(verdictWords()).toMatch(/^(Close call|Keep your Camry|Switch to the RAV4)$/);
+    expect(screen.queryByRole("button", { name: /Compare with the RAV4/ })).toBeNull(); // the offer is gone once it is priced
+    expect(state().ui.drawer).toBeNull();
+
+    fireEvent.click(button);
+    expect(state().ui.drawer).toBe("recommendation");
+    expect(screen.getByRole("dialog", { name: verdictWords() })).toHaveAttribute("data-open", "true");
+    expect(screen.getByTestId("recommendation-content")).toBeInTheDocument();
+  });
+
+  it("says the difference in one line, from the two rounded five-year figures", async () => {
+    await openCompared(denver);
+    const { keepId, replaceId } = state().comparison!;
+    expect(screen.getByTestId("journey-difference")).toHaveTextContent(differenceWords());
+    expect(screen.getByTestId("journey-difference").textContent).toMatch(/^(Switching (adds|saves) \$[\d,]+|No difference between the two) over five years\.$/);
+    expect(Math.round(at(replaceId, 60)) - Math.round(at(keepId, 60))).not.toBe(0); // a real difference, so the sentence is not the empty case
+  });
+
+  it("shows each destination's five-year cost as the simulation's month 60, and no scrubbing changes it", async () => {
+    await openCompared(denver);
+    const { keepId, replaceId } = state().comparison!;
+    const shown = () => ({ keep: destination("keep").textContent, sw: destination("switch").textContent, line: screen.getByTestId("journey-difference").textContent });
+    expect(destination("keep")).toHaveTextContent(usd(at(keepId, 60)));
+    expect(destination("switch")).toHaveTextContent(usd(at(replaceId, 60)));
+    expect(destination("keep")).toHaveTextContent("Keep your Camry");
+    expect(destination("switch")).toHaveTextContent("Switch to the RAV4");
+    const first = shown();
+
+    // the range input...
+    for (const month of [5, 11, 12, 13, 30, 59, 60, 0]) {
+      scrubTo(month);
+      expect(state().activeMonth).toBe(month);
+      expect(shown()).toEqual(first);
+    }
+    // ...and every month of the clock, set directly
+    for (let month = 0; month <= 60; month++) {
+      act(() => state().actions.setActiveMonth(month));
+      expect(shown()).toEqual(first);
+    }
+    // the through-this-month figure is separate, labeled, and the simulation's own monthly number
+    scrubTo(24);
+    const through = document.querySelector('[data-slot="through"]')!;
+    expect(through).toHaveTextContent(`Through ${dateLabel(state().todayISO, 24)}: ${usd(at(replaceId, 24))}`);
+    expect(through.textContent).not.toContain(usd(at(replaceId, 60)));
+    expect(shown()).toEqual(first);
+  });
+
+  it("says where the figures come from once, for both destinations, not as a badge under each number", async () => {
+    await openCompared(denver);
+    const labels = screen.getAllByTestId("journey-source");
+    expect(labels).toHaveLength(1);
+    expect(labels[0].querySelector("[data-source]")).not.toBeNull();
+    expect(labels[0]).toHaveTextContent("Modeled net cost");
+    expect(screen.getByTestId("journey-header").contains(labels[0])).toBe(true);
+    expect(timeline().querySelector("[data-source]")).toBeNull();
+    for (const future of ["keep", "switch"] as const) {
+      expect(destination(future).querySelector("[data-source]")).toBeNull();
+      expect(destination(future).textContent).not.toMatch(/illustrative|estimated|synthetic|sourced|listing/i);
     }
   });
 
-  it("previous and next, and the arrow keys, walk the path, and the choice is not counted as a step", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    expect(screen.getByTestId("step-count")).toHaveTextContent("1 of 2"); // where you start, and the move
-    expect(screen.getByRole("button", { name: "Previous step" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("step-count")).toHaveTextContent("2 of 2");
-    expect(screen.getByTestId("step-title")).toHaveTextContent("Move to Denver");
-    fireEvent.keyDown(stepButtons()[1], { key: "ArrowRight" });
-    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
-    expect(stepButtons()[2]).toHaveFocus();
-    expect(screen.getByRole("button", { name: "Next step" })).toBeDisabled();
-    fireEvent.keyDown(stepButtons()[2], { key: "Home" });
-    expect(screen.getByTestId("step-count")).toHaveTextContent("1 of 2");
-    expect(stepButtons().map((b) => b.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]); // only the open one is in the tab order
+  it("the verdict stays the engine's when you look around: it only changes when the numbers do", async () => {
+    await openCompared(denver);
+    const evaluation = state().evaluation;
+    const words = verdictWords();
+    const line = screen.getByTestId("journey-difference").textContent;
+    scrubTo(40);
+    fireEvent.click(destination("keep"));
+    fireEvent.click(destination("switch"));
+    fireEvent.click(screen.getByTestId("road-hit-other"));
+    expect(state().evaluation).toBe(evaluation);
+    expect(screen.getByTestId("journey-heading")).toHaveTextContent(words);
+    expect(screen.getByTestId("journey-difference").textContent).toBe(line);
+  });
+});
+
+describe("scrubbing", () => {
+  it("the range input, the road's marker and the date move together, to the month on the clock", async () => {
+    await openCompared(denver);
+    for (const month of [7, 12, 33, 60, 1, 0]) {
+      scrubTo(month);
+      expect(state().activeMonth).toBe(month);
+      expect(slider().value).toBe(String(month));
+      expect(marker()).toHaveAttribute("data-month", String(month));
+      expect(timeline()).toHaveAttribute("data-month", String(month));
+      expect(document.querySelector('[data-slot="date"]')).toHaveTextContent(dateLabel(state().todayISO, month));
+    }
+    // the marker rides the selected future's path at that month
+    scrubTo(20);
+    expect(marker()).toHaveAttribute("data-future", "switch");
+    fireEvent.click(destination("keep"));
+    expect(marker()).toHaveAttribute("data-future", "keep");
+    expect(marker()).toHaveAttribute("data-month", "20");
   });
 
-  it("before comparing, the choice's details say to compare, rather than guess at a tradeoff", async () => {
+  it("keys on the range input move the same clock, and a key press while it plays is a manual move that pauses it", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("step-detail")).toHaveTextContent("Your choice");
-    expect(screen.getByTestId("step-detail")).toHaveTextContent("Compare with the RAV4 to see the tradeoff");
-    expect(screen.queryByTestId("tradeoff-rows")).toBeNull();
+    slider().focus();
+    fireEvent.keyDown(slider(), { key: "ArrowRight" });
+    expect(state().activeMonth).toBe(1);
+    expect(marker()).toHaveAttribute("data-month", "1");
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await advance(300);
+    expect(state().ui.playing).toBe(true);
+    fireEvent.keyDown(slider(), { key: "ArrowRight" });
+    expect(state().ui.playing).toBe(false);
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    fireEvent.keyDown(slider(), { key: "End" });
+    expect(state().activeMonth).toBe(60);
+    expect(marker()).toHaveAttribute("data-month", "60");
+    fireEvent.keyDown(slider(), { key: "Home" });
+    expect(state().activeMonth).toBe(0);
+    expect(marker()).toHaveAttribute("data-month", "0");
   });
 
-  it("Costs opens the chart and what each change did, and closes again", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    expect(tab("costs")).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(tab("costs"));
-    expect(state().ui.futureDetails).toBe(true);
-    expect(tab("costs")).toHaveAttribute("aria-expanded", "true");
-    const panel = screen.getByTestId("panel-costs");
-    expect(within(panel).getByTestId("cost-chart")).toBeInTheDocument(); // a chart with labeled dollar and time axes
-    expect(within(panel).getByTestId("cost-chart-xtitle")).toHaveTextContent("Years from now");
-    expect(within(panel).getByTestId("cost-chart-ytitle")).toHaveTextContent("Net cost");
-    expect(within(panel).getAllByTestId("decision-effect").length).toBeGreaterThan(0); // the breakdown is directly under it
-    fireEvent.click(tab("costs"));
-    expect(screen.queryByTestId("panel-costs")).toBeNull();
-    expect(state().ui.futureDetails).toBe(false);
+  it("dragging along the road moves the same clock as the range input", async () => {
+    vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    const frame = makeFrame(1120, true);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 1120, bottom: 380, width: 1120, height: 380, toJSON: () => ({}) } as DOMRect);
+    await openCompared(denver);
+    const hit = screen.getByTestId("road-hit");
+    fireEvent.pointerDown(hit, { clientX: timePos(frame, 30), clientY: 150, pointerId: 1, button: 0, pointerType: "mouse" });
+    expect(state().activeMonth).toBe(30);
+    fireEvent.pointerMove(hit, { clientX: timePos(frame, 41), clientY: 150, pointerId: 1 });
+    expect(state().activeMonth).toBe(41);
+    fireEvent.pointerUp(hit, { pointerId: 1 });
+    expect(slider().value).toBe("41");
+    expect(marker()).toHaveAttribute("data-month", "41");
+    expect(document.querySelector('[data-slot="date"]')).toHaveTextContent(dateLabel(state().todayISO, 41));
   });
 
-  it("every number in the Costs panel has a source label, and the month slider moves its readout", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    fireEvent.click(tab("costs"));
-    const panel = screen.getByTestId("panel-costs");
-    const readout = () => within(panel).getByTestId("cost-readout").textContent;
-    const at60 = readout();
-    scrubTo(24);
-    expect(state().activeMonth).toBe(24);
-    expect(readout()).not.toBe(at60);
-    within(panel).getAllByTestId("cost-readout-line").forEach((l) => expect(l.querySelector("[data-source]")).not.toBeNull());
-    panel.querySelectorAll('[data-slot="stat"]').forEach((st) => expect(st.querySelector("[data-source]")).not.toBeNull());
-  });
+  it("the car is the Camry before the swap month and the RAV4 from it, in the readout and on the stage", async () => {
+    await openCompared(denver);
+    const swap = swapOf(state().comparison!.replaceId);
+    expect(swap.month).toBe(12); // the demo's replacement lands in year one
+    const vehicle = () => document.querySelector('[data-slot="vehicle"]')!.textContent;
 
-  it("with nothing confirmed the Costs breakdown says so plainly", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(tab("costs"));
-    expect(screen.getByTestId("future-details")).toHaveTextContent(/No decisions yet|nothing has changed/i);
-  });
-
-  it("the other futures are a selector beside the journey, and choosing one looks at it", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    const selector = within(screen.getByTestId("journey")).getByTestId("future-selector") as HTMLSelectElement;
-    expect([...selector.options].map((o) => o.textContent)).toEqual(["If nothing changes", "Move to Denver"]);
-    fireEvent.change(selector, { target: { value: "base" } });
-    expect(state().activeScenarioId).toBe("base");
-    expect(screen.getAllByTestId("step-label").map((l) => l.textContent)).toEqual([expect.stringContaining("Your 2022 Camry"), expect.stringContaining("Your choice")]);
-  });
-
-  it("comparing from the totals shows both costs, the verdict and the next step, and the car morphs behind the page", async () => {
-    await enterWorkspace();
-    goFuture();
-    await compareNow();
-    expect(screen.getByTestId("car-stage-stub")).toHaveAttribute("data-phase", "transition");
-    await advance(1900);
-    expect(screen.getByTestId("car-stage-stub")).toHaveAttribute("data-vehicle-id", "rav4-2024-hybrid-xle");
-
-    // The verdict is the engine's, so assert that there is one, not which it is (the demo story is pinned in its own test).
-    expect(screen.getByRole("region", { name: "Keep or replace" })).toHaveTextContent(/Keep your Camry|Switch to the RAV4|Close call/);
-    expect(screen.getByTestId("cost-switch")).toHaveTextContent("Switch to the RAV4");
-    expect(screen.getByTestId("cost-switch").querySelector("[data-source]")).not.toBeNull();
-    expect(screen.getByTestId("cost-difference").textContent).toMatch(/Switching (adds|saves) \$[\d,]+|No difference/);
-    expect(screen.getByTestId("why-sentence").textContent).not.toMatch(/Compare with the RAV4/);
-    expect(screen.getByTestId("next-step")).toBeInTheDocument();
-    expect(state().ui.futureCompare).toBe(true);
-    expect(screen.getAllByTestId("fork-end").map((e) => e.getAttribute("data-option")).sort()).toEqual(["keep", "replace"]);
-    expect(screen.queryByRole("button", { name: /Compare with the 2024 RAV4/ })).toBeNull(); // the offer is gone once it is priced
-
+    scrubTo(swap.month - 1);
+    expect(vehicle()).toBe("2022 Camry SE");
+    expect(document.querySelector('[data-slot="swap-note"]')).toBeNull();
     goCar();
+    expect(stage()).toHaveAttribute("data-vehicle-id", "camry-2022-se");
+    expect(stage()).toHaveAttribute("data-phase", "interactive"); // nothing to morph yet
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("2022 Toyota Camry");
+
+    goFuture();
+    scrubTo(swap.month);
+    expect(vehicle()).toBe("2024 RAV4 Hybrid XLE");
+    expect(document.querySelector('[data-slot="swap-note"]')).toHaveTextContent("Swap this month");
+    goCar();
+    expect(stage()).toHaveAttribute("data-phase", "transition"); // the stage morphs to the car of that month
+    await advance(1900);
+    expect(stage()).toHaveAttribute("data-vehicle-id", "rav4-2024-hybrid-xle");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("2024 Toyota RAV4");
+
+    goFuture();
+    scrubTo(swap.month - 1);
+    expect(vehicle()).toBe("2022 Camry SE");
+    goCar();
+    await advance(1900);
+    expect(stage()).toHaveAttribute("data-vehicle-id", "camry-2022-se");
   });
 
-  it("after comparing, the reasons and what could change join the tabs, one panel at a time", async () => {
+  it("keeping never changes cars, wherever you scrub", async () => {
+    await openCompared(denver);
+    fireEvent.click(destination("keep"));
+    for (const month of [0, 12, 40, 60]) {
+      scrubTo(month);
+      expect(document.querySelector('[data-slot="vehicle"]')).toHaveTextContent("2022 Camry SE");
+    }
+    goCar();
+    await advance(1900);
+    expect(stage()).toHaveAttribute("data-vehicle-id", "camry-2022-se");
+  });
+});
+
+describe("events", () => {
+  async function comparedWithTwoEvents() {
+    await openCompared(denver, mileage);
+    const { keepId, replaceId } = state().comparison!;
+    return { keepId, replaceId, moveId: lifeIn(keepId).find((e) => e.type === "relocation")!.id, milesId: lifeIn(keepId).find((e) => e.type === "mileage_change")!.id, swapId: swapOf(replaceId).id };
+  }
+
+  it("clicking an event's marker selects it, moves the month to its date and fills the event card", async () => {
+    const { moveId, milesId } = await comparedWithTwoEvents();
+    expect(state().selectedEventId).toBeNull();
+
+    fireEvent.click(eventMarker(milesId));
+    expect(state().selectedEventId).toBe(milesId);
+    expect(state().activeMonth).toBe(30);
+    expect(eventMarker(milesId)).toHaveAttribute("aria-pressed", "true");
+    expect(eventMarker(moveId)).toHaveAttribute("aria-pressed", "false");
+    expect(marker()).toHaveAttribute("data-month", "30");
+    expect(slider().value).toBe("30");
+
+    const card = screen.getByRole("region", { name: "Selected moment" });
+    expect(card).toHaveAttribute("data-state", "event");
+    expect(screen.getByTestId("event-card-title")).toHaveTextContent("24,000 miles a year");
+    expect(screen.getByTestId("event-card-when")).toHaveTextContent(`${dateLabel(state().todayISO, 30)} · In ${monthLabel(30)}`);
+    // one sentence, from the simulation: the miles it adds over the five years (to the nearest hundred)
+    const sentence = screen.getByTestId("event-card-sentence").textContent!;
+    expect(sentence).toMatch(/^Adds about [\d,]+ miles over five years/);
+    const said = Number(/about ([\d,]+) miles/.exec(sentence)![1].replace(/,/g, ""));
+    expect(Math.abs(said - engineEffect(state().comparison!.replaceId, milesId).miles)).toBeLessThanOrEqual(50);
+    expect(within(card).getByRole("button", { name: "Explain this" })).toBeInTheDocument();
+
+    fireEvent.click(eventMarker(moveId));
+    expect(state().selectedEventId).toBe(moveId);
+    expect(state().activeMonth).toBe(12);
+    expect(screen.getByTestId("event-card-title")).toHaveTextContent("Move to Denver");
+    expect(screen.getByTestId("event-card-when")).toHaveTextContent(`${dateLabel(state().todayISO, 12)} · In ${monthLabel(12)}`);
+    // the model puts no number on a move, and the card says that, not that it does not matter
+    expect(screen.getByTestId("event-card-sentence")).toHaveTextContent("No direct vehicle-cost change modeled");
+    expect(screen.getByTestId("event-card-sentence").textContent).not.toMatch(/no effect|does not matter|doesn't matter/i);
+  });
+
+  it("the swap is an event too: selecting it goes to its month, and its sentence is the engine's difference", async () => {
+    const { swapId, replaceId } = await comparedWithTwoEvents();
+    fireEvent.click(eventMarker(swapId));
+    const swap = swapOf(replaceId);
+    expect(state().selectedEventId).toBe(swapId);
+    expect(state().activeMonth).toBe(swap.month);
+    expect(screen.getByTestId("event-card-title")).toHaveTextContent("Switch to the RAV4");
+    const effect = engineEffect(replaceId, swapId).cost;
+    expect(screen.getByTestId("event-card-sentence")).toHaveTextContent(`Switching ${effect > 0 ? "adds" : "saves"} ${usd(Math.abs(Math.round(effect)))} over five years and changes your car in ${dateLabel(state().todayISO, swap.month)}.`);
+  });
+
+  it("the card keeps one size whether or not an event is selected, so choosing never pushes the page", async () => {
+    const { moveId } = await comparedWithTwoEvents();
+    const card = () => screen.getByTestId("event-card");
+    expect(card().className).toContain(EVENT_CARD_SIZE);
+    fireEvent.click(eventMarker(moveId));
+    expect(card().className).toContain(EVENT_CARD_SIZE);
+    expect(card()).toHaveAttribute("data-state", "event");
+  });
+
+  it("Explain this opens the explanation, Escape closes it, and focus goes back to the button", async () => {
+    const { milesId, replaceId } = await comparedWithTwoEvents();
+    fireEvent.click(eventMarker(milesId));
+    const explain = screen.getByRole("button", { name: "Explain this" });
+    explain.focus();
+    fireEvent.click(explain);
+
+    expect(state().ui.drawer).toBe("explain");
+    const dialog = screen.getByRole("dialog", { name: "24,000 miles a year" });
+    expect(dialog).toHaveAttribute("data-open", "true");
+    expect(within(dialog).getByTestId("explain-content")).toHaveAttribute("data-mode", "event");
+    expect(within(dialog).getByTestId("explain-title")).toHaveTextContent("24,000 miles a year");
+    // what changes: the engine's dollars for this event, with where they come from
+    const effect = engineEffect(replaceId, milesId);
+    expect(within(dialog).getByTestId("change-cost")).toHaveTextContent(`${effect.cost > 0 ? "Adds" : "Saves"} ${usd(Math.abs(Math.round(effect.cost)))} ${effect.cost > 0 ? "to" : "on"} your five-year cost`);
+    expect(within(dialog).getByTestId("change-cost").querySelector("[data-source]")).not.toBeNull();
+    expect(within(dialog).getByTestId("explain-assumed")).toBeInTheDocument();
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Close" }));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state().ui.drawer).toBeNull();
+    expect(drawerPanel("24,000 miles a year")).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).toBe(explain);
+    expect(state().selectedEventId).toBe(milesId); // closing explains nothing away
+  });
+
+  it("the explanation says what the person said, and what Fork assumed in plain words", async () => {
+    await openCompared(denver);
+    const moveId = lifeIn(state().comparison!.keepId)[0].id;
+    fireEvent.click(eventMarker(moveId));
+    fireEvent.click(screen.getByRole("button", { name: "Explain this" }));
+    const dialog = screen.getByRole("dialog", { name: "Move to Denver" });
+    expect(within(dialog).getByTestId("explain-said")).toHaveTextContent("“moving to Denver next year”");
+    expect(within(dialog).getByTestId("not-modeled")).toHaveTextContent("Fork does not put a number on this one yet");
+    expect(within(dialog).getByTestId("change-cost")).toHaveTextContent("No direct vehicle-cost change modeled.");
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    expect(document.activeElement).toBe(close);
+    fireEvent.click(close);
+    expect(state().ui.drawer).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Explain this" })); // back where the person was
+  });
+});
+
+describe("selecting a future", () => {
+  it("picking the other destination keeps the month and the engine's verdict, and the marker moves to that path", async () => {
+    await openCompared(denver);
+    const { keepId, replaceId } = state().comparison!;
+    const evaluation = state().evaluation;
+    const words = verdictWords();
+    expect(state().activeScenarioId).toBe(replaceId); // comparing opens on the switch
+    expect(destination("switch")).toHaveAttribute("aria-pressed", "true");
+    scrubTo(30);
+
+    fireEvent.click(destination("keep"));
+    expect(state().activeScenarioId).toBe(keepId);
+    expect(state().activeMonth).toBe(30);
+    expect(timeline()).toHaveAttribute("data-month", "30");
+    expect(destination("keep")).toHaveAttribute("aria-pressed", "true");
+    expect(destination("switch")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("road-path-keep")).toHaveAttribute("data-selected", "true");
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-selected", "false");
+    expect(marker()).toHaveAttribute("data-future", "keep");
+    expect(screen.getByTestId("journey-heading")).toHaveTextContent(words);
+    expect(state().evaluation).toBe(evaluation);
+
+    fireEvent.click(destination("switch"));
+    expect(state().activeScenarioId).toBe(replaceId);
+    expect(state().activeMonth).toBe(30);
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-selected", "true");
+    expect(marker()).toHaveAttribute("data-future", "switch");
+    expect(screen.getByTestId("journey-heading")).toHaveTextContent(words);
+  });
+
+  it("the stage follows the month and the future: the RAV4 only on the switch, and only from the swap", async () => {
+    await openCompared(denver);
+    scrubTo(30);
+    fireEvent.click(destination("keep"));
+    expect(stage()).toHaveAttribute("data-phase", "interactive"); // keeping at month 30 is still the Camry
+    fireEvent.click(destination("switch"));
+    expect(stage()).toHaveAttribute("data-phase", "transition"); // the switch future at month 30 is the RAV4
+    await advance(1900);
+    expect(stage()).toHaveAttribute("data-vehicle-id", "rav4-2024-hybrid-xle");
+    fireEvent.click(destination("keep"));
+    await advance(1900);
+    expect(stage()).toHaveAttribute("data-vehicle-id", "camry-2022-se");
+  });
+
+  it("the offer's Compare button prices the switch: its figure appears, from the simulation, and the offer is gone", async () => {
     await enterWorkspace();
     goFuture();
+    expect(destination("switch")).toHaveTextContent("Compare");
+    fireEvent.click(destination("switch"));
+    await advance(0);
+    const { keepId, replaceId } = state().comparison!;
+    expect(destination("switch")).toHaveTextContent(usd(at(replaceId, 60)));
+    expect(destination("keep")).toHaveTextContent(usd(at(keepId, 60)));
+    expect(destination("switch")).not.toHaveTextContent("Compare");
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-dashed", "false");
+    expect(screen.getByTestId("journey-heading")).toHaveTextContent(verdictWords());
+    expect(screen.queryByRole("button", { name: /Compare with the RAV4/ })).toBeNull();
+  });
+
+  it("tapping the other path itself picks it too, and an unpriced offer asks to compare instead", async () => {
+    await enterWorkspace();
+    goFuture();
+    fireEvent.click(screen.getByTestId("road-hit-other")); // the dashed offer
+    await advance(0);
+    expect(state().comparison).not.toBeNull();
+    expect(destination("switch").textContent).toMatch(/\$[\d,]+/);
+    fireEvent.click(screen.getByTestId("road-hit-other")); // now it is the other future
+    expect(state().activeScenarioId).toBe(state().comparison!.keepId);
+  });
+
+  it("the selector beside the road switches your life, keeps the month, and the comparison follows it", async () => {
+    await openCompared(denver);
+    scrubTo(30);
+    const selector = screen.getByTestId("future-selector") as HTMLSelectElement;
+    expect([...selector.options].map((o) => o.textContent)).toEqual(["If nothing changes", "Move to Denver"]);
+
+    fireEvent.change(selector, { target: { value: "base" } });
+    const { keepId, replaceId } = state().comparison!;
+    expect(keepId).toBe("base");
+    expect(state().activeMonth).toBe(30);
+    expect(timeline()).toHaveAttribute("data-month", "30");
+    expect(selector.value).toBe("base");
+    // the road shows that life: nothing was said, so only the swap is on it
+    expect(eventMarkers().map((m) => m.getAttribute("data-event-id"))).toEqual([swapOf(replaceId).id]);
+    // and every figure on the page is that comparison's own
+    expect(destination("keep")).toHaveTextContent(usd(at("base", 60)));
+    expect(destination("switch")).toHaveTextContent(usd(at(replaceId, 60)));
+    expect(screen.getByTestId("journey-heading")).toHaveTextContent(verdictWords());
+    expect(screen.getByTestId("journey-difference")).toHaveTextContent(differenceWords());
+
+    fireEvent.change(selector, { target: { value: "base/12-move-to-denver" } });
+    expect(state().comparison!.keepId).toBe("base/12-move-to-denver");
+    expect(state().activeMonth).toBe(30);
+    expect(eventMarkers()).toHaveLength(2); // Denver and the swap
+  });
+});
+
+describe("the road's two branches", () => {
+  it("the switch leaves at the swap event's modeled month, and the swap's marker is there", async () => {
+    await openCompared(denver);
+    const { replaceId } = state().comparison!;
+    const swap = swapOf(replaceId);
+    expect(swap.month).toBe(12);
+    const path = screen.getByTestId("road-path-switch");
+    expect(path).toHaveAttribute("data-split-month", String(swap.month));
+    expect(path).toHaveAttribute("data-dashed", "false"); // it is priced now
+    expect(eventMarker(swap.id)).toHaveAttribute("data-month", String(swap.month));
+    expect(eventMarker(swap.id)).toHaveAttribute("data-on", "switch");
+    expect(screen.getByTestId("road-path-keep")).not.toHaveAttribute("data-split-month"); // keeping never leaves
+  });
+
+  it("a replacement in year one splits the paths in year one, at the same month as its marker and the car change", async () => {
+    await enterWorkspace();
+    confirm(family); // a second child in month 6: the simulation puts the swap there
+    goFuture();
+    const offerSplit = defaultSwapMonth();
+    expect(offerSplit).toBe(6);
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-split-month", "6"); // the offer already splits in year one
     await compareNow();
-    expect(within(screen.getByTestId("deep-dive")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Costs", "Why this result", "What could change", "Edit assumptions"]);
-    fireEvent.click(tab("costs"));
-    fireEvent.click(tab("why"));
-    expect(screen.queryByTestId("panel-costs")).toBeNull();
-    expect(within(screen.getByTestId("panel-why")).getByTestId("why-robustness").textContent).toMatch(/Held in \d+ of \d+ tested cases/);
-    expect(within(screen.getByTestId("panel-why")).getByTestId("why")).toBeInTheDocument();
-    fireEvent.click(tab("change"));
-    expect(screen.queryByTestId("panel-why")).toBeNull();
-    expect(state().breakEven).not.toBeNull(); // opening it ran the engine's break-even
-    expect(screen.getByTestId("panel-change")).toBeInTheDocument();
+    const swap = swapOf(state().comparison!.replaceId);
+    expect(swap.month).toBe(6);
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-split-month", "6");
+    expect(eventMarker(swap.id)).toHaveAttribute("data-month", "6");
+    expect(eventMarker(lifeIn(state().comparison!.keepId)[0].id)).toHaveAttribute("data-month", "6"); // the shared event is at the same month
+    scrubTo(5);
+    expect(document.querySelector('[data-slot="vehicle"]')).toHaveTextContent("2022 Camry SE");
+    scrubTo(6);
+    expect(document.querySelector('[data-slot="vehicle"]')).toHaveTextContent("2024 RAV4 Hybrid XLE");
   });
 
-  it("the robustness count is in Why this result and not on the front page", async () => {
-    await enterWorkspace();
-    goFuture();
-    await compareNow();
-    expect(screen.getByTestId("verdict").textContent).not.toMatch(/tested cases/);
-    fireEvent.click(tab("why"));
-    expect(screen.getByTestId("panel-why").textContent).toMatch(/tested cases/);
+  it("moving the replacement later moves the split with it, flags it, and nothing the person said moves", async () => {
+    await openCompared(denver);
+    const { replaceId } = state().comparison!;
+    const swapId = swapOf(replaceId).id;
+    const moveId = lifeIn(state().comparison!.keepId)[0].id;
+    act(() => state().actions.moveEvent(replaceId, swapId, 24));
+    expect(swapOf(state().comparison!.replaceId).month).toBe(24);
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-split-month", "24");
+    expect(eventMarker(swapId)).toHaveAttribute("data-month", "24");
+    expect(eventMarker(swapId)).toHaveAttribute("data-changed", "true");
+    expect(eventMarker(moveId)).toHaveAttribute("data-month", "12"); // what the person said stays where it was
+    expect(eventMarker(moveId)).toHaveAttribute("data-changed", "false");
+    scrubTo(23);
+    expect(document.querySelector('[data-slot="vehicle"]')).toHaveTextContent("2022 Camry SE");
+    scrubTo(24);
+    expect(document.querySelector('[data-slot="vehicle"]')).toHaveTextContent("2024 RAV4 Hybrid XLE");
+    expect(destination("switch")).toHaveTextContent(usd(at(replaceId, 60))); // priced from the moved swap
   });
 
-  it("Edit assumptions opens the drawer", async () => {
+  it("a swap cannot be moved before the month its future branches (the simulation keeps it there)", async () => {
+    await openCompared(denver);
+    const { replaceId } = state().comparison!;
+    act(() => state().actions.moveEvent(replaceId, swapOf(replaceId).id, 6));
+    expect(swapOf(replaceId).month).toBe(12);
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-split-month", "12");
+  });
+
+  it("an event the person said sits at the same month in both futures, whichever one is selected", async () => {
+    await openCompared(denver, mileage);
+    const { keepId, replaceId } = state().comparison!;
+    const lifeMonths = (id: string) => Object.fromEntries(lifeIn(id).map((e) => [e.id, e.month]));
+    expect(lifeMonths(replaceId)).toEqual(lifeMonths(keepId)); // the two futures hold the same events at the same months
+    const onRoad = () => Object.fromEntries(eventMarkers().filter((m) => m.getAttribute("data-on") !== "switch").map((m) => [m.getAttribute("data-event-id"), Number(m.getAttribute("data-month"))]));
+
+    fireEvent.click(destination("keep"));
+    const whileKeeping = onRoad();
+    fireEvent.click(destination("switch"));
+    expect(onRoad()).toEqual(whileKeeping);
+    expect(whileKeeping).toEqual(lifeMonths(keepId));
+    expect(eventMarkers()).toHaveLength(Object.keys(lifeMonths(keepId)).length + 1); // each once, plus the swap
+  });
+});
+
+describe("play and pause", () => {
+  const play = () => fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+  it("Play glides month by month, with the range input and the marker following, and rests on the event", async () => {
+    await openCompared(denver);
+    play();
+    expect(state().ui.playing).toBe(true);
+    expect(screen.getByRole("button", { name: "Pause" })).toHaveAttribute("aria-pressed", "true");
+    await advance(MS_PER_MONTH * 4);
+    const early = state().activeMonth;
+    expect(early).toBeGreaterThan(0);
+    expect(early).toBeLessThan(12);
+    expect(slider().value).toBe(String(early));
+    expect(marker()).toHaveAttribute("data-month", String(early));
+
+    // it lands on the event's month and stays a moment
+    for (let step = 0; step < 200 && state().activeMonth < 12; step++) await advance(50);
+    expect(state().activeMonth).toBe(12);
+    await advance(DWELL_MS / 2);
+    expect(state().activeMonth).toBe(12);
+    expect(state().ui.playing).toBe(true);
+    await advance(DWELL_MS);
+    expect(state().activeMonth).toBeGreaterThan(12);
+    expect(slider().value).toBe(String(state().activeMonth));
+  });
+
+  it("a manual move of the range input pauses it, and it stays where you put it", async () => {
+    await openCompared(denver);
+    play();
+    await advance(500);
+    scrubTo(40);
+    expect(state().ui.playing).toBe(false);
+    expect(screen.getByRole("button", { name: "Play" })).toHaveAttribute("aria-pressed", "false");
+    await advance(5_000);
+    expect(state().activeMonth).toBe(40);
+  });
+
+  it("choosing an event or the other future pauses it", async () => {
+    await openCompared(denver);
+    const moveId = lifeIn(state().comparison!.keepId)[0].id;
+    play();
+    await advance(300);
+    fireEvent.click(eventMarker(moveId));
+    expect(state().ui.playing).toBe(false);
+    expect(state().activeMonth).toBe(12);
+
+    play();
+    await advance(300);
+    expect(state().ui.playing).toBe(true);
+    fireEvent.click(destination("keep"));
+    expect(state().ui.playing).toBe(false);
+    const frozen = state().activeMonth;
+    await advance(3_000);
+    expect(state().activeMonth).toBe(frozen);
+  });
+
+  it("stops at month 60, the button goes back to Play, and Play again starts over", async () => {
+    await openCompared(denver);
+    play();
+    await advance(30_000);
+    expect(state().activeMonth).toBe(60);
+    expect(state().ui.playing).toBe(false);
+    expect(screen.getByRole("button", { name: "Play" })).toHaveAttribute("aria-pressed", "false");
+    expect(slider().value).toBe("60");
+    expect(marker()).toHaveAttribute("data-month", "60");
+
+    play();
+    expect(state().ui.playing).toBe(true);
+    expect(state().activeMonth).toBeLessThan(60);
+    await advance(MS_PER_MONTH * 3);
+    expect(state().activeMonth).toBeGreaterThan(0);
+  });
+
+  it("opening a drawer pauses it, and so does leaving the page", async () => {
+    await openCompared(denver);
+    play();
+    await advance(400);
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    expect(state().ui.drawer).toBe("costs");
+    expect(state().ui.playing).toBe(false);
+    const frozen = state().activeMonth;
+    await advance(3_000);
+    expect(state().activeMonth).toBe(frozen);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    play();
+    await advance(300);
+    expect(state().ui.playing).toBe(true);
+    goCar();
+    expect(state().ui.playing).toBe(false);
+  });
+});
+
+describe("Compare costs", () => {
+  it("opens the cost breakdown in a drawer: a labeled chart, a month slider, and a close button", async () => {
+    await openCompared(denver);
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    expect(state().ui.drawer).toBe("costs");
+    const dialog = screen.getByRole("dialog", { name: "Compare costs" });
+    expect(dialog).toHaveAttribute("data-open", "true");
+    expect(within(dialog).getByTestId("cost-chart")).toBeInTheDocument();
+    expect(within(dialog).getByTestId("cost-chart-xtitle")).toHaveTextContent("Years from now");
+    expect(within(dialog).getByTestId("cost-chart-ytitle")).toHaveTextContent("Net cost");
+    expect(within(dialog).getByRole("slider", { name: "Month" })).toBeInTheDocument();
+    expect(within(dialog).getAllByTestId("decision-effect").length).toBeGreaterThan(0); // what each change did to cost
+
+    // the five-year totals are the same ones as on the road
+    const { keepId, replaceId } = state().comparison!;
+    expect(within(dialog).getByTestId("five-year-keep")).toHaveTextContent(usd(at(keepId, 60)));
+    expect(within(dialog).getByTestId("five-year-switch")).toHaveTextContent(usd(at(replaceId, 60)));
+    expect(within(dialog).getByTestId("five-year-difference")).toHaveTextContent(differenceWords().replace(" over five years.", ""));
+
+    // there is one road on the page: the drawer does not draw another
+    expect(screen.getAllByTestId("journey-road")).toHaveLength(1);
+    expect(screen.getAllByTestId("road-path-keep")).toHaveLength(1);
+    expect(screen.queryByTestId("road")).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(state().ui.drawer).toBeNull();
+    expect(drawerPanel("Compare costs")).toHaveAttribute("data-open", "false");
+    expect(screen.getByTestId("cost-chart")).toBeInTheDocument(); // it stays while it slides away...
+    await advance(300);
+    expect(screen.queryByTestId("cost-chart")).toBeNull(); // ...and once shut it holds nothing
+  });
+
+  it("its month slider moves the page's clock, and its totals do not change", async () => {
+    await openCompared(denver);
+    const { keepId, replaceId } = state().comparison!;
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    const dialog = screen.getByRole("dialog", { name: "Compare costs" });
+    const monthSlider = within(dialog).getByRole("slider", { name: "Month" });
+    fireEvent.change(monthSlider, { target: { value: "24" } });
+
+    expect(state().activeMonth).toBe(24);
+    expect(slider().value).toBe("24"); // the road's own scrubber, behind the drawer
+    expect(marker()).toHaveAttribute("data-month", "24");
+    expect(within(dialog).getByTestId("cost-readout")).toHaveTextContent(`Net cost at ${monthLabel(24)}`);
+    const line = (kind: string) => within(dialog).getAllByTestId("cost-readout-line").find((l) => l.getAttribute("data-line") === kind)!;
+    expect(line("keep")).toHaveTextContent(usd(at(keepId, 24)));
+    expect(line("switch")).toHaveTextContent(usd(at(replaceId, 24)));
+    within(dialog).getAllByTestId("cost-readout-line").forEach((l) => expect(l.querySelector("[data-source]")).not.toBeNull());
+    expect(within(dialog).getByTestId("five-year-keep")).toHaveTextContent(usd(at(keepId, 60)));
+    expect(within(dialog).getByTestId("five-year-switch")).toHaveTextContent(usd(at(replaceId, 60)));
+    expect(destination("keep")).toHaveTextContent(usd(at(keepId, 60)));
+  });
+
+  it("before comparing, it says the switch is not priced and offers to price it", async () => {
     await enterWorkspace();
     goFuture();
-    fireEvent.click(tab("assumptions"));
-    expect(state().ui.detailsOpen).toBe(true);
-    expect(screen.getByRole("dialog", { name: "Edit assumptions" })).toHaveAttribute("data-open", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    const dialog = screen.getByRole("dialog", { name: "Compare costs" });
+    expect(within(dialog).getByTestId("costs-unpriced")).toHaveTextContent("The switch isn't priced yet.");
+    expect(within(dialog).getByTestId("five-year-keep")).toHaveTextContent(usd(at("base", 60)));
+    expect(within(dialog).queryByTestId("five-year-switch")).toBeNull();
+    expect(within(dialog).getByTestId("five-year-table").textContent!.match(/\$[\d,]+/g)).toEqual([usd(at("base", 60))]); // no invented figure for the switch
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /Compare with the RAV4/ }));
+    await advance(0);
+    expect(within(dialog).getByTestId("five-year-switch")).toHaveTextContent(usd(at(state().comparison!.replaceId, 60)));
+    expect(within(dialog).queryByTestId("costs-unpriced")).toBeNull();
+  });
+
+  it("Escape and the dim layer close it as well", async () => {
+    await openCompared(denver);
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(state().ui.drawer).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    fireEvent.click(screen.getByTestId("drawer-dim"));
+    expect(state().ui.drawer).toBeNull();
+  });
+});
+
+describe("the recommendation", () => {
+  it("shows the engine's tradeoff row by row, the robustness count, and what matters to the person", async () => {
+    await openCompared(denver);
+    fireEvent.click(screen.getByTestId("journey-heading"));
+    const dialog = screen.getByRole("dialog", { name: verdictWords() });
+    const content = within(dialog).getByTestId("recommendation-content");
+
+    // the rows are the engine's per priority scores, in words
+    const s = state();
+    const expected = buildTradeoff({
+      scores: s.scores,
+      evaluation: s.evaluation!,
+      keepId: s.comparison!.keepId,
+      replaceId: s.comparison!.replaceId,
+      keepName: `the ${s.twin!.vehicle.model}`,
+      switchName: `the ${s.replacementVehicle!.model}`,
+      priorities: s.explore.confirmedProfile.priorities,
+    });
+    expect(expected).not.toBeNull();
+    const rows = within(content).getAllByTestId("tradeoff-row");
+    expect(rows.map((r) => [r.getAttribute("data-factor"), r.getAttribute("data-leader")])).toEqual(expected!.rows.map((r) => [r.key, r.leader]));
+    expect(rows).toHaveLength(5);
+    expect(within(content).getByTestId("tradeoff-sentence")).toHaveTextContent(customerText(expected!.sentence));
+
+    // "Held in X of Y tested cases": a count, from the engine, never a percentage
+    const robust = robustnessLine(s.evaluation!)!;
+    expect(robust).toMatch(/^Held in \d+ of \d+ tested cases$/);
+    expect(within(content).getByTestId("recommendation-robustness")).toHaveTextContent(robust);
+    expect(content.textContent).not.toMatch(/\d\s*%/);
+    expect(within(content).getByTestId("priorities-words")).toHaveTextContent(prioritiesInWords(s.explore.confirmedProfile.priorities));
+    expect(within(content).getByTestId("recommendation-difference")).toHaveTextContent(differenceWords());
+  });
+
+  it("the robustness count and the tradeoff are behind the heading, not on the front page", async () => {
+    await openCompared(denver);
+    expect(screen.getByTestId("journey-header").textContent).not.toMatch(/tested cases/);
+    expect(screen.queryByTestId("tradeoff-rows")).toBeNull();
+    expect(screen.queryByTestId("recommendation-content")).toBeNull();
+  });
+
+  it("the next step line opens the same drawer, and one drawer at a time is open", async () => {
+    await openCompared(denver);
+    const next = screen.getByTestId("journey-next");
+    expect(next).toHaveTextContent(`Next: ${customerText(state().evaluation!.nextAction.label.trim())}`);
+    fireEvent.click(next);
+    expect(state().ui.drawer).toBe("recommendation");
+    const open = () => screen.getAllByRole("dialog").filter((d) => d.getAttribute("data-open") === "true");
+    expect(open().map((d) => d.getAttribute("aria-label"))).toEqual([verdictWords()]);
+
+    fireEvent.click(within(open()[0]).getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    expect(open().map((d) => d.getAttribute("aria-label"))).toEqual(["Compare costs"]);
   });
 });
 
@@ -415,33 +1092,251 @@ describe("when something does not work, it says so", () => {
 });
 
 describe("the answer fits the page", () => {
-  it("each section has one job, in order: the decision and its next step, the journey, then the deeper tabs", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(screen.getByRole("button", { name: /Compare with the 2024 RAV4/ }));
-    await advance(0);
-
-    const el = (id: string) => screen.getByTestId(id);
+  it("each part has one job, in order: the heading and its difference, the road, the scrubber, then the selected moment", async () => {
+    await openCompared(denver);
     const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(before(el("verdict-headline"), el("cost-keep"))).toBe(true); // the heading, then the numbers that explain it
-    expect(before(el("cost-keep"), el("why-sentence"))).toBe(true); // then why
-    expect(before(el("why-sentence"), el("next-step"))).toBe(true); // the next step directly beneath the recommendation
-    expect(before(el("next-step"), el("journey"))).toBe(true);
-    expect(before(el("journey"), el("deep-dive"))).toBe(true);
-    expect(el("verdict").contains(el("next-step"))).toBe(true);
-    // nothing deeper is on screen until asked for
-    expect(screen.queryByTestId("road")).toBeNull();
-    expect(screen.queryByTestId("panel-costs")).toBeNull();
+    const page = screen.getByTestId("future-view");
+    const heading = screen.getByRole("heading", { level: 1 });
+    const difference = screen.getByTestId("journey-difference");
+    const source = screen.getByTestId("journey-source");
+    const road = timeline();
+    const scrubber = screen.getByRole("region", { name: "Time scrubber" });
+    const card = screen.getByTestId("event-card");
+    expect(before(heading, difference)).toBe(true); // the call, then what it means in dollars
+    expect(before(difference, source)).toBe(true); // then where the dollars come from
+    expect(before(source, road)).toBe(true);
+    expect(before(road, scrubber)).toBe(true);
+    expect(before(scrubber, card)).toBe(true);
+    for (const el of [heading, difference, source, road, scrubber, card]) expect(page.contains(el)).toBe(true);
+    // the command bar is not part of the scrolling page: it is below it
+    expect(page.contains(screen.getByTestId("command-box"))).toBe(false);
+    expect(before(page, screen.getByTestId("command-box"))).toBe(true);
   });
 
-  it("the default screen is the verdict, both costs, the journey, the selected event and the next step", async () => {
+  it("nothing deeper is on screen until it is asked for", async () => {
+    await openCompared(denver);
+    for (const id of ["cost-chart", "tradeoff-rows", "recommendation-content", "explain-content", "costs-content", "five-year-table", "costs-panel", "panel-costs", "road"]) {
+      expect(screen.queryByTestId(id), id).toBeNull();
+    }
+    expect(screen.getAllByTestId("journey-road")).toHaveLength(1);
+    expect(state().ui.drawer).toBeNull();
+    expect(screen.queryByRole("complementary")).toBeNull();
+  });
+
+  it("the default screen is the call, both costs, the road, the scrubber and one line about the selected moment", async () => {
+    await openCompared(denver);
+    for (const id of ["journey-heading", "journey-difference", "journey-source", "journey-timeline", "time-marker", "event-card", "journey-next"]) {
+      expect(screen.getByTestId(id), id).toBeInTheDocument();
+    }
+    expect(screen.getAllByTestId("destination")).toHaveLength(2);
+    expect(slider()).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare costs" })).toBeInTheDocument();
+    expect(screen.getByTestId("event-card-sentence").textContent!.length).toBeGreaterThan(0);
+  });
+});
+
+describe("chat changes reach the whole page", () => {
+  beforeEach(() => {
+    // The plain rules read the sentence, so these run with the AI unavailable.
+    vi.spyOn(ai, "interpret").mockResolvedValue({ aiAvailable: false });
+  });
+
+  const sayInChat = async (text: string) => {
+    fireEvent.change(screen.getByPlaceholderText(/tell fork what's changing/i), { target: { value: text } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Submit changes" }));
+    });
+    await advance(0);
+  };
+  const branchTimeline = async () => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /branch timeline/i }));
+    });
+    await advance(0);
+  };
+
+  it("a second sentence updates the events, dates, costs and revision together, lights up what changed, then lets go", async () => {
+    await openCompared(denver);
+    const before = state().comparison!;
+    const moveId = lifeIn(before.keepId)[0].id;
+    fireEvent.click(eventMarker(moveId));
+    scrubTo(12);
+    const revision = state().revision;
+    const keepBefore = destination("keep").textContent;
+    const switchBefore = destination("switch").textContent;
+    expect(eventMarkers()).toHaveLength(2); // Denver and the swap
+
+    await sayInChat("I'm driving 30,000 miles annually and expecting my second child in 2029");
+    expect(state().explore.draftChanges).toHaveLength(2); // proposals only: nothing counts until it is confirmed
+    expect(eventMarkers()).toHaveLength(2);
+    expect(destination("keep").textContent).toBe(keepBefore);
+    await branchTimeline();
+
+    // the events, at the months the model gave them, named with their dates
+    const { keepId, replaceId } = state().comparison!;
+    const events = lifeIn(keepId);
+    expect(events.map((e) => e.type).sort()).toEqual(["family_change", "mileage_change", "relocation"]);
+    expect(eventMarkers()).toHaveLength(4); // three things said, and the swap
+    for (const e of events) {
+      expect(eventMarker(e.id)).toHaveAttribute("data-month", String(e.month));
+      expect(eventMarker(e.id)).toHaveAccessibleName(`${eventTitle(e)}, ${dateLabel(state().todayISO, e.month)}`);
+    }
+    expect(eventMarker(swapOf(replaceId).id)).toHaveAccessibleName(`Switch to the RAV4, ${dateLabel(state().todayISO, swapOf(replaceId).month)}`);
+    const child = events.find((e) => e.type === "family_change")!;
+    expect(child.month).toBe(32);
+    expect(eventMarker(child.id)).toHaveAccessibleName(`Second child, ${dateLabel(state().todayISO, 32)}`);
+
+    // the costs and the verdict are the new run's, and the revision moved with them
+    expect(state().revision).toBeGreaterThan(revision);
+    expect(destination("keep")).toHaveTextContent(usd(at(keepId, 60)));
+    expect(destination("switch")).toHaveTextContent(usd(at(replaceId, 60)));
+    expect(destination("keep").textContent).not.toBe(keepBefore);
+    expect(destination("switch").textContent).not.toBe(switchBefore);
+    expect(screen.getByTestId("journey-heading")).toHaveTextContent(verdictWords());
+    expect(screen.getByTestId("journey-difference")).toHaveTextContent(differenceWords());
+
+    // what was just added is flagged, and nothing else is
+    const added = state().lastChange!.eventIds;
+    expect(added).toHaveLength(2);
+    for (const m of eventMarkers()) expect(m).toHaveAttribute("data-changed", added.includes(m.getAttribute("data-event-id")!) ? "true" : "false");
+    await advance(2500);
+    for (const m of eventMarkers()) expect(m).toHaveAttribute("data-changed", "false");
+
+    // the selection that is still valid is kept: the event, the month and the future
+    expect(state().selectedEventId).toBe(moveId);
+    expect(eventMarker(moveId)).toHaveAttribute("aria-pressed", "true");
+    expect(state().activeMonth).toBe(12);
+    expect(screen.getByTestId("event-card-title")).toHaveTextContent("Move to Denver");
+    expect(destination("switch")).toHaveAttribute("aria-pressed", "true");
+    expect(state().ui.view).toBe("future");
+  });
+
+  it("a selected event that the new future no longer holds is not shown as selected", async () => {
+    await openCompared(denver);
+    const moveId = lifeIn(state().comparison!.keepId)[0].id;
+    fireEvent.click(eventMarker(moveId));
+    expect(screen.getByRole("region", { name: "Selected moment" })).toHaveAttribute("data-state", "event");
+    fireEvent.change(screen.getByTestId("future-selector"), { target: { value: "base" } }); // a life without the move
+    expect(screen.getByRole("region", { name: "Selected moment" })).toHaveAttribute("data-state", "moment");
+    expect(screen.queryByRole("button", { name: "Explain this" })).toBeNull();
+    expect(state().activeMonth).toBe(12); // the month is the one clock: it stays
+  });
+
+  it("while it is working out a change the page says Updating and keeps the five-year figures where they were", async () => {
+    await openCompared(denver);
+    const keep = destination("keep").textContent;
+    const sw = destination("switch").textContent;
+    expect(screen.getByTestId("journey-updating")).toHaveTextContent("");
+    act(() => useForkStore.setState({ ui: { ...state().ui, busy: "simulating" } }));
+    expect(screen.getByTestId("journey-updating")).toHaveTextContent("Updating");
+    expect(screen.getByTestId("event-card")).toHaveAttribute("data-updating", "true");
+    expect(document.querySelector('[data-slot="through"]')).toHaveTextContent("updating");
+    expect(destination("keep").textContent).toBe(keep);
+    expect(destination("switch").textContent).toBe(sw);
+    act(() => useForkStore.setState({ ui: { ...state().ui, busy: "idle" } }));
+    expect(screen.getByTestId("journey-updating")).toHaveTextContent("");
+    expect(screen.getByTestId("event-card")).toHaveAttribute("data-updating", "false");
+  });
+});
+
+describe("on a narrow screen", () => {
+  function narrow(width: number) {
+    const tall = makeFrame(width, true).height; // what the drawing is, so the pointer maps one to one
+    vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: width, bottom: tall, width, height: tall, toJSON: () => ({}) } as DOMRect);
+  }
+  const translateOf = (el: HTMLElement) => {
+    const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(el.style.transform);
+    return { x: Number(m?.[1]), y: Number(m?.[2]) };
+  };
+  const firstPoint = (d: string) => {
+    const m = /[ML] (-?[\d.]+) (-?[\d.]+)/.exec(d)!;
+    return { x: Number(m[1]), y: Number(m[2]) };
+  };
+
+  it("the road runs top to bottom, with time running down it, and every control still moves the one clock", async () => {
+    narrow(360);
+    await openCompared(denver, mileage);
+    const frame = makeFrame(360, true);
+    expect(timeline()).toHaveAttribute("data-orientation", "vertical");
+    expect(screen.getByTestId("journey-road").getAttribute("width")).toBe("360");
+
+    // time is the y axis: the marker, the split and each event sit at their month, down the page
+    expect(Number(marker().getAttribute("data-y"))).toBeCloseTo(timePos(frame, 0), 6);
+    scrubTo(40);
+    expect(Number(marker().getAttribute("data-y"))).toBeCloseTo(timePos(frame, 40), 6);
+    const { replaceId } = state().comparison!;
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-split-month", String(swapOf(replaceId).month));
+    expect(firstPoint(screen.getByTestId("road-path-switch").getAttribute("d")!).y).toBeCloseTo(timePos(frame, swapOf(replaceId).month), 1);
+    for (const e of [...lifeIn(state().comparison!.keepId), swapOf(replaceId)]) expect(translateOf(eventMarker(e.id)).y + 12).toBeCloseTo(timePos(frame, e.month), 6);
+
+    // it all fits across a phone, rather than being a shrunk desktop canvas
+    for (const el of [...screen.getAllByTestId("destination"), ...screen.getAllByTestId("event-label"), ...eventMarkers()]) {
+      const x = el.style.transform ? translateOf(el).x : Number(el.style.left.replace("px", ""));
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x + Number(el.style.width.replace("px", ""))).toBeLessThanOrEqual(360);
+    }
+
+    // dragging down the road, picking an event and playing all work the same
+    fireEvent.pointerDown(screen.getByTestId("road-hit"), { clientX: 200, clientY: timePos(frame, 25), pointerId: 1, button: 0, pointerType: "touch" });
+    expect(state().activeMonth).toBe(25);
+    expect(slider().value).toBe("25");
+    fireEvent.click(eventMarker(lifeIn(state().comparison!.keepId).find((e) => e.type === "relocation")!.id));
+    expect(state().activeMonth).toBe(12);
+    expect(Number(marker().getAttribute("data-y"))).toBeCloseTo(timePos(frame, 12), 6);
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByTestId("event-card")).toBeInTheDocument();
+    expect(screen.getByTestId("journey-heading")).toBeInTheDocument();
+  });
+
+  it("the drawers come up from the bottom as sheets", async () => {
+    narrow(360);
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("max-width"), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    await openCompared(denver);
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    expect(screen.getByRole("dialog", { name: "Compare costs" })).toHaveAttribute("data-placement", "bottom");
+  });
+
+  it("goes back to the wide road at desktop width, with the drawers at the side", async () => {
+    narrow(1280);
+    await openCompared(denver);
+    expect(timeline()).toHaveAttribute("data-orientation", "horizontal");
+    expect(Number(marker().getAttribute("data-y"))).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Compare costs" }));
+    expect(screen.getByRole("dialog", { name: "Compare costs" })).toHaveAttribute("data-placement", "right");
+  });
+});
+
+describe("the page and the command bar", () => {
+  it("the page ends above the command bar, whatever height the bar grows to", async () => {
+    const callbacks: Array<() => void> = [];
+    vi.stubGlobal("ResizeObserver", class { constructor(cb: () => void) { callbacks.push(cb); } observe() {} unobserve() {} disconnect() {} });
+    let barHeight = 0;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      // Only the bottom bar (the box that holds the command box) has a size in this test.
+      const isBar = this.firstElementChild?.getAttribute("data-testid") === "command-box";
+      const h = isBar ? barHeight : 0;
+      return { x: 0, y: 0, left: 0, top: 0, right: 0, bottom: h, width: 0, height: h, toJSON: () => ({}) } as DOMRect;
+    });
+    const refit = () => act(() => callbacks.forEach((cb) => cb()));
+
     await enterWorkspace();
     goFuture();
-    fireEvent.click(screen.getByRole("button", { name: /Compare with the 2024 RAV4/ }));
-    await advance(0);
-    for (const id of ["verdict-headline", "cost-keep", "cost-switch", "cost-difference", "winding-timeline", "step-detail", "next-step"]) {
-      expect(screen.getByTestId(id)).toBeInTheDocument();
-    }
+    const bar = screen.getByTestId("command-box").parentElement!;
+    barHeight = 210;
+    refit();
+    expect(bar.getBoundingClientRect().height).toBe(210);
+    expect(screen.getByTestId("future-view").style.bottom).toBe("210px");
+
+    // a proposal appears in the bar and it grows: the page gives up the same room
+    act(() => state().actions.addDraft(denver));
+    barHeight = 330;
+    refit();
+    expect(screen.getByTestId("future-view").style.bottom).toBe("330px");
+    // the bar and the page switch stay outside the scrolling page, after it
+    expect(screen.getByTestId("future-view").contains(screen.getByTestId("command-box"))).toBe(false);
+    expect(Boolean(screen.getByTestId("future-view").compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   });
 });
 
@@ -475,14 +1370,26 @@ describe("two pages, one stage", () => {
       fireEvent.click(screen.getByRole("button", { name: /branch timeline/i }));
     });
     expect(state().ui.view).toBe("future");
-    expect(screen.getByTestId("winding-timeline")).toBeInTheDocument();
-    // the move is a year out, so the path starts with where you are, then the move, then the choice
-    expect(screen.getAllByTestId("step-label").map((l) => l.textContent)).toEqual([
-      expect.stringContaining("Your 2022 Camry"),
-      expect.stringContaining("Move to Denver"),
-      expect.stringContaining("Your choice"),
-    ]);
-    expect(screen.getByTestId("step-title")).toHaveTextContent("Your 2022 Camry"); // the details open on the first step
+    expect(screen.getByTestId("journey-timeline")).toBeInTheDocument();
+    // the page opens on your next five years, at month 0, with nothing compared yet
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your next five years");
+    expect(state().activeMonth).toBe(0);
+    expect(slider().value).toBe("0");
+
+    // the move is a year out: on the road at that month, named with its date, and flagged as new
+    const keepId = state().activeScenarioId;
+    const [moved] = lifeIn(keepId);
+    expect(moved.month).toBe(12);
+    expect(eventMarkers()).toHaveLength(1);
+    expect(eventMarker(moved.id)).toHaveAccessibleName(`Move to Denver, ${dateLabel(state().todayISO, 12)}`);
+    expect(eventMarker(moved.id)).toHaveAttribute("data-month", "12");
+    expect(eventMarker(moved.id)).toHaveAttribute("data-changed", "true");
+    // keeping that future costs what the simulation says, and the other car is still only an offer
+    expect(destination("keep")).toHaveTextContent(usd(at(keepId, 60)));
+    expect(destination("switch").textContent).not.toContain("$");
+    expect(screen.getByTestId("road-path-switch")).toHaveAttribute("data-dashed", "true");
+    await advance(2500);
+    expect(eventMarker(moved.id)).toHaveAttribute("data-changed", "false"); // the highlight lets go
   });
 
   it("every control has an accessible name", async () => {
@@ -490,6 +1397,32 @@ describe("two pages, one stage", () => {
     goFuture();
     screen.getAllByRole("button").forEach((b) => expect(b).toHaveAccessibleName());
     screen.getAllByRole("tab").forEach((b) => expect(b).toHaveAccessibleName());
+  });
+
+  it("every control has an accessible name once the cars are compared, with each drawer open", async () => {
+    await openCompared(denver, mileage);
+    const named = () => {
+      for (const role of ["button", "tab", "slider", "combobox"] as const) screen.getAllByRole(role).forEach((el) => expect(el).toHaveAccessibleName());
+      screen.getAllByRole("dialog").forEach((el) => expect(el).toHaveAccessibleName());
+    };
+    named();
+    fireEvent.click(eventMarker(lifeIn(state().comparison!.keepId)[0].id));
+    named();
+    for (const drawer of ["explain", "costs", "recommendation"] as const) {
+      act(() => state().actions.openDrawer(drawer));
+      named();
+      act(() => state().actions.closeDrawer());
+    }
+  });
+
+  it("reads no build words and no dash, on the page or in any drawer", async () => {
+    await openCompared(denver, mileage);
+    fireEvent.click(eventMarker(lifeIn(state().comparison!.keepId)[0].id));
+    for (const drawer of [null, "explain", "costs", "recommendation"] as const) {
+      act(() => (drawer === null ? state().actions.closeDrawer() : state().actions.openDrawer(drawer)));
+      expect(everythingVisible(), String(drawer)).not.toMatch(/demo|data/i);
+      expect(everythingVisible(), String(drawer)).not.toContain(EM_DASH);
+    }
   });
 });
 
@@ -671,157 +1604,6 @@ describe("the specs after the car forms", () => {
   });
 });
 
-describe("the expanded timeline", () => {
-  const expandButton = () => screen.getByTestId("expand-timeline");
-  const confirmDenver = () =>
-    act(() => {
-      state().actions.addDraft(denver);
-      state().actions.confirmDrafts(state().explore.draftChanges.map((d) => d.id));
-    });
-
-  it("is a round button beside the heading, named for what it does", async () => {
-    await enterWorkspace();
-    goFuture();
-    expect(expandButton()).toHaveAccessibleName("Expand timeline");
-    expect(expandButton()).toHaveAttribute("aria-expanded", "false");
-    expect(expandButton()).toHaveAttribute("title", "Expand timeline");
-    expect(state().ui.futureExpanded).toBe(false);
-  });
-
-  it("expands the path to fill the page, with nothing else around it but its card", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    const normal = screen.getByTestId("winding-scroll").style.height;
-    fireEvent.click(expandButton());
-    expect(state().ui.futureExpanded).toBe(true);
-
-    const timeline = screen.getByTestId("winding-timeline");
-    expect(timeline).toHaveAttribute("data-expanded", "true");
-    expect(screen.getByTestId("winding-scroll").style.height).not.toBe(normal);
-    expect(screen.getByTestId("winding-scroll").style.height).toMatch(/100dvh/); // sized to the page, not to a fixed number
-
-    // the heading, the recommendation, the options row and the next step are put away
-    expect(screen.queryByTestId("future-heading")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
-    expect(screen.queryByTestId("next-step")).toBeNull();
-    // what stays: the path with its steps and card, the command bar, the page switch, and the way back
-    expect(screen.getAllByTestId("step").length).toBeGreaterThan(1);
-    expect(screen.getByTestId("step-detail")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/tell fork what's changing/i)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Future" })).toHaveAttribute("aria-selected", "true");
-    expect(expandButton()).toHaveAccessibleName("Collapse timeline");
-    expect(expandButton()).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByTestId("expanded-title")).toHaveTextContent("Move to Denver"); // which future you are looking at
-  });
-
-  it("is taller than the normal path, and the path swings further", async () => {
-    const { timelineHeight } = await import("@/ui/timeline/WindingTimeline");
-    expect(timelineHeight(false)).toBe("340px");
-    expect(timelineHeight(true)).toMatch(/100dvh/);
-  });
-
-  it("collapses back to exactly the page it came from", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    const html = () => screen.getByTestId("future-view").innerHTML.replace(/_r_[0-9a-z]+_/g, "_id_"); // React's generated ids differ after a remount
-    const before = html();
-    fireEvent.click(expandButton());
-    fireEvent.click(expandButton());
-    expect(state().ui.futureExpanded).toBe(false);
-    expect(screen.getByTestId("deep-dive")).toBeInTheDocument();
-    expect(screen.getByTestId("winding-timeline")).toHaveAttribute("data-expanded", "false");
-    expect(html()).toBe(before);
-  });
-
-  it("keeps the step you were on when it expands and collapses", async () => {
-    await enterWorkspace();
-    confirmDenver();
-    goFuture();
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
-    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
-    fireEvent.click(expandButton());
-    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
-    fireEvent.click(expandButton());
-    expect(screen.getByTestId("step-count")).toHaveTextContent("Your choice");
-  });
-
-  it("Escape collapses it, and does nothing when it is not expanded", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(state().ui.futureExpanded).toBe(false);
-    fireEvent.click(expandButton());
-    fireEvent.keyDown(window, { key: "ArrowLeft" });
-    expect(state().ui.futureExpanded).toBe(true);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(state().ui.futureExpanded).toBe(false);
-  });
-
-  it("Escape closes the details sheet first and leaves the timeline expanded", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(expandButton());
-    openDetails();
-    expect(state().ui.detailsOpen).toBe(true);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(state().ui.detailsOpen).toBe(false);
-    expect(state().ui.futureExpanded).toBe(true);
-    fireEvent.keyDown(window, { key: "Escape" }); // and the next one collapses it
-    expect(state().ui.futureExpanded).toBe(false);
-  });
-
-  it("collapses when you leave the future page, so it comes back normal", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(expandButton());
-    goCar();
-    expect(state().ui.futureExpanded).toBe(false);
-    goFuture();
-    expect(screen.getByTestId("deep-dive")).toBeInTheDocument();
-    expect(screen.getByTestId("winding-timeline")).toHaveAttribute("data-expanded", "false");
-  });
-
-  it("starting over, or opening another car, does not carry it along", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(expandButton());
-    act(() => state().actions.resetAll());
-    expect(state().ui.futureExpanded).toBe(false);
-    await act(async () => {
-      await state().actions.startFromSample("camry-2022-se");
-    });
-    expect(state().ui.futureExpanded).toBe(false);
-  });
-
-  it("works after comparing: both ways and the engine's word on them, with the verdict put away until you collapse", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(screen.getByRole("button", { name: /Explore the 2024 RAV4/ }));
-    await advance(0);
-    expect(screen.getByTestId("verdict")).toBeInTheDocument();
-    fireEvent.click(expandButton());
-    expect(screen.queryByTestId("verdict")).toBeNull();
-    expect(screen.getByTestId("expanded-title")).toHaveTextContent("Your options over five years");
-    expect(screen.getAllByTestId("fork-end")).toHaveLength(2);
-    fireEvent.click(expandButton());
-    expect(screen.getByTestId("verdict")).toBeInTheDocument();
-    expect(screen.getByTestId("next-step")).toBeInTheDocument();
-  });
-
-  it("keeps the command bar usable above the page, and reads no new words", async () => {
-    await enterWorkspace();
-    goFuture();
-    fireEvent.click(expandButton());
-    const text = document.body.textContent ?? "";
-    expect(text).not.toMatch(/demo|data/i);
-    expect(text).not.toContain("\u2014");
-    expect(screen.getByRole("button", { name: "Submit changes" })).toBeInTheDocument();
-  });
-});
-
 describe("the rider chips", () => {
   const dock = () => screen.getByTestId("rider-dock");
 
@@ -867,4 +1649,3 @@ describe("the rider chips", () => {
     expect(dock().textContent).not.toMatch(/demo|data/i);
   });
 });
-
