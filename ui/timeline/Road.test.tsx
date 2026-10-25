@@ -339,6 +339,21 @@ describe("other futures, only when asked", () => {
     }
   });
 
+  it("the source label shares a line with the dollar figure, so a label stays two lines tall and never crowds the next", async () => {
+    await enterWorkspace();
+    branch(MILES);
+    branch(KID);
+    act(() => actions().setFutureCompare(true));
+    render(<Road />);
+    for (const label of screen.getAllByTestId("road-future")) {
+      if (label.textContent!.includes("if nothing changes")) continue;
+      const badge = label.querySelector("[data-source]")!;
+      const line = badge.parentElement!;
+      expect(line.textContent).toMatch(/by 5 yr/); // the same element holds the figure and its label
+      expect(line.className).toMatch(/whitespace-nowrap/);
+    }
+  });
+
   it("their names never overlap, even when the roads end close together", async () => {
     await enterWorkspace();
     branch(MOVE); // no cost change: ends on the same line as the baseline

@@ -328,8 +328,11 @@ export function Road({ compact = false }: { compact?: boolean } = {}) {
               style={{ left: roadW + 18, top: spread[i], width: GUTTER - 28 }}
             >
               <span className={cn("block truncate text-[15px]", isActive && "font-medium")}>{s.name}</span>
-              <span className="block text-xs tabular-nums text-ink/50">{s.id === BASE_ID ? "if nothing changes" : `${signedUsd(end)} by 5 yr`}</span>
-              {s.id !== BASE_ID && <SourceBadge compact source={endSource} className="mt-0.5" />}
+              {/* The figure and its label share a line, so a label stays two lines tall and the fixed spacing still clears. */}
+              <span className="flex items-center gap-2 text-xs whitespace-nowrap tabular-nums text-ink/50">
+                {s.id === BASE_ID ? "if nothing changes" : `${signedUsd(end)} by 5 yr`}
+                {s.id !== BASE_ID && <SourceBadge compact source={endSource} />}
+              </span>
             </button>
           );
         })}
